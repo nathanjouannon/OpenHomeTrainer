@@ -9,10 +9,10 @@ Chaque question a une **hypothèse par défaut** : le développement peut avance
 | Q3 | Projet personnel, open source, ou produit commercial à terme ? | Personnel, avec possibilité d'ouverture publique ; aucun choix bloquant pour une commercialisation | Phase 2 |
 | Q4 | Licence du code ? | Propriétaire (dépôt privé) en attendant Q3 | Phase 2 |
 | Q5 | Ordinateur de référence pour les performances ? | MacBook Air M1 / PC portable avec GPU intégré récent, 1080p | Phase 0 |
-| Q6 | Quelle région réelle sert de base au premier monde virtuel ? | Une zone de moyenne montagne française (relief IGN précis), à choisir parmi 2–3 candidates lors du spike 3D | Phase 1 |
+| Q6 | ✅ Quelle région réelle sert de base au premier monde virtuel ? | **Tranché** : Préalpes françaises, sud d'un lac avec sa plaine et un col (zone 10 × 10 km centrée sur 45,80° N, 6,235° E), monde fictif « Val de Vérane » | — |
 | Q7 | Le multijoueur doit-il arriver avant le mode monde réel ? | Non : mode B (phase 3) puis multijoueur (phase 4), comme demandé (« monde réel dans un second temps ») | Phase 2 |
 | Q8 | Faut-il un compte dès le MVP ? | Non, local-first ; comptes en phase 2 | Phase 1 |
-| Q9 | Langues ? | FR + EN | Phase 1 |
+| Q9 | ✅ Langues ? | **Tranché** : FR + EN dès le MVP (langue du navigateur par défaut, modifiable dans les réglages) | — |
 | Q10 | ✅ Budget ? | **Tranché : 0 €** hors outil d'IA de développement (déjà payé). Pas d'API payante, pas d'achat d'assets ni d'hébergement payant ([ADR 0010](adr/0010-budget-zero-execution-locale.md)) | — |
 | Q11 | Street View : l'utiliser avec un quota journalier plafonné sous le palier gratuit (nécessite un compte Google Cloud avec facturation activée), ou y renoncer ? | Mapillary comme source principale ; Street View seulement si le plafonnement garantit 0 €, sinon abandonné | Phase 3 |
 | Q18 | ✅ Hébergement ? | **Tranché : local uniquement pour l'instant.** Un hébergement public (gratuit) sera une décision ultérieure, nécessaire pour le multijoueur en ligne | — |

@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@hrt/devices": "workspace:*",
+    "@hrt/drivetrain": "workspace:*",
     "@hrt/physics": "workspace:*",
+    "@hrt/recorder": "workspace:*",
+    "@hrt/route-engine": "workspace:*",
     "@hrt/shared": "workspace:*",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",

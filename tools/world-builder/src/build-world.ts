@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { buildLoopRoute, type Route, validateLoop } from '@hrt/route-engine';
+import { buildLoopRoute, type Route, validateLoop, type WorldManifest } from '@hrt/route-engine';
 import { DEM_ATTRIBUTION, fetchHeightmap, type Heightmap, heightAt } from './dem';
 import { renderPreview } from './preview';
 import { type Point, RoadPlanner, smoothClosed } from './road-planner';
@@ -29,34 +29,6 @@ interface WorldDesign {
   dem: { center: { lat: number; lon: number }; sizeM: number; samples: number; zoom: number };
   waterLevelM: number | null;
   loops: LoopSpec[];
-}
-
-/** Manifest read by the app (world.json). */
-export interface WorldManifest {
-  format: 'hrt-world/1';
-  id: string;
-  version: number;
-  name: { fr: string; en: string };
-  description: { fr: string; en: string };
-  heightmap: {
-    file: string;
-    sizeM: number;
-    samples: number;
-    minElevationM: number;
-    maxElevationM: number;
-  };
-  waterLevelM: number | null;
-  routes: {
-    id: string;
-    file: string;
-    name: { fr: string; en: string };
-    profile: LoopSpec['profile'];
-    lengthM: number;
-    ascentM: number;
-    maxGradePercent: number;
-  }[];
-  attribution: string[];
-  builtAt: string;
 }
 
 const ROOT = resolve(import.meta.dirname, '../../..');

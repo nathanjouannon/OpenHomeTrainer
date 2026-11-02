@@ -65,7 +65,7 @@ const PROTOCOL_VERSION = 0x20; // 2.0
 const PROFILE_VERSION = 2140; // 21.40
 
 export class FitWriter {
-  private buf = new Uint8Array(64 * 1024);
+  private buf: Uint8Array<ArrayBuffer> = new Uint8Array(64 * 1024);
   private view = new DataView(this.buf.buffer);
   private pos = HEADER_SIZE;
   private readonly defs = new Map<number, FitField[]>();
@@ -155,7 +155,7 @@ export class FitWriter {
   }
 
   /** Header + records + file CRC. */
-  finish(): Uint8Array {
+  finish(): Uint8Array<ArrayBuffer> {
     const dataSize = this.pos - HEADER_SIZE;
     this.ensure(2);
     const v = this.view;

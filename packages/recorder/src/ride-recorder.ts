@@ -122,7 +122,8 @@ export class RideRecorder {
     this.acc.power += input.powerW * dtS;
     this.acc.cadence += input.cadenceRpm * dtS;
     const t = this._samples.length + 1;
-    if (this.ridingS + 1e-9 < t) return null;
+    // Per-second accumulator (a global float sum of 0.05 s steps drifts over hours).
+    if (this.acc.dt + 1e-6 < 1) return null;
     const sample: RideSample = {
       t,
       ts: this.now(),
@@ -137,7 +138,7 @@ export class RideRecorder {
       gradePercent: input.gradePercent,
       gear: input.gear,
     };
-    this.acc = { dt: 0, power: 0, cadence: 0 };
+    this.acc = { dt: Math.max(0, this.acc.dt - 1), power: 0, cadence: 0 };
     this._samples.push(sample);
     this._header = {
       ...this._header,

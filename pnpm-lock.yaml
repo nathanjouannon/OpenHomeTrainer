@@ -38,9 +38,18 @@ importers:
       '@hrt/devices':
         specifier: workspace:*
         version: link:../../packages/devices
+      '@hrt/drivetrain':
+        specifier: workspace:*
+        version: link:../../packages/drivetrain
       '@hrt/physics':
         specifier: workspace:*
         version: link:../../packages/physics
+      '@hrt/recorder':
+        specifier: workspace:*
+        version: link:../../packages/recorder
+      '@hrt/route-engine':
+        specifier: workspace:*
+        version: link:../../packages/route-engine
       '@hrt/shared':
         specifier: workspace:*
         version: link:../../packages/shared

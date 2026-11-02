@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SimulatedHeartRateMonitor } from './simulated-heart-rate';
 import { SimulatedTrainer } from './simulated-trainer';
 import type { SensorReading } from './types';
 
@@ -47,5 +48,19 @@ describe('SimulatedTrainer', () => {
     for (let i = 0; i < 30; i++) t.tick();
     expect(t.tick().powerW).toBe(300);
     expect(t.log.all().at(-1)).toMatchObject({ dir: 'out', hex: '05 2c 01' });
+  });
+});
+
+describe('SimulatedHeartRateMonitor', () => {
+  it('drifts towards a heart rate that follows power', () => {
+    let power = 0;
+    const hrm = new SimulatedHeartRateMonitor(() => power, { restBpm: 60, maxBpm: 185, ftpW: 250 });
+    let r = hrm.tick(1);
+    for (let i = 0; i < 300; i++) r = hrm.tick(1);
+    const atRest = r.heartRateBpm ?? 0;
+    power = 250;
+    for (let i = 0; i < 300; i++) r = hrm.tick(1);
+    expect(atRest).toBeLessThan(85);
+    expect(r.heartRateBpm).toBeGreaterThan(170);
   });
 });

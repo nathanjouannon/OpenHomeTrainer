@@ -111,7 +111,7 @@ export function encodeRideFit(
   header: RideHeader,
   samples: readonly RideSample[],
   options: FitExportOptions = {},
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   if (header.status !== 'finished' || !header.stats) {
     throw new Error('Only finished rides can be exported');
   }

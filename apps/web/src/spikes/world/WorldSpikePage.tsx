@@ -14,7 +14,7 @@ import {
   Vector3,
 } from 'three';
 import { FixedStepLoop } from '../../sim/fixed-step-loop';
-import { FrameStats, type FrameStatsSnapshot } from './frame-stats';
+import { FrameStats, type FrameStatsSnapshot } from '../../world/frame-stats';
 import {
   buildRoadGeometry,
   buildRoadLoop,

@@ -1,4 +1,5 @@
 export * from './ble-log';
+export * from './ble-sensor';
 export * from './bytes';
 export * from './cadence';
 export * from './cps';
@@ -11,5 +12,6 @@ export * from './ftms/status';
 export * from './ftms/uuids';
 export * from './gatt-queue';
 export * from './hrs';
+export * from './simulated-heart-rate';
 export * from './simulated-trainer';
 export * from './types';

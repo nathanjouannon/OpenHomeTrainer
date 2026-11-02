@@ -51,11 +51,15 @@ Technique :
 
 ### Boucles du monde v1 (MVP)
 
-| Boucle | Longueur du tour | D+ par tour | Profil |
+Monde v1 : **Val de Vérane** (nom fictif), zone de **10 × 10 km** sur un relief réel des Préalpes (sud d'un lac, plaine et col ; centre 45,80° N, 6,235° E). Design : `content/worlds/world-1/world.json`, construit par `pnpm build-world`.
+
+Les tracés sont produits par un **planificateur de routes** (`tools/world-builder/src/road-planner.ts`) : plus court chemin A* sur le relief, avec une pénalité au-dessus d'une pente cible, ce qui crée automatiquement des lacets ; seuls quelques points de passage sont donnés à la main.
+
+| Boucle | Visé | Obtenu (tour) | Profil |
 |---|---|---|---|
-| Boucle du lac (plate) | ~12 km | < 80 m | Échauffement, récupération, intervalles réguliers |
-| Boucle des collines (vallonnée) | ~20 km | ~300 m | Bosses de 1 à 2 km |
-| Boucle du col (montagne) | ~30 km | ~700 m | Montée de ~10 km à 6–8 % (passages à 10 %), descente par un autre versant, retour par la vallée |
+| Boucle du lac (plate) | ~12 km, < 80 m | **9,2 km, 80 m**, pente max 5 % | Échauffement, récupération, intervalles réguliers |
+| Boucle des collines (vallonnée) | ~20 km, ~300 m | **17,7 km, 378 m**, pente max 9 % | Bosses, la plus longue : 3,3 km à 7,6 % |
+| Boucle du col (montagne) | ~30 km, ~700 m | **26,5 km, 865 m**, pente max 10 % | Montée de 7,5 km à 8,9 % par la vallée, descente en lacets vers le lac, retour par la rive |
 
 ## 4. Rendu
 
