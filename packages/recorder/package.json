@@ -1,0 +1,20 @@
+{
+  "name": "@hrt/recorder",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hrt/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@garmin/fitsdk": "^21.218.0",
+    "fake-indexeddb": "^6.2.7"
+  }
+}
