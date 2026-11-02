@@ -1,0 +1,60 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["**", "!**/*.md"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/shared/**", "packages/physics/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react": "Pure packages must not depend on React.",
+                  "react-dom": "Pure packages must not depend on React.",
+                  "three": "Pure packages must not depend on Three.js.",
+                  "@react-three/fiber": "Pure packages must not depend on React Three Fiber.",
+                  "@react-three/drei": "Pure packages must not depend on drei."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

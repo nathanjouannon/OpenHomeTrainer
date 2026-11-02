@@ -13,3 +13,6 @@ coverage/
 .env.*
 !.env.example
 *.log
+
+# Generated world assets (produced by tools/world-builder, kept out of git)
+apps/web/public/worlds/
