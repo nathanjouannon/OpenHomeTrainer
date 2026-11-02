@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Dependencies & builds
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+
+# Env & local data
+.env
+.env.*
+!.env.example
+*.log
