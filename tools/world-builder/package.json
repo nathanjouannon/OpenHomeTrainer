@@ -6,10 +6,12 @@
   "scripts": {
     "fetch-dem": "tsx src/fetch-dem.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build-world": "tsx src/build-world.ts"
   },
   "dependencies": {
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "@hrt/route-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/pngjs": "^6.0.5"

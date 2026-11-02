@@ -15,7 +15,8 @@
     "format": "biome check --write .",
     "verify": "biome check . && turbo run typecheck test",
     "fetch-dem": "pnpm --filter @hrt/world-builder fetch-dem",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "build-world": "pnpm --filter @hrt/world-builder build-world"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",

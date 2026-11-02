@@ -16,3 +16,6 @@ coverage/
 
 # Generated world assets (produced by tools/world-builder, kept out of git)
 apps/web/public/worlds/
+
+# World builder cache (downloaded DEM tiles)
+tools/world-builder/.cache/

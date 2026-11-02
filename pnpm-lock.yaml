@@ -124,6 +124,9 @@ importers:
 
   tools/world-builder:
     dependencies:
+      '@hrt/route-engine':
+        specifier: workspace:*
+        version: link:../../packages/route-engine
       pngjs:
         specifier: ^7.0.0
         version: 7.0.0

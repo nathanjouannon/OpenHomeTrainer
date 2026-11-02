@@ -1,0 +1,90 @@
+{
+  "id": "world-1",
+  "version": 1,
+  "name": {
+    "fr": "Val de Vérane",
+    "en": "Verane Valley"
+  },
+  "description": {
+    "fr": "Un lac de montagne, sa plaine et un col. Monde fictif construit sur un relief réel des Préalpes.",
+    "en": "A mountain lake, its plain and a pass. Fictional world built on real Pre-Alps terrain."
+  },
+  "dem": {
+    "center": {
+      "lat": 45.8,
+      "lon": 6.235
+    },
+    "sizeM": 10000,
+    "samples": 1025,
+    "zoom": 14
+  },
+  "waterLevelM": 444.6,
+  "loops": [
+    {
+      "id": "boucle-du-lac",
+      "name": {
+        "fr": "Boucle du lac",
+        "en": "Lake loop"
+      },
+      "profile": "flat",
+      "targetGradePercent": 3,
+      "maxGradePercent": 5,
+      "waypoints": [
+        [-1500, -3000],
+        [-2300, -2300],
+        [-2200, -1000],
+        [-1700, -500],
+        [-700, -700],
+        [-100, -1300],
+        [250, -2400],
+        [300, -3200]
+      ]
+    },
+    {
+      "id": "boucle-des-collines",
+      "name": {
+        "fr": "Boucle des collines",
+        "en": "Hills loop"
+      },
+      "profile": "rolling",
+      "targetGradePercent": 6,
+      "maxGradePercent": 9,
+      "waypoints": [
+        [-1500, -2200],
+        [-2300, -2300],
+        [-2500, -3400],
+        [-1250, -4100],
+        [-300, -2800],
+        [300, -4300],
+        [1300, -4100],
+        [1000, -2700],
+        [500, -2250],
+        [-300, -1600]
+      ]
+    },
+    {
+      "id": "boucle-du-col",
+      "name": {
+        "fr": "Boucle du col",
+        "en": "Pass loop"
+      },
+      "profile": "mountain",
+      "targetGradePercent": 7,
+      "maxGradePercent": 10,
+      "waypoints": [
+        [-700, -1100],
+        [250, -2000],
+        [1500, -3700],
+        [1950, -2000],
+        [1950, -500],
+        [1850, 400],
+        [750, 650],
+        [200, 2600],
+        [-1300, 4000],
+        [-700, 2800],
+        [-350, 1200],
+        [-350, -600]
+      ]
+    }
+  ]
+}
