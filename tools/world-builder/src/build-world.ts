@@ -28,6 +28,7 @@ interface WorldDesign {
   description: { fr: string; en: string };
   dem: { center: { lat: number; lon: number }; sizeM: number; samples: number; zoom: number };
   waterLevelM: number | null;
+  villages?: WorldManifest['villages'];
   loops: LoopSpec[];
 }
 
@@ -181,6 +182,7 @@ async function main() {
     },
     waterLevelM: water,
     routes: manifestRoutes,
+    villages: design.villages ?? [],
     attribution: [DEM_ATTRIBUTION],
     builtAt: new Date().toISOString(),
   };

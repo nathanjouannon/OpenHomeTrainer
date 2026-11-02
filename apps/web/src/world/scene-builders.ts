@@ -1,7 +1,6 @@
 // Three.js geometry builders for the world (terrain chunks, roads, trees).
 // Scene frame: X = east, Y = up (altitude − base), Z = south (= −north).
 
-import type { Route } from '@hrt/route-engine';
 import {
   BufferAttribute,
   BufferGeometry,
@@ -95,9 +94,28 @@ export function buildChunkGeometry(
   const colors = new Float32Array(vertexCount * 3);
   const uvs = new Float32Array(vertexCount * 2);
   const color = new Color();
+  // Coarse LODs skip samples: near a road, take the lowest sample of the
+  // skipped block so the coarse surface never rises above the asphalt.
+  const heightOf = (r: number, c: number) => {
+    const i = r * s + c;
+    if (step === 1 || !t.nearRoad) return t.heights[i] as number;
+    let min = t.heights[i] as number;
+    let near = t.nearRoad[i] === 1;
+    for (let dr = -step + 1; dr < step; dr++) {
+      for (let dc = -step + 1; dc < step; dc++) {
+        const rr = r + dr;
+        const cc = c + dc;
+        if (rr < 0 || cc < 0 || rr >= s || cc >= s) continue;
+        const j = rr * s + cc;
+        if (t.nearRoad[j]) near = true;
+        min = Math.min(min, t.heights[j] as number);
+      }
+    }
+    return near ? min : (t.heights[i] as number);
+  };
   const put = (v: number, r: number, c: number, drop: number) => {
     const i = r * s + c;
-    const z = t.heights[i] as number;
+    const z = heightOf(r, c);
     positions.set([-half + c * cell, z - baseElevation - drop, -half + r * cell], v * 3);
     norms.set(
       [normals[i * 3] as number, normals[i * 3 + 1] as number, normals[i * 3 + 2] as number],
@@ -105,7 +123,7 @@ export function buildChunkGeometry(
     );
     terrainColor(z, normals[i * 3 + 1] as number, i, waterLevel, color);
     colors.set([color.r, color.g, color.b], v * 3);
-    uvs.set([(c * cell) / 24, (r * cell) / 24], v * 2);
+    uvs.set([(c * cell) / 4, (r * cell) / 4], v * 2);
   };
   for (let j = 0; j < n; j++)
     for (let k = 0; k < n; k++) put(j * n + k, r0 + j * step, c0 + k * step, 0);
@@ -150,51 +168,30 @@ export function buildChunkGeometry(
 
 /** Grainy detail texture multiplied over the vertex colours. */
 export function terrainDetailTexture(): CanvasTexture {
+  // One tile = 4 × 4 m of meadow: short blades of varying brightness and hue,
+  // multiplied over the vertex colours (so it stays close to white).
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas unavailable');
-  const img = ctx.createImageData(size, size);
+  ctx.fillStyle = 'rgb(214,220,205)';
+  ctx.fillRect(0, 0, size, size);
   const rand = mulberry32(3);
-  for (let i = 0; i < size * size; i++) {
-    const v = 200 + rand() * 55;
-    img.data.set([v, v, v * 0.97, 255], i * 4);
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 9000; i++) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const l = 3 + rand() * 6;
+    const a = -Math.PI / 2 + (rand() - 0.5) * 0.9;
+    const v = 150 + rand() * 105;
+    ctx.strokeStyle = `rgb(${v * (0.92 + rand() * 0.12)},${v},${v * (0.8 + rand() * 0.12)})`;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    ctx.stroke();
   }
-  ctx.putImageData(img, 0, 0);
-  const tex = new CanvasTexture(canvas);
-  tex.wrapS = RepeatWrapping;
-  tex.wrapT = RepeatWrapping;
-  tex.colorSpace = SRGBColorSpace;
-  return tex;
-}
-
-export const ROAD_WIDTH_M = 6.5;
-/** Length of one repetition of the road texture (dash + gap), m. */
-const ROAD_TEXTURE_LENGTH_M = 12;
-
-/** Asphalt with edge lines and a dashed centre line. */
-export function roadTexture(): CanvasTexture {
-  const w = 128;
-  const h = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D canvas unavailable');
-  ctx.fillStyle = '#4a4a4d';
-  ctx.fillRect(0, 0, w, h);
-  const rand = mulberry32(11);
-  for (let i = 0; i < 4000; i++) {
-    const v = 55 + rand() * 40;
-    ctx.fillStyle = `rgb(${v},${v},${v + 2})`;
-    ctx.fillRect(rand() * w, rand() * h, 1.5, 1.5);
-  }
-  ctx.fillStyle = '#e8e8e0';
-  ctx.fillRect(5, 0, 4, h);
-  ctx.fillRect(w - 9, 0, 4, h);
-  ctx.fillRect(w / 2 - 2, 0, 4, h * 0.45);
   const tex = new CanvasTexture(canvas);
   tex.wrapS = RepeatWrapping;
   tex.wrapT = RepeatWrapping;
@@ -207,68 +204,54 @@ export function roadTexture(): CanvasTexture {
 export const toScene = (x: number, y: number, z: number, base: number, out = new Vector3()) =>
   out.set(x, z - base, -y);
 
-/** Ribbon mesh following a route, closed at the line for a loop. */
-export function buildRoadGeometry(
-  route: Route,
-  base: number,
-  widthM = ROAD_WIDTH_M,
-): BufferGeometry {
-  const n = route.pointCount;
-  const count = route.loop ? n + 1 : n;
-  const positions = new Float32Array(count * 2 * 3);
-  const uvs = new Float32Array(count * 2 * 2);
-  const normals = new Float32Array(count * 2 * 3);
-  for (let k = 0; k < count; k++) {
-    const i = k % n;
-    const hd = route.heading[i] as number;
-    // Right of the direction of travel: heading + 90°.
-    const rx = Math.cos(hd) * (widthM / 2);
-    const ry = -Math.sin(hd) * (widthM / 2);
-    const x = route.x[i] as number;
-    const y = route.y[i] as number;
-    const z = (route.z[i] as number) - base + 0.04;
-    positions.set([x - rx, z, -(y - ry), x + rx, z, -(y + ry)], k * 6);
-    const d = k === n ? route.lengthM : (route.d[i] as number);
-    const v = d / ROAD_TEXTURE_LENGTH_M;
-    uvs.set([0, v, 1, v], k * 4);
-    normals.set([0, 1, 0, 0, 1, 0], k * 6);
-  }
-  const indices: number[] = [];
-  for (let k = 0; k < count - 1; k++) {
-    const a = k * 2;
-    const b = (k + 1) * 2;
-    // Counter-clockwise seen from above.
-    indices.push(a, a + 1, b, a + 1, b + 1, b);
-  }
-  const g = new BufferGeometry();
-  g.setAttribute('position', new BufferAttribute(positions, 3));
-  g.setAttribute('uv', new BufferAttribute(uvs, 2));
-  g.setAttribute('normal', new BufferAttribute(normals, 3));
-  g.setIndex(indices);
-  g.computeBoundingSphere();
-  return g;
-}
-
-/** Tree models: one merged geometry per kind, coloured with vertex colours. */
+/**
+ * Tree models: one merged geometry per kind, with vertex colours (darker
+ * towards the bottom, a cheap ambient occlusion) and jittered vertices so the
+ * crowns look organic rather than geometric.
+ */
 export function treeGeometries(): { conifer: BufferGeometry; broadleaf: BufferGeometry } {
-  const paint = (g: BufferGeometry, hex: string) => {
+  const rand = mulberry32(17);
+  const shade = (g: BufferGeometry, hex: string, jitter: number) => {
+    const geometry = g.index ? g.toNonIndexed() : g;
+    const pos = geometry.getAttribute('position');
     const c = new Color(hex);
-    const count = g.getAttribute('position').count;
-    const colors = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) colors.set([c.r, c.g, c.b], i * 3);
-    g.setAttribute('color', new BufferAttribute(colors, 3));
-    return g.index ? g.toNonIndexed() : g;
+    const colors = new Float32Array(pos.count * 3);
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    const minY = box?.min.y ?? 0;
+    const spanY = Math.max(0.01, (box?.max.y ?? 1) - minY);
+    // Same displacement for vertices at the same place, so faces stay closed.
+    const offsets = new Map<string, [number, number, number]>();
+    for (let i = 0; i < pos.count; i++) {
+      const key = `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
+      let o = offsets.get(key);
+      if (!o) {
+        o = [(rand() - 0.5) * jitter, (rand() - 0.5) * jitter, (rand() - 0.5) * jitter];
+        offsets.set(key, o);
+      }
+      const k = 0.6 + 0.4 * ((pos.getY(i) - minY) / spanY);
+      pos.setXYZ(i, pos.getX(i) + o[0], pos.getY(i) + o[1], pos.getZ(i) + o[2]);
+      colors.set([c.r * k, c.g * k, c.b * k], i * 3);
+    }
+    geometry.setAttribute('color', new BufferAttribute(colors, 3));
+    geometry.deleteAttribute('uv');
+    return geometry;
   };
   const trunk = () =>
-    paint(new CylinderGeometry(0.15, 0.25, 3, 5, 1, true).translate(0, 1.5, 0), '#4a3524');
+    shade(new CylinderGeometry(0.14, 0.26, 3.2, 6, 1, true).translate(0, 1.6, 0), '#5a4330', 0);
   const conifer = mergeGeometries([
     trunk(),
-    paint(new ConeGeometry(2.1, 5, 7, 1, true).translate(0, 4.5, 0), '#ffffff'),
-    paint(new ConeGeometry(1.5, 4, 7, 1, true).translate(0, 7, 0), '#ffffff'),
+    shade(new ConeGeometry(2.3, 3.6, 9, 1, true).translate(0, 3.4, 0), '#ffffff', 0.35),
+    shade(new ConeGeometry(1.9, 3.3, 9, 1, true).translate(0, 5.1, 0), '#ffffff', 0.3),
+    shade(new ConeGeometry(1.45, 3, 8, 1, true).translate(0, 6.7, 0), '#ffffff', 0.25),
+    shade(new ConeGeometry(0.9, 2.4, 7, 1, true).translate(0, 8.2, 0), '#ffffff', 0.15),
   ]);
   const broadleaf = mergeGeometries([
     trunk(),
-    paint(new IcosahedronGeometry(2.6, 0).scale(1, 0.85, 1).translate(0, 5, 0), '#ffffff'),
+    shade(new IcosahedronGeometry(2.2, 0).scale(1.1, 0.85, 1).translate(0, 4.6, 0), '#ffffff', 0.7),
+    shade(new IcosahedronGeometry(1.7, 0).translate(1.2, 5.6, 0.4), '#ffffff', 0.5),
+    shade(new IcosahedronGeometry(1.6, 0).translate(-1.0, 5.4, -0.7), '#ffffff', 0.5),
+    shade(new IcosahedronGeometry(1.5, 0).translate(0.1, 6.6, 0.2), '#ffffff', 0.45),
   ]);
   if (!conifer || !broadleaf) throw new Error('Could not build tree geometries');
   conifer.computeVertexNormals();

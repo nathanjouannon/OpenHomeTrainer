@@ -31,8 +31,8 @@ export interface Settings {
   reduceMotion: boolean;
 }
 
-export type CameraMode = 'chase' | 'first-person' | 'side' | 'drone';
-export const CAMERA_MODES: CameraMode[] = ['chase', 'first-person', 'side', 'drone'];
+export type CameraMode = 'pov' | 'chase' | 'side' | 'drone';
+export const CAMERA_MODES: CameraMode[] = ['pov', 'chase', 'side', 'drone'];
 
 /** Drag area by bike type and riding position (docs/04 §2). */
 export const CDA_BY_BIKE: Record<BikeType, number> = {
@@ -63,7 +63,7 @@ export const defaultSettings = (): Settings => ({
   virtualShifting: true,
   drivetrainPreset: DEFAULT_PRESET_ID,
   powerSource: 'trainer',
-  camera: 'chase',
+  camera: 'pov',
   hudSize: 'M',
   reduceMotion: false,
 });
@@ -76,6 +76,8 @@ function load(): Settings {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaults;
     const saved = JSON.parse(raw) as Partial<Settings>;
+    // Older settings: the first-person camera became the POV camera.
+    if (!CAMERA_MODES.includes(saved.camera as CameraMode)) delete saved.camera;
     return { ...defaults, ...saved, profile: { ...defaults.profile, ...saved.profile } };
   } catch {
     return defaults;

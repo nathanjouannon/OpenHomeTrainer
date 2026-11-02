@@ -14,6 +14,8 @@ import {
   LOD,
   Mesh,
   MeshStandardMaterial,
+  type Object3D,
+  type PerspectiveCamera,
   PlaneGeometry,
   SRGBColorSpace,
   Vector3,
@@ -21,19 +23,28 @@ import {
 import type { CameraMode, Quality } from '../store/settings';
 import { Rider, type RiderHandle } from './Rider';
 import {
+  asphaltTextures,
+  buildAsphalt,
+  buildShoulders,
+  buildSidewalks,
+  curbTexture,
+  gravelTexture,
+  ROAD_WIDTH_M,
+  sidewalkTexture,
+} from './road-builders';
+import { Settlements3D, Traffic } from './Settlements3D';
+import {
   batchTrees,
   buildChunkGeometry,
-  buildRoadGeometry,
   CHUNKS_PER_SIDE,
   LOD_STEPS,
-  ROAD_WIDTH_M,
-  roadTexture,
   type TreeBatch,
   terrainDetailTexture,
   terrainNormals,
   toScene,
   treeGeometries,
 } from './scene-builders';
+import { generateSettlements, type Settlements } from './settlements';
 import { placeTrees, type WorldData } from './world-data';
 
 const TREES_BY_QUALITY: Record<Quality, number> = { low: 25_000, medium: 60_000, high: 110_000 };
@@ -45,7 +56,13 @@ const LANE_OFFSET_M = 1.3;
 export interface BuiltWorld {
   base: number;
   chunks: BufferGeometry[][];
-  roads: Map<string, BufferGeometry>;
+  roads: {
+    asphalt: BufferGeometry[];
+    shoulders: BufferGeometry[];
+    sidewalks: BufferGeometry[];
+    curbs: BufferGeometry[];
+  };
+  settlements: Settlements;
   trees: TreeBatch[];
   treeGeometries: ReturnType<typeof treeGeometries>;
 }
@@ -69,10 +86,23 @@ export async function buildWorldScene(
     // Let the loading screen repaint.
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
-  const roads = new Map([...world.routes.values()].map((r) => [r.id, buildRoadGeometry(r, base)]));
-  const trees = batchTrees(placeTrees(world, TREES_BY_QUALITY[quality]), t, base);
+  const routes = [...world.routes.values()];
+  const settlements = generateSettlements(t, routes, world.manifest.villages ?? [], water);
+  const roads: BuiltWorld['roads'] = { asphalt: [], shoulders: [], sidewalks: [], curbs: [] };
+  for (const r of routes) {
+    roads.asphalt.push(buildAsphalt(r, base));
+    roads.shoulders.push(...buildShoulders(r, base));
+  }
+  for (const span of settlements.spans) {
+    const r = world.routes.get(span.routeId);
+    if (!r) continue;
+    const { tops, curbs } = buildSidewalks(r, base, span);
+    roads.sidewalks.push(...tops);
+    roads.curbs.push(...curbs);
+  }
+  const trees = batchTrees(placeTrees(world, TREES_BY_QUALITY[quality], 7, settlements), t, base);
   onProgress(1);
-  return { base, chunks, roads, trees, treeGeometries: treeGeometries() };
+  return { base, chunks, roads, settlements, trees, treeGeometries: treeGeometries() };
 }
 
 export interface RideView {
@@ -138,6 +168,7 @@ function Scene({
   );
   const base = built.base;
   const fogColor = '#c3d3e2';
+  const riderDistance = useMemo(() => () => view().distanceM, [view]);
 
   useFrame((state, delta) => {
     onFrame?.(delta, state.gl.info.render);
@@ -154,7 +185,17 @@ function Scene({
       g.lookAt(tmp.target);
     }
     rider.current?.animate(Math.min(delta, 0.1), v.cadenceRpm, v.speedMs, v.powerW);
-    placeCamera(camera, state.camera, tmp, delta, reduceMotion, route, d, base);
+    placeCamera(
+      camera,
+      state.camera as PerspectiveCamera,
+      tmp,
+      delta,
+      reduceMotion,
+      route,
+      d,
+      base,
+      g ?? null,
+    );
   });
 
   return (
@@ -176,6 +217,13 @@ function Scene({
         <Water level={world.manifest.waterLevelM - base} size={world.terrain.sizeM} />
       )}
       <Trees built={built} quality={quality} />
+      <Settlements3D settlements={built.settlements} routes={world.routes} base={base} />
+      <Traffic
+        route={route}
+        settlements={built.settlements}
+        base={base}
+        riderDistance={riderDistance}
+      />
       <StartArch route={route} base={base} />
       <Rider ref={rider} />
     </>
@@ -196,9 +244,13 @@ function riderPose(
   dir.set(ahead.x - p.x, ahead.z - p.z, -(ahead.y - p.y)).normalize();
 }
 
+/** POV: eyes of the rider (bike frame), looking down enough to see the hoods. */
+const POV_EYE = new Vector3(0, 1.43, 0.06);
+const POV_PITCH = -0.36;
+
 function placeCamera(
   mode: CameraMode,
-  cam: import('three').Camera,
+  cam: PerspectiveCamera,
   tmp: {
     pos: Vector3;
     dir: Vector3;
@@ -213,8 +265,29 @@ function placeCamera(
   route: Route,
   d: number,
   base: number,
+  riderGroup: Object3D | null,
 ) {
   const { pos, dir, right, desired, look } = tmp;
+  // The rider's head and torso (layer 1) are hidden in the POV view.
+  if (mode === 'pov') cam.layers.disable(1);
+  else cam.layers.enable(1);
+  const fov = mode === 'pov' ? 80 : 62;
+  if (cam.fov !== fov) {
+    cam.fov = fov;
+    cam.updateProjectionMatrix();
+  }
+  if (mode === 'pov' && riderGroup) {
+    // Rigidly attached to the bike: no lag between the bars and the view.
+    const bob = reduceMotion ? 0 : Math.sin(tmp.t * 8.5) * 0.006;
+    riderGroup.updateMatrixWorld();
+    cam.position
+      .copy(POV_EYE)
+      .setY(POV_EYE.y + bob)
+      .applyMatrix4(riderGroup.matrixWorld);
+    look.set(0, POV_EYE.y + Math.tan(POV_PITCH) * 10, 10).applyMatrix4(riderGroup.matrixWorld);
+    cam.lookAt(look);
+    return;
+  }
   let stiffness = 5;
   if (mode === 'chase') {
     // Look ahead along the road so the camera anticipates the bends.
@@ -223,12 +296,6 @@ function placeCamera(
     look.y += 1.0;
     desired.copy(pos).addScaledVector(dir, -6.5);
     desired.y = Math.max(desired.y, pos.y) + 2.4;
-  } else if (mode === 'first-person') {
-    desired.copy(pos).addScaledVector(dir, 0.25);
-    desired.y += 1.62 + (reduceMotion ? 0 : Math.sin(tmp.t * 9) * 0.01);
-    look.copy(desired).addScaledVector(dir, 20);
-    look.y -= 1.2;
-    stiffness = 30;
   } else if (mode === 'side') {
     desired.copy(pos).addScaledVector(right, 7).addScaledVector(dir, 1.5);
     desired.y += 1.4;
@@ -280,21 +347,43 @@ function Terrain({ built }: { built: BuiltWorld }) {
 }
 
 function Roads({ built }: { built: BuiltWorld }) {
-  const material = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        map: roadTexture(),
-        roughness: 0.85,
-        polygonOffset: true,
-        polygonOffsetFactor: -4,
-        polygonOffsetUnits: -4,
+  const mats = useMemo(() => {
+    const { map, bump } = asphaltTextures();
+    // Drawn over the terrain and shoulders when they are at the same depth.
+    const offset = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
+    return {
+      asphalt: new MeshStandardMaterial({
+        map,
+        bumpMap: bump,
+        bumpScale: 0.6,
+        roughness: 0.92,
+        ...offset,
       }),
-    [],
-  );
+      gravel: new MeshStandardMaterial({
+        map: gravelTexture(),
+        roughness: 1,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
+      sidewalk: new MeshStandardMaterial({ map: sidewalkTexture(), roughness: 0.9, ...offset }),
+      curb: new MeshStandardMaterial({ map: curbTexture(), roughness: 0.8, side: DoubleSide }),
+    };
+  }, []);
+  const r = built.roads;
   return (
     <>
-      {[...built.roads.entries()].map(([id, geometry]) => (
-        <mesh key={id} geometry={geometry} material={material} />
+      {r.asphalt.map((g) => (
+        <mesh key={g.uuid} geometry={g} material={mats.asphalt} />
+      ))}
+      {r.shoulders.map((g) => (
+        <mesh key={g.uuid} geometry={g} material={mats.gravel} />
+      ))}
+      {r.sidewalks.map((g) => (
+        <mesh key={g.uuid} geometry={g} material={mats.sidewalk} />
+      ))}
+      {r.curbs.map((g) => (
+        <mesh key={g.uuid} geometry={g} material={mats.curb} />
       ))}
     </>
   );
@@ -439,7 +528,7 @@ export function useDisposeOnUnmount(built: BuiltWorld | null) {
     () => () => {
       if (!built) return;
       for (const levels of built.chunks) for (const g of levels) g.dispose();
-      for (const g of built.roads.values()) g.dispose();
+      for (const list of Object.values(built.roads)) for (const g of list) g.dispose();
     },
     [built],
   );

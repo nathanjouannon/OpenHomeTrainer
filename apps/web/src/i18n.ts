@@ -149,7 +149,7 @@ const fr = {
   'settings.data': 'Données',
   'settings.errorLog': 'Télécharger le journal d’erreurs',
   'camera.chase': 'Poursuite',
-  'camera.first-person': 'Première personne',
+  'camera.pov': 'POV (guidon)',
   'camera.side': 'Latérale',
   'camera.drone': 'Drone',
 } as const;
@@ -302,7 +302,7 @@ const en: Record<MessageKey, string> = {
   'settings.data': 'Data',
   'settings.errorLog': 'Download the error log',
   'camera.chase': 'Chase',
-  'camera.first-person': 'First person',
+  'camera.pov': 'POV (handlebars)',
   'camera.side': 'Side',
   'camera.drone': 'Drone',
 };

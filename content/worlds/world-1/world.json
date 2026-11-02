@@ -19,6 +19,38 @@
     "zoom": 14
   },
   "waterLevelM": 444.6,
+  "villages": [
+    {
+      "id": "verane",
+      "name": "Vérane",
+      "center": [-1700, -650],
+      "radiusM": 420
+    },
+    {
+      "id": "saint-ours",
+      "name": "Saint-Ours",
+      "center": [-650, -1050],
+      "radiusM": 260
+    },
+    {
+      "id": "les-granges",
+      "name": "Les Granges",
+      "center": [250, -2500],
+      "radiusM": 330
+    },
+    {
+      "id": "montverane",
+      "name": "Montvérane",
+      "center": [1950, -1200],
+      "radiusM": 300
+    },
+    {
+      "id": "port-verane",
+      "name": "Port-Vérane",
+      "center": [-800, 3200],
+      "radiusM": 320
+    }
+  ],
   "loops": [
     {
       "id": "boucle-du-lac",

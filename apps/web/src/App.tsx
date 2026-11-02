@@ -32,6 +32,7 @@ export function App() {
             worldId={worldId}
             routeId={routeId}
             goal={query.get('goal')}
+            devView={{ atM: Number(query.get('at')) || 0, camera: query.get('camera') }}
           />
         </Suspense>
       );

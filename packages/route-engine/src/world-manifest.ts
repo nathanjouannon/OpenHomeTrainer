@@ -25,6 +25,8 @@ export interface WorldManifest {
     ascentM: number;
     maxGradePercent: number;
   }[];
+  /** Built-up areas along the roads (houses, sidewalks, street lamps…). */
+  villages?: { id: string; name: string; center: [number, number]; radiusM: number }[];
   attribution: string[];
   builtAt: string;
 }

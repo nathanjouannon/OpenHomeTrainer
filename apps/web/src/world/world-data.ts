@@ -2,6 +2,7 @@
 // Frame: x east, y north, z altitude (m). The heightmap row 0 is the north edge.
 
 import { Route, type RouteJson, type WorldManifest } from '@hrt/route-engine';
+import type { Settlements } from './settlements';
 
 export interface Terrain {
   sizeM: number;
@@ -9,7 +10,12 @@ export interface Terrain {
   /** Absolute altitudes (m), modified along the roads. */
   heights: Float32Array;
   minElevationM: number;
+  /** 1 where a sample was lowered for a road (coarse LODs keep these low). */
+  nearRoad?: Uint8Array;
 }
+
+/** The ground under the road and its shoulders is sunk this much under the asphalt. */
+export const ROAD_SINK_M = 0.6;
 
 export interface WorldData {
   manifest: WorldManifest;
@@ -81,9 +87,11 @@ export async function loadWorld(
 }
 
 /**
- * Lays the terrain under the roads: fully flat (a few cm under the asphalt)
- * within the road width plus one grid cell, blended back to the natural ground
- * over `falloffM` (cuts and embankments).
+ * Lays the terrain under the roads: flat and sunk ROAD_SINK_M under the
+ * asphalt within the road width plus one grid cell (the gravel shoulders hide
+ * the step), blended back to the natural ground over `falloffM` (cuts and
+ * embankments). Sinking it matters: the terrain grid is coarser than the road,
+ * so a flat terrain exactly at road level pokes through on bends and slopes.
  */
 export function flattenAlongRoutes(
   t: Terrain,
@@ -130,14 +138,19 @@ export function flattenAlongRoutes(
       }
     }
   }
+  const nearRoad = new Uint8Array(s * s);
   for (let i = 0; i < s * s; i++) {
     const dist = bestDist[i] as number;
     if (dist >= falloff) continue;
+    nearRoad[i] = 1;
     const w = dist <= fullM ? 1 : 1 - (dist - fullM) / (falloff - fullM);
     const smooth = w * w * (3 - 2 * w);
     const h = t.heights[i] as number;
-    t.heights[i] = h + ((target[i] as number) - 0.15 - h) * smooth;
+    const flat = (target[i] as number) - ROAD_SINK_M;
+    // Never raise the ground next to a road above the sunk level (no grass on the asphalt).
+    t.heights[i] = dist <= fullM ? flat : h + (flat - h) * smooth;
   }
+  t.nearRoad = nearRoad;
 }
 
 /** Small seeded PRNG: the same seed always gives the same forest. */
@@ -170,6 +183,7 @@ export function placeTrees(
   world: Pick<WorldData, 'terrain' | 'routes' | 'manifest'>,
   count: number,
   seed = 7,
+  built?: Pick<Settlements, 'buildings' | 'parkedCars' | 'spans'>,
 ): TreeInstance[] {
   const t = world.terrain;
   const rand = mulberry32(seed);
@@ -188,6 +202,29 @@ export function placeTrees(
           if (r >= 0 && c >= 0 && r < occN && c < occN) blocked[r * occN + c] = 1;
         }
       }
+    }
+  }
+  const block = (x: number, y: number, radius: number) => {
+    const r = Math.ceil(radius / occCell);
+    const gc = Math.floor((x + half) / occCell);
+    const gr = Math.floor((half - y) / occCell);
+    for (let dr = -r; dr <= r; dr++) {
+      for (let dc = -r; dc <= r; dc++) {
+        const rr = gr + dr;
+        const cc = gc + dc;
+        if (rr >= 0 && cc >= 0 && rr < occN && cc < occN) blocked[rr * occN + cc] = 1;
+      }
+    }
+  };
+  // No tree through a roof, a car or a village sidewalk.
+  for (const b of built?.buildings ?? []) block(b.x, b.y, Math.max(b.width, b.depth) / 2 + 2);
+  for (const c of built?.parkedCars ?? []) block(c.x, c.y, 3);
+  for (const span of built?.spans ?? []) {
+    const route = world.routes.get(span.routeId);
+    if (!route) continue;
+    for (let d = span.fromM; d < span.toM; d += 5) {
+      const p = route.sampleAt(d);
+      block(p.x, p.y, 9);
     }
   }
   const water = world.manifest.waterLevelM;

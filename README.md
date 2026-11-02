@@ -16,6 +16,8 @@ Pour rouler sans environnement de dev : `pnpm start` (build de production servi 
 
 Sans trainer, la sortie démarre avec le **trainer simulé** : `↑` / `↓` règlent la puissance de 10 W.
 
+Aide au développement : `#/ride/world-1/boucle-du-lac?at=3000&camera=chase` affiche le coureur 3 km plus loin (village de Vérane) avec la caméra choisie (`pov`, `chase`, `side`, `drone`), sans changer la sortie enregistrée.
+
 | Commande                    | Rôle                                                    |
 | --------------------------- | ------------------------------------------------------- |
 | `pnpm dev`                  | Application web (Vite)                                  |
@@ -32,7 +34,7 @@ Les hooks git (lefthook) lancent lint, typecheck et tests au commit, et le build
 
 ## Raccourcis pendant la sortie
 
-`Espace` pause · `A` / `Z` (ou `−` / `+`) vitesse plus facile / plus dure · `1`–`4` caméras · `C` caméra suivante · `H` masquer le HUD · `L` tour manuel · `F` plein écran · `↑` / `↓` puissance (trainer simulé).
+`Espace` pause · `A` / `Z` (ou `−` / `+`) vitesse plus facile / plus dure · `1`–`4` caméras (POV, poursuite, latérale, drone) · `C` caméra suivante · `H` masquer le HUD · `L` tour manuel · `F` plein écran · `↑` / `↓` puissance (trainer simulé).
 
 ## Structure
 

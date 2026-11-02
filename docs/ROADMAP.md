@@ -71,8 +71,8 @@ Principe directeur : **chaque phase se termine par quelque chose de jouable sur 
 | 1.1 Appareils | ✅ Trainer FTMS, ceinture cardio, capteur de puissance, reconnexion automatique, mémorisation, appareils simulés | Validation sur le vrai trainer (Q2) |
 | 1.2 Physique | ✅ Difficulté réglable, descente atténuée, lissage de la pente envoyée, envoi ≥ 1×/s | — |
 | 1.3 Route engine | ✅ Format de route, boucles, raccord continu, comptage des tours | — |
-| 1.4 Monde v1 | ✅ « Val de Vérane » 10 × 10 km, 3 boucles, terrain par tuiles avec LOD, lac, forêts, ciel | Textures PBR, ombres, herbe, eau réfléchissante |
-| 1.5 Avatar | ✅ Cycliste procédural (pédalage par IK à la cadence, danseuse), 4 caméras | Modèle glTF (MakeHuman), tenues |
+| 1.4 Monde v1 | ✅ « Val de Vérane » 10 × 10 km, 3 boucles, terrain par tuiles avec LOD, lac, forêts, ciel ; 5 villages (maisons, trottoirs, lampadaires, panneaux, piétons, voitures garées), fermes, balises, voitures en sens inverse, accotements | Textures PBR, ombres, touffes d'herbe 3D, eau réfléchissante, glissières en montagne |
+| 1.5 Avatar | ✅ Cycliste procédural (pédalage par IK à la cadence, danseuse), cintre route avec cocottes ; 4 caméras dont POV (par défaut) | Modèle glTF (MakeHuman), tenues |
 | 1.6 HUD | ✅ Tuiles, profil du tour, mini-carte, tours, rapport, alertes | Tuiles configurables, modes daltoniens |
 | 1.7 Enregistrement | ✅ 1 Hz, sauvegarde toutes les 10 s, reprise après plantage, `.fit` relu par le SDK Garmin | Import réel sur Strava et Garmin Connect |
 | 1.8 Profil et réglages | ✅ Profil, unités, difficulté, qualité, transmission, FR/EN | — |

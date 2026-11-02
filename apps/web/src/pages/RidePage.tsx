@@ -26,14 +26,22 @@ function parseGoal(raw: string | null): RideGoal | null {
   return null;
 }
 
+/** Development helpers from the URL: `?at=1500` shows the rider 1.5 km further, `?camera=chase`. */
+export interface DevView {
+  atM: number;
+  camera: string | null;
+}
+
 export default function RidePage({
   worldId,
   routeId,
   goal,
+  devView,
 }: {
   worldId: string;
   routeId: string;
   goal: string | null;
+  devView?: DevView;
 }) {
   const t = useT();
   const [world, setWorld] = useState<{ data: WorldData; built: BuiltWorld } | null>(null);
@@ -74,7 +82,15 @@ export default function RidePage({
       </main>
     );
   }
-  return <RideRunning world={world.data} built={world.built} route={route} goal={parsedGoal} />;
+  return (
+    <RideRunning
+      world={world.data}
+      built={world.built}
+      route={route}
+      goal={parsedGoal}
+      devView={devView ?? { atM: 0, camera: null }}
+    />
+  );
 }
 
 function RideRunning({
@@ -82,11 +98,13 @@ function RideRunning({
   built,
   route,
   goal,
+  devView,
 }: {
   world: WorldData;
   built: BuiltWorld;
   route: Route;
   goal: RideGoal | null;
+  devView: DevView;
 }) {
   const t = useT();
   const settings = useSettings();
@@ -147,7 +165,17 @@ function RideRunning({
   };
 
   const trainerSlot = slots.trainer;
-  const view = useMemo(() => () => session.state, [session]);
+  const view = useMemo(() => {
+    if (!devView.atM) return () => session.state;
+    const shifted = { ...session.state };
+    return () => {
+      Object.assign(shifted, session.state);
+      shifted.distanceM += devView.atM;
+      shifted.prevDistanceM += devView.atM;
+      return shifted;
+    };
+  }, [session, devView.atM]);
+  const camera = CAMERA_MODES.find((m) => m === devView.camera) ?? settings.camera;
   const alpha = useMemo(() => () => loop.alpha(), [loop]);
 
   return (
@@ -158,7 +186,7 @@ function RideRunning({
         route={route}
         view={view}
         alpha={alpha}
-        camera={settings.camera}
+        camera={camera}
         quality={settings.quality}
         reduceMotion={settings.reduceMotion}
         onFrame={(d, info) => stats.record(d, info)}
