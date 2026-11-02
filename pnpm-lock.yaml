@@ -89,7 +89,19 @@ importers:
         specifier: ^0.0.22
         version: 0.0.22
 
+  packages/drivetrain:
+    dependencies:
+      '@hrt/shared':
+        specifier: workspace:*
+        version: link:../shared
+
   packages/physics:
+    dependencies:
+      '@hrt/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/route-engine:
     dependencies:
       '@hrt/shared':
         specifier: workspace:*

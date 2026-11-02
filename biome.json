@@ -36,7 +36,13 @@
   },
   "overrides": [
     {
-      "includes": ["packages/shared/**", "packages/physics/**"],
+      "includes": [
+        "packages/shared/**",
+        "packages/physics/**",
+        "packages/route-engine/**",
+        "packages/drivetrain/**",
+        "packages/recorder/**"
+      ],
       "linter": {
         "rules": {
           "style": {
