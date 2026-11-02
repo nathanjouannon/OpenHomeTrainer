@@ -13,6 +13,8 @@
 | **Vitesses virtuelles (virtual shifting)** | Changement de rapport simulé par l'application : le vélo reste sur un rapport physique fixe et la résistance du trainer est ajustée comme si l'on changeait de vitesse. |
 | **BikeControl** | Application tierce (ex-SwiftControl), code public mais **non open source** (licence non commerciale), payante après essai. Elle relie des contrôleurs physiques (Zwift Click, Di2…) aux applications de home trainer et leur ajoute des vitesses virtuelles. Passerelle optionnelle pour HomeRealTrainer. |
 | **OpenBikeControl** | Protocole ouvert (licence MIT) qui permet à une application de home trainer de recevoir les boutons de n'importe quel contrôleur, en Bluetooth ou en réseau (mDNS/TCP). Implémenté par HomeRealTrainer. |
+| **Zwift Cog** | Pignon unique qui remplace la cassette sur le trainer ; toutes les vitesses deviennent virtuelles. |
+| **Shimano Di2 / D-Fly** | Transmission électronique Shimano ; D-Fly (unité sans fil EW-WU111) diffuse en BLE l'état et les boutons des cocottes. |
 | **Zwift Click / Play / Ride** | Contrôleurs Bluetooth de guidon (boutons de vitesse, direction) vendus par Zwift. |
 | **Elite Sterzo** | Support de roue avant qui mesure la direction (pour diriger dans le jeu). |
 | **Hub de commandes** | Module de l'application qui reçoit toutes les entrées (clavier, manette, contrôleurs) et les traduit en actions configurables. |

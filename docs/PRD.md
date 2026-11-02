@@ -147,14 +147,14 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 
 | ID | Story | Prio | Critères d'acceptation |
 |---|---|---|---|
-| US-70 | En tant que cycliste avec un trainer sans cassette, je veux changer de vitesse virtuellement | S (phase 2), M version finale | Chaque passage modifie la résistance de façon perceptible en < 500 ms |
+| US-70 | En tant que cycliste avec un trainer sans cassette (Zwift Cog), je veux changer de vitesse virtuellement | **M (phase 1)** | Chaque passage (clavier au MVP) modifie la résistance de façon perceptible en < 500 ms |
 | US-71 | Je veux choisir ma transmission virtuelle | S | Préréglages + personnalisation (plateaux, pignons, séquentiel) |
 | US-72 | Je veux changer de vitesse avec une manette ou une télécommande de guidon | S | Gamepad API et télécommandes appairées au système fonctionnent |
 | US-73 | Je veux utiliser un contrôleur compatible OpenBikeControl (natif, ou Zwift Click / Play / Ride, Di2… via BikeControl) | S (phase 2), M version finale | Appairage Web Bluetooth du service OpenBikeControl, reconnexion, passage de vitesse < 150 ms jusqu'à l'envoi BLE au trainer |
 | US-74 | Je veux réassigner n'importe quel bouton à n'importe quelle action | S | Écran de mapping « appuyer pour assigner », profils sauvegardés |
 | US-75 | Je veux voir le rapport engagé | S | Indicateur dans le HUD |
 | US-76 | En ERG, je veux que les boutons de vitesse ajustent la puissance cible | S | ±5 W par appui |
-| US-77 | Je veux utiliser mon téléphone comme télécommande | C | Page compagnon via QR code |
+| US-77 | Je veux utiliser mon téléphone comme télécommande | S (phase 2) | Page compagnon via QR code sur le réseau local |
 | US-78 | Je veux diriger aux intersections avec un contrôleur | C | Sterzo ou joystick reconnus |
 
 ### Après la sortie
@@ -232,6 +232,7 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 
 ## 10. Hypothèses et contraintes
 
+- **H1bis — Matériel du développeur** (achat en cours) : Van Rysel D500 ou Wahoo KICKR (tous deux FTMS), **Zwift Cog** (pignon unique, donc vitesses virtuelles indispensables dès le MVP), Zwift Click (support tiers incertain), Shimano Ultegra Di2. Voir [03 §7](03-materiel-protocoles.md).
 - **H1** : la cible principale possède un home trainer « smart » compatible **FTMS** (standard sur la quasi-totalité des modèles vendus depuis 2020 : Wahoo, Tacx/Garmin, Elite, Saris, JetBlack, Van Rysel, Zwift Hub…).
 - **H2** : l'utilisateur roule sur un ordinateur (portable ou fixe) avec Chrome ou Edge. C'est une contrainte forte de Web Bluetooth, voir [ADR 0001](adr/0001-application-web-web-bluetooth.md).
 - **H3** : projet porté au départ par un seul développeur ; le périmètre est découpé en conséquence.
@@ -257,7 +258,7 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 
 ## 12. Hors périmètre explicite du MVP
 
-Comptes utilisateurs, multijoueur, mode B (monde réel), séances structurées avancées, vitesses virtuelles et contrôleurs physiques (hors raccourcis clavier), mobile, ANT+, intégrations hors export `.fit` manuel.
+Comptes utilisateurs, multijoueur, mode B (monde réel), séances structurées avancées, contrôleurs physiques (hors clavier), stratégie de vitesses « réaliste » (S3), mobile, ANT+, intégrations hors export `.fit` manuel. **Les vitesses virtuelles de base (S1, au clavier) sont dans le MVP**, à cause du Zwift Cog.
 
 ## 13. Validation
 

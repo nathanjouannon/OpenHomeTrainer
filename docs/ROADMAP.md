@@ -8,7 +8,7 @@ Les estimations sont en **semaines de développement pour 1 développeur à plei
 
 ```
 Phase 0  Fondations & spikes techniques        ██                 1–2 sem.
-Phase 1  MVP solo — Monde virtuel              ████████           6–8 sem.   ← jalon M1 : MVP
+Phase 1  MVP solo — Monde virtuel              █████████          7–9 sem.   ← jalon M1 : MVP
 Phase 2  Entraînement, vitesses virt., comptes ███████            6–9 sem.   ← jalon M2 : bêta privée
 Phase 3  Mode monde réel (bêta)                ████████           6–9 sem.   ← jalon M3 : mode B
 Phase 4  Multijoueur & social                  ████████           6–8 sem.   ← jalon M4 : bêta publique
@@ -26,7 +26,7 @@ Principe directeur : **chaque phase se termine par quelque chose de jouable sur 
 | Livrable | Détail |
 |---|---|
 | Monorepo initialisé | pnpm + Turborepo, apps `web`, packages `physics`, `devices`, `shared` ; lint, format, Vitest, CI GitHub Actions. Voir [14](14-conventions-dev.md). |
-| **Spike BLE** | Page de test : connexion à **ton** trainer en FTMS, lecture puissance et cadence, envoi d'une pente et d'une puissance cible ERG. Journal des trames brutes. |
+| **Spike BLE** | Page de test (**dès la livraison du trainer** ; en attendant, trainer simulé) : connexion à **ton** trainer (Van Rysel D500 ou Wahoo KICKR) en FTMS, lecture puissance et cadence, envoi d'une pente et d'une puissance cible ERG. Journal des trames brutes. |
 | **Spike 3D** | Scène Three.js : terrain 4 × 4 km depuis un MNT réel, route en spline, caméra qui suit, 10 000 arbres instanciés. Mesure des FPS sur la config de référence. |
 | Spike physique | Fonction `simulateStep()` testée contre des valeurs de référence. |
 | Trainer simulé | Appareil virtuel (puissance réglée au clavier) implémentant la même interface que le vrai trainer. |
@@ -39,7 +39,7 @@ Principe directeur : **chaque phase se termine par quelque chose de jouable sur 
 
 ---
 
-## Phase 1 — MVP solo en monde virtuel (6–8 sem.) → **Jalon M1**
+## Phase 1 — MVP solo en monde virtuel (7–9 sem.) → **Jalon M1**
 
 **Objectif** : une vraie séance complète sur une route d'un monde original, avec export.
 
@@ -55,6 +55,7 @@ Principe directeur : **chaque phase se termine par quelque chose de jouable sur 
 | 1.8 Profil et réglages | Poids, FTP, vélo, unités, difficulté, qualité graphique ; FR/EN. |
 | 1.9 Historique | Liste des sorties locales et détail. |
 | 1.10 Exécution locale | Build de production servi en local (`pnpm preview` sur `localhost`), assets du monde servis depuis le disque ; script de démarrage en une commande. Aucun hébergement public (budget zéro). |
+| 1.11 **Vitesses virtuelles de base** | Indispensables avec le Zwift Cog : package `@hrt/drivetrain`, transmission séquentielle par défaut (24 rapports), stratégie S1 (décalage de pente), passage au clavier (`A`/`Z`), indicateur de rapport dans le HUD. |
 
 **Critères de sortie (Definition of Done du MVP)**
 
@@ -76,8 +77,10 @@ Principe directeur : **chaque phase se termine par quelque chose de jouable sur 
 | 2.5 Monde v1.1 | 2 à 3 boucles de plus, segments chronométrés, record personnel par segment. |
 | 2.6 Fantômes | Rouler contre une de ses sorties précédentes ou contre son **meilleur tour** sur la boucle. |
 | 2.7 PWA | Installable, cache des assets hors ligne. |
-| 2.8 **Vitesses virtuelles** | Package `@hrt/drivetrain` : transmission configurable, stratégie S1 (décalage de pente) par défaut, S3 (ERG piloté par le rapport) en expérimental ; indicateur de rapport dans le HUD. Voir [15](15-vitesses-virtuelles-et-commandes.md). |
-| 2.9 **Hub de commandes** | Package `@hrt/controls` : clavier, manettes (Gamepad API), télécommandes appairées au système, **OpenBikeControl en Bluetooth** (boutons, App Information, retour haptique), écran de mapping, profils ; test avec BikeControl en passerelle si disponible (smartphone) et en mode clavier. |
+| 2.8 **Vitesses virtuelles v1.1** | Stratégie S3 (ERG piloté par le rapport) en expérimental, préréglages et transmission personnalisée, rapport physique Cog renseigné. Voir [15](15-vitesses-virtuelles-et-commandes.md). |
+| 2.9 **Hub de commandes** | Package `@hrt/controls` : clavier, manettes (Gamepad API), télécommandes appairées au système, **OpenBikeControl en Bluetooth** (boutons, App Information, retour haptique), écran de mapping, profils ; test avec BikeControl en passerelle si disponible et en mode clavier. |
+| 2.10 **Télécommande smartphone** | Page compagnon via QR code (gros boutons vitesse +/−, pause, caméra), WebSocket vers le serveur local. Contrôleur gratuit et fiable posé sur le guidon. |
+| 2.11 Spike **Zwift Click v2** | Connexion directe en Web Bluetooth au Zwift Click du développeur (protocole documenté par la communauté) ; conservé seulement si fiable, sinon BikeControl ou smartphone. |
 
 **Critères de sortie** : 5 à 10 testeurs bêta roulent chaque semaine ; aucun bug bloquant ouvert.
 
@@ -96,7 +99,6 @@ Principe directeur : **chaque phase se termine par quelque chose de jouable sur 
 | 3.4 Lecteur d'images | Pré-chargement, synchronisation avec la vitesse, transitions (fondu, léger zoom), choix de l'image selon le cap. |
 | 3.5 Repli | Vue carte 3D ou satellite lorsque la couverture en images manque. |
 | 3.6 Parcours préparés | 5 à 10 montées célèbres pré-calculées et vérifiées. |
-| 3.7 Télécommande smartphone | Page compagnon via QR code (gros boutons de vitesse, pause, caméra), liaison WebRTC/WebSocket. |
 | 3.8 OpenBikeControl réseau | Relais local dans `apps/api` : découverte mDNS `_openbikecontrol._tcp`, connexion TCP, retransmission en WebSocket vers le navigateur. |
 
 **Critères de sortie** : un GPX quelconque d'Europe de l'Ouest est jouable en moins de 60 s, avec une pente plausible et au moins 80 % du parcours couvert en images, ou un repli propre.
@@ -138,10 +140,10 @@ Voir [08](08-multijoueur.md).
 | Jalon | Contenu | Fin estimée (cumul plein temps) |
 |---|---|---|
 | M0 | Spikes validés | S+2 |
-| **M1** | **MVP monde virtuel jouable et exportable** | S+10 |
-| M2 | Bêta privée avec ERG, vitesses virtuelles, commandes, comptes, Strava | S+19 |
-| M3 | Mode monde réel en bêta | S+28 |
-| M4 | Multijoueur (réseau local tant qu'il n'y a pas d'hébergement) | S+36 |
+| **M1** | **MVP monde virtuel jouable et exportable, avec vitesses virtuelles au clavier** | S+11 |
+| M2 | Bêta privée avec ERG, commandes (smartphone, OpenBikeControl, Zwift Click si possible), comptes, Strava | S+20 |
+| M3 | Mode monde réel en bêta | S+29 |
+| M4 | Multijoueur (réseau local tant qu'il n'y a pas d'hébergement) | S+37 |
 
 ## Ce qu'on prépare tôt pour ne pas le payer plus tard
 

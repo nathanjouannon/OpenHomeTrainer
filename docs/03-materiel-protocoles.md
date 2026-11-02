@@ -125,7 +125,17 @@ Option avancée (phase 5) : « Power match ». Le trainer est piloté en ERG ave
 - **Trainer simulé** : `SimulatedTrainer` qui implémente `ControllableTrainer`. Puissance réglée au clavier (↑/↓ par paliers de 10 W) ou issue d'un profil rejoué. En mode SIM, il simule même la « sensation » : la puissance baisse si la pente augmente à cadence constante.
 - **Rejeu** : rejouer un journal BLE enregistré pour reproduire un bug.
 
-## 7. Matériel de test minimum
+## 7. Matériel cible du développeur (achat en cours)
+
+| Matériel | Protocoles | Remarques pour HomeRealTrainer |
+|---|---|---|
+| **Van Rysel D500** (Decathlon), modèle 2025 « Zwift » | Bluetooth **FTMS**, ANT+, protocole Zwift ; souvent vendu avec Zwift Cog & Click | Compatible : pilotage FTMS SIM et ERG. Le modèle v1 (ancien) n'a pas les vitesses virtuelles natives Zwift, ce qui ne nous gêne pas : nos vitesses virtuelles passent par FTMS |
+| **Wahoo KICKR** (v6, Core, Core Zwift One…) | Bluetooth **FTMS**, ANT+ FE-C ; protocole Wahoo historique | Compatible. Les anciens firmwares sans FTMS sont à mettre à jour via l'app Wahoo |
+| **Zwift Cog** | Pignon unique (mécanique) | Le vélo n'a plus de vitesses physiques → **vitesses virtuelles HomeRealTrainer indispensables** (stratégies S1/S3 via FTMS, voir [15](15-vitesses-virtuelles-et-commandes.md)). Les vitesses virtuelles natives Zwift du trainer (S4) sont contrôlées par Zwift et ne sont pas utilisées |
+| **Zwift Click** (v2 probablement) | BLE propriétaire Zwift | Compatibilité tierce **instable** ; voir [15 §1.3](15-vitesses-virtuelles-et-commandes.md) |
+| **Shimano Ultegra Di2** (série R8000 : ST-R8050 / R8070) | Filaire E-Tube ; sans fil seulement avec l'unité **EW-WU111** (D-Fly) | Sans EW-WU111 : inutilisable par une application. Avec : boutons cachés des cocottes utilisables via BikeControl. Non prioritaire (budget zéro) |
+
+## 8. Matériel de test minimum
 
 | Matériel | Pourquoi |
 |---|---|
