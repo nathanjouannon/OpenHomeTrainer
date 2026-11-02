@@ -5,7 +5,7 @@ Chaque question a une **hypothèse par défaut** : le développement peut avance
 | # | Question | Hypothèse par défaut | Avant |
 |---|---|---|---|
 | Q1 | ✅ Phrase incomplète de la demande initiale | **Tranché** : il s'agissait du changement de vitesses virtuel ([15](15-vitesses-virtuelles-et-commandes.md)) | — |
-| Q2 | 🔴 Home trainer définitif : **Van Rysel D500** (préciser : modèle 2025 « Zwift » ou ancien) ou **Wahoo KICKR** (préciser : KICKR v6, KICKR Core, Core Zwift One…) ? Ceinture cardio ? | Achat en cours ; les deux candidats supportent FTMS, développement prévu pour les deux. Le prototype Bluetooth (phase 0, étape 2) attend la livraison ; le trainer simulé permet d'avancer d'ici là | Phase 0 |
+| Q2 | 🔴 Home trainer définitif : **Van Rysel D500** (préciser : modèle 2025 « Zwift » ou ancien) ou **Wahoo KICKR** (préciser : KICKR v6, KICKR Core, Core Zwift One…) ? Ceinture cardio ? | Achat en cours ; les deux candidats supportent FTMS, développement prévu pour les deux. La page de test Bluetooth (`#/ble`) est prête et attend la livraison ; le critère « la résistance change à 0 / 5 / 10 % » sera validé à ce moment-là. Le trainer simulé permet d'avancer en phase 1 d'ici là | Livraison du trainer |
 | Q3 | Projet personnel, open source, ou produit commercial à terme ? | Personnel, avec possibilité d'ouverture publique ; aucun choix bloquant pour une commercialisation | Phase 2 |
 | Q4 | Licence du code ? | Propriétaire (dépôt privé) en attendant Q3 | Phase 2 |
 | Q5 | Ordinateur de référence pour les performances ? | MacBook Air M1 / PC portable avec GPU intégré récent, 1080p | Phase 0 |
