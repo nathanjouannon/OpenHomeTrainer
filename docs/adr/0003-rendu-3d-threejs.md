@@ -19,4 +19,4 @@ Le mode A demande un rendu 3D réaliste dans le navigateur : grand terrain, vég
 - Critère de sortie du spike : ≥ 50 FPS sur la config de référence avec terrain 4 × 4 km et 10 000 arbres.
 
 ## Résultat du spike (2026-11-02)
-Scène de la page `#/3d` : terrain 4 × 4 km issu d'un MNT réel (513 × 513 sommets), boucle de 8,3 km, 10 000 arbres instanciés (2 draw calls), WebGL2. **60 FPS** mesurés sur la machine du développeur : critère de sortie (≥ 50 FPS) atteint, pas de bascule vers Babylon.js. `WebGPURenderer` reste à évaluer en phase 1.
+Scène de la page `#/3d` : terrain 4 × 4 km issu d'un MNT réel (513 × 513 sommets), boucle de 8,3 km, 10 000 arbres instanciés (2 draw calls), WebGL2. **60 FPS** mesurés sur la machine du développeur : critère de sortie (≥ 50 FPS) atteint, pas de bascule vers Babylon.js. `WebGPURenderer` reste à évaluer : bascule prévue au lot 2.1 de la phase 2 (rendu réaliste), avec repli WebGL2.

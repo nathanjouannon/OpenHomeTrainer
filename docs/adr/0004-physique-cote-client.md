@@ -8,7 +8,7 @@ La vitesse affichée par un trainer reflète la rotation de son volant d'inertie
 ## Décision
 - La vitesse est calculée **dans le client**, par un modèle physique pur (`@hrt/physics`) à pas fixe de 20 Hz, à partir de la **puissance mesurée**.
 - La pente envoyée au trainer (pente ressentie) est distincte de la pente simulée (difficulté, descentes, vitesses virtuelles).
-- Le même module sert côté serveur pour les contrôles de plausibilité (phase 4).
+- Le même module sert côté serveur pour les contrôles de plausibilité (phase 5).
 
 ## Conséquences
 - (+) Latence nulle, fonctionne hors ligne, déterministe et testable.

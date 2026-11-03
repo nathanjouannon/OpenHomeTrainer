@@ -1,6 +1,6 @@
 # Mode B — Monde réel
 
-Objectif : rouler sur n'importe quelle route réelle, avec **les vraies pentes** et **de vraies images**. Prévu en phase 3, mais la phase 1 prépare le terrain : format de route commun, physique, HUD et enregistrement réutilisés tels quels.
+Objectif : rouler sur n'importe quelle route réelle, avec **les vraies pentes** et **de vraies images**. Prévu en phase 4, mais la phase 1 prépare le terrain : format de route commun, physique, HUD et enregistrement réutilisés tels quels.
 
 ## 1. Chaîne de traitement d'un parcours
 
@@ -51,13 +51,13 @@ Sortie : un `Route` au format interne (`mode: 'real'`, avec lat/lon), identique 
 
 ### Recommandation
 
-Voir [ADR 0007](adr/0007-imagerie-monde-reel.md) (statut : proposé, décision finale au spike 3.0).
+Voir [ADR 0007](adr/0007-imagerie-monde-reel.md) (statut : proposé, décision finale au spike 4.0).
 
 1. Concevoir une interface **`ImageryProvider`** pour que la source soit interchangeable et combinable sur un même parcours.
 2. **Mapillary** est le fournisseur principal : gratuit (jeton développeur sans frais), avec une licence compatible avec le pré-calcul et le cache local.
 3. **Google Street View en option uniquement**, et seulement si le **0 € est garanti** : un compte Google Cloud avec facturation activée est nécessaire, même pour le palier gratuit. On plafonne donc le quota journalier de l'API dans la console Google Cloud sous le palier gratuit, pour qu'aucun dépassement ne soit possible. Cela limite Street View à quelques heures de sortie par mois (à chiffrer au spike). À défaut, Street View n'est pas utilisé.
 4. Utiliser **E (reconstitution 3D)** et une vue carte ou satellite comme **repli** quand il n'y a pas d'images.
-5. Ajouter **C (vidéo)** en phase 5 pour des parcours « premium ».
+5. Ajouter **C (vidéo)** en phase 6 pour des parcours « premium ».
 
 ## 3. Lecteur d'images
 

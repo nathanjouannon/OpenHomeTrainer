@@ -14,4 +14,4 @@ Le projet est demandé sous forme d'**application web**. Le seul moyen de parler
 - (+) Aucune installation, déploiement instantané, un seul code.
 - (−) Les utilisateurs iPhone/iPad et Safari sont exclus au départ (écran explicatif, Bluefy en best effort).
 - (−) Un geste utilisateur est nécessaire pour chaque appairage initial.
-- Une enveloppe native est envisagée en phase 5 si la demande mobile ou TV le justifie.
+- Une enveloppe native est envisagée en phase 6 si la demande mobile ou TV le justifie.

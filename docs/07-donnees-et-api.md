@@ -49,7 +49,7 @@ Pour une boucle, le dernier point ne duplique pas le premier : l'interpolation e
 | `workouts` | Séances importées ou créées |
 | `routes_cache` | Parcours du mode B importés |
 
-### 2.2 Côté serveur (PostgreSQL + PostGIS, phase 2+)
+### 2.2 Côté serveur (PostgreSQL + PostGIS, phase 3+)
 
 ```
 users (id, email, display_name, created_at, locale, consent_health_at)
@@ -67,13 +67,13 @@ lap_records (route_id, user_id, best_lap_s, ride_id)          -- meilleur tour p
 segment_efforts (id, segment_id, ride_id, user_id, lap_index, elapsed_s, avg_power, created_at)
 workouts (id, owner_id NULL, name, description, structure_json, source_format)
 integrations (user_id, provider, access_token_enc, refresh_token_enc, expires_at, scopes)
-follows (follower_id, followee_id, created_at)                -- phase 4
-events (id, world_id, route_id, starts_at, title, ...)        -- phase 4
+follows (follower_id, followee_id, created_at)                -- phase 5
+events (id, world_id, route_id, starts_at, title, ...)        -- phase 5
 ```
 
 Les **séries temporelles** ne vont pas dans des lignes SQL (14 400 lignes par sortie de 4 h). Elles sont stockées en fichier (FIT + JSON/binaire compressé) sur le stockage local (disque ou MinIO), avec seulement les agrégats en base.
 
-## 3. API REST (phase 2)
+## 3. API REST (phase 3)
 
 Préfixe `/api/v1`, JSON, authentification par cookie de session (même domaine) ou bearer token.
 

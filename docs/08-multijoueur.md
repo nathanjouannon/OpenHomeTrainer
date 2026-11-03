@@ -1,4 +1,4 @@
-# Multijoueur (phase 4)
+# Multijoueur (phase 5)
 
 Le multijoueur n'est pas dans le MVP, mais certaines décisions prises dès la phase 1 le rendent possible sans refonte.
 
@@ -41,7 +41,7 @@ Calculée **localement** par chaque client, à partir des positions interpolées
 | **Colyseus** | Rooms, matchmaking, synchro d'état, reconnexion intégrés | Abstraction à apprendre ; le schéma d'état n'est pas indispensable ici |
 | `uWebSockets.js` maison | Très performant, contrôle total | Plus de code (rooms, reconnexion) |
 
-Choix provisoire : Colyseus, à confirmer au début de la phase 4. Redis pour la présence entre plusieurs instances.
+Choix provisoire : Colyseus, à confirmer au début de la phase 5. Redis pour la présence entre plusieurs instances.
 
 ## 6. Montée en charge (ordres de grandeur)
 

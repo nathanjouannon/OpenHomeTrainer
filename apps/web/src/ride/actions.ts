@@ -1,5 +1,5 @@
 // Every ride action goes through this dispatcher, even from the keyboard,
-// so that the controls hub of phase 2 (gamepad, phone, OpenBikeControl) plugs
+// so that the controls hub of phase 3 (gamepad, phone, OpenBikeControl) plugs
 // in without rework (docs/ROADMAP.md, "ce qu'on prépare tôt").
 
 export type RideAction =

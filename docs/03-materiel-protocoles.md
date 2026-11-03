@@ -5,7 +5,7 @@
 | Appareil | Données | Pilotable | Protocole BLE principal |
 |---|---|---|---|
 | Home trainer « smart » (direct drive ou roue) | Puissance, cadence, vitesse | Oui : pente (SIM), puissance cible (ERG), niveau de résistance | **FTMS** (Fitness Machine Service) |
-| Trainer non connecté / rouleaux classiques | Aucune | Non | Vitesse estimée via un capteur de vitesse et une « power curve » connue (phase 5) |
+| Trainer non connecté / rouleaux classiques | Aucune | Non | Vitesse estimée via un capteur de vitesse et une « power curve » connue (phase 6) |
 | Capteur de puissance (pédales, manivelle, moyeu) | Puissance, parfois cadence | Non | **CPS** (Cycling Power Service) |
 | Ceinture ou montre cardio | FC | Non | **HRS** (Heart Rate Service) |
 | Capteur de cadence / vitesse | Cadence, vitesse roue | Non | **CSCS** (Cycling Speed and Cadence) |
@@ -63,7 +63,7 @@ CSC Measurement `0x2A5B` : révolutions de roue (uint32) et de manivelle (uint16
 
 Protocole ouvert (MIT) pour les boutons de vitesse et de navigation. Le contrôleur (ou BikeControl jouant ce rôle) est périphérique et l'application s'y connecte en Web Bluetooth. Détail dans [15 §4.5](15-vitesses-virtuelles-et-commandes.md).
 
-### Protocoles propriétaires (phase 5, si nécessaire)
+### Protocoles propriétaires (phase 6, si nécessaire)
 
 | Protocole | Cas | Note |
 |---|---|---|
@@ -117,7 +117,7 @@ Quand plusieurs appareils fournissent la même métrique, l'utilisateur choisit 
 | FC | Ceinture cardio (seule source) |
 | Vitesse | **Toujours calculée par la physique** |
 
-Option avancée (phase 5) : « Power match ». Le trainer est piloté en ERG avec une consigne corrigée pour que le capteur de puissance atteigne la cible.
+Option avancée (phase 6) : « Power match ». Le trainer est piloté en ERG avec une consigne corrigée pour que le capteur de puissance atteigne la cible.
 
 ## 6. Outils de debug à développer
 

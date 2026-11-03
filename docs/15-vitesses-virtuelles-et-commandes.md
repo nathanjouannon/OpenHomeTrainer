@@ -39,10 +39,10 @@ Comme l'application est aussi pilotable entièrement au clavier, BikeControl peu
 | Matériel | Utilisable dans HomeRealTrainer ? | Comment |
 |---|---|---|
 | **Zwift Cog** | **Oui** | Pignon fixe : le rapport physique = plateau utilisé × Cog. Toutes les vitesses passent par la boîte virtuelle HomeRealTrainer (S1/S3 via FTMS). Conséquence : **vitesses virtuelles + raccourcis clavier dès la phase 1** |
-| **Zwift Click v2** | **Incertain** | Zwift n'a pas publié de protocole ouvert. Le support tiers repose sur de la rétro-ingénierie et casse régulièrement ; la v2 doit être périodiquement « déverrouillée » via Zwift (BikeControl le gère, l'abonnement Pro évitant de redéverrouiller toutes les 24 h). Plusieurs applications tierces ont perdu ou n'ont jamais eu le support. **Options** : (a) via BikeControl en passerelle (payant pour un usage confortable, donc hors budget du projet) ; (b) implémentation directe en spike phase 2 (fragile, peut nécessiter le déverrouillage Zwift) ; (c) repli gratuit : clavier, smartphone, manette |
+| **Zwift Click v2** | **Incertain** | Zwift n'a pas publié de protocole ouvert. Le support tiers repose sur de la rétro-ingénierie et casse régulièrement ; la v2 doit être périodiquement « déverrouillée » via Zwift (BikeControl le gère, l'abonnement Pro évitant de redéverrouiller toutes les 24 h). Plusieurs applications tierces ont perdu ou n'ont jamais eu le support. **Options** : (a) via BikeControl en passerelle (payant pour un usage confortable, donc hors budget du projet) ; (b) implémentation directe en spike phase 3 (fragile, peut nécessiter le déverrouillage Zwift) ; (c) repli gratuit : clavier, smartphone, manette |
 | **Shimano Ultegra Di2** (R8050/R8070) | **Seulement avec une unité EW-WU111** (D-Fly, achat) | Les boutons cachés des cocottes passent alors en BLE (D-Fly), relayés par BikeControl. Sans cette unité, rien à faire côté logiciel. Sur un Zwift Cog, les passages Di2 réels déplacent le dérailleur pour rien : seuls les boutons « libres » sont intéressants |
 
-**Conséquence sur le plan** : comme le Zwift Click n'est pas garanti, la **télécommande smartphone** (gratuite, développée par nous) est avancée en **phase 2** pour servir de contrôleur fiable posé sur le guidon. Au MVP, le clavier suffit.
+**Conséquence sur le plan** : comme le Zwift Click n'est pas garanti, la **télécommande smartphone** (gratuite, développée par nous) est avancée en **phase 3** pour servir de contrôleur fiable posé sur le guidon. Au MVP, le clavier suffit.
 
 ## 2. Pourquoi des vitesses virtuelles
 
@@ -90,7 +90,7 @@ Trois stratégies sont prévues, derrière une même interface `ShiftingStrategy
 | Latence perçue d'un changement | < 0,5 s | < 0,5 s | 1–3 s (inertie de l'ERG) |
 | Dépendances | Aucune | Rapport physique + modèle interne du trainer (masse supposée…) → calibration | Cadence fiable, lissage |
 | Risques | Simpliste aux extrêmes | Modèle interne du trainer inconnu et variable selon les marques | Sensation « ERG » artificielle, oscillations, mauvaise gestion des sprints |
-| Statut | **Phase 1, mode par défaut** (indispensable avec un Zwift Cog) | Expérimental après mesure sur matériel | **Phase 2, expérimental (« mode réaliste »)** |
+| Statut | **Phase 1, mode par défaut** (indispensable avec un Zwift Cog) | Expérimental après mesure sur matériel | **Phase 3, expérimental (« mode réaliste »)** |
 
 **S1 en détail** : `Δ(rapport) = k × ln(r_v / r_ref)`, où `r_ref` est le rapport neutre (milieu de plage). `k` est réglé pour qu'un cran corresponde environ à +0,5–1 % de pente. Le résultat est borné à la plage du trainer. En descente, l'offset reste appliqué : on peut « pousser » dans un gros braquet.
 
@@ -104,7 +104,7 @@ P_cible     = clamp(lissé(P_cible), P_min_trainer, P_max_trainer)
 
 Si la cadence tombe à 0, la consigne descend progressivement : jamais de saut brutal.
 
-**S4 — vitesses virtuelles natives du trainer** (Zwift Hub, trainers « Zwift Cog » et firmwares compatibles) : le trainer gère lui-même le rapport, ce qui donne le meilleur ressenti. Le protocole est propriétaire et non documenté publiquement : **étude seulement en phase 5**, sous réserve des aspects juridiques ([11](11-legal-licences.md)).
+**S4 — vitesses virtuelles natives du trainer** (Zwift Hub, trainers « Zwift Cog » et firmwares compatibles) : le trainer gère lui-même le rapport, ce qui donne le meilleur ressenti. Le protocole est propriétaire et non documenté publiquement : **étude seulement en phase 6**, sous réserve des aspects juridiques ([11](11-legal-licences.md)).
 
 Le choix final de la stratégie par défaut se fera après des essais sur au moins deux trainers ([ADR 0008](adr/0008-vitesses-virtuelles.md)).
 
@@ -121,7 +121,7 @@ Le choix final de la stratégie par défaut se fera après des essais sur au moi
 
 - HUD : indicateur de rapport (ex. `50 × 17` ou `14 / 24`), barre de position dans la cassette, cadence conseillée optionnelle.
 - Son discret de « clic » à chaque passage, désactivable.
-- Animation du dérailleur sur l'avatar (phase 5, cosmétique).
+- Animation du dérailleur sur l'avatar (phase 6, cosmétique).
 - Enregistrement du rapport dans la sortie (champ développeur FIT ou champ `gear` interne) pour l'analyse.
 
 ## 4. Hub de commandes (équivalent BikeControl intégré)
@@ -155,7 +155,7 @@ Le choix final de la stratégie par défaut se fera après des essais sur au moi
 | Navigation | Gauche / tout droit / droite à la prochaine intersection, demi-tour, direction analogique (Sterzo, joystick) |
 | Caméra | Vue suivante / précédente, zoom |
 | Sortie | Pause, reprise, tour manuel (lap), fin de sortie |
-| Social (phase 4) | Ride on, emote, power-up |
+| Social (phase 5) | Ride on, emote, power-up |
 | Interface | Masquer/afficher le HUD, muet, plein écran |
 
 ### 4.3 Sources d'entrée supportées
@@ -215,7 +215,7 @@ Le choix final de la stratégie par défaut se fera après des essais sur au moi
 | `0x3B` | Changer de route | Changement de boucle |
 | `0x3C` | Régulateur (cruise control) | Option : ERG à la puissance courante |
 | `0x10`–`0x17` | Navigation dans les menus | Navigation de l'interface sans souris |
-| `0x20`, `0x24` | Emote, capture d'écran | Social (phase 4), capture |
+| `0x20`, `0x24` | Emote, capture d'écran | Social (phase 5), capture |
 
 Les boutons non standard restent réassignables dans l'écran de mapping. Les spécificités (vues `0x40`–`0x4F`, appuis répétés sur `0x30`/`0x31`) sont reprises de la spécification au moment de l'implémentation.
 
@@ -228,12 +228,12 @@ Reprises dans le [PRD](PRD.md), section 6.
 | US-70 | En tant que cycliste avec un trainer sans cassette (Zwift Cog), je veux changer de vitesse virtuellement pour adapter ma cadence | **M (phase 1)** |
 | US-71 | Je veux choisir ma transmission virtuelle (préréglage ou personnalisée) | S |
 | US-72 | Je veux changer de vitesse avec une manette de jeu ou une télécommande posée sur mon guidon | S |
-| US-73 | Je veux utiliser un contrôleur compatible **OpenBikeControl** (natif, ou via BikeControl pour Zwift Click / Play / Ride, Di2…) pour changer de vitesse | S (phase 2), **M pour la version finale** |
+| US-73 | Je veux utiliser un contrôleur compatible **OpenBikeControl** (natif, ou via BikeControl pour Zwift Click / Play / Ride, Di2…) pour changer de vitesse | S (phase 3), **M pour la version finale** |
 | US-79 | Je veux une vibration de confirmation sur mon contrôleur à chaque changement de vitesse | C |
 | US-74 | Je veux réassigner n'importe quel bouton à n'importe quelle action | S |
 | US-75 | Je veux voir mon rapport engagé dans le HUD | S |
 | US-76 | En mode ERG, je veux que les boutons de vitesse ajustent la puissance cible | S |
-| US-77 | Je veux utiliser mon téléphone comme télécommande | S (phase 2) |
+| US-77 | Je veux utiliser mon téléphone comme télécommande | S (phase 3) |
 | US-78 | Je veux diriger mon avatar aux intersections avec un contrôleur (Sterzo, joystick) | C |
 
 ## 6. Critères d'acceptation globaux

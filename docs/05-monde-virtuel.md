@@ -63,6 +63,8 @@ Les tracés sont produits par un **planificateur de routes** (`tools/world-build
 
 ## 4. Rendu
 
+Mise en œuvre : phase 2 « Rendu réaliste » de la [roadmap](ROADMAP.md).
+
 | Élément | Technique |
 |---|---|
 | Terrain | Chunks de 1 × 1 km, LOD par distance (géométrie en grille + morphing ou CDLOD), texturage par splatmap (herbe, roche, terre, neige) avec textures PBR CC0 (Poly Haven, ambientCG) |
@@ -96,7 +98,7 @@ Ajustement automatique de qualité : si le FPS moyen reste sous 45 pendant 10 s,
 
 ## 6. Avatar et vélo
 
-- Modèle de cycliste riggé (glTF) et vélo séparé ; 2 à 3 tenues et couleurs personnalisables (phase 2+).
+- Modèle de cycliste riggé (glTF) et vélo séparé ; 2 à 3 tenues et couleurs personnalisables (phase 3+).
 - **Pédalage procédural** : la rotation des manivelles est pilotée par la cadence ; les jambes suivent par IK à deux os (hanche → genou → pied sur la pédale). Les bibliothèques d'animations courantes ont peu de cycles de pédalage exploitables : l'IK est plus robuste et suit exactement la cadence.
 - Animations secondaires : danseuse quand la puissance dépasse un seuil en montée, position aéro en descente, roue libre (manivelles immobiles) à cadence nulle.
 - Roues tournant à la vitesse virtuelle.
@@ -113,9 +115,9 @@ Ajustement automatique de qualité : si le FPS moyen reste sous 45 pendant 10 s,
 
 ## 8. Ambiance
 
-- Heure du jour réglable ; cycle jour/nuit et météo en phase 5.
+- Heure du jour réglable ; cycle jour/nuit et météo en phase 6.
 - Sons : vent proportionnel à la vitesse, roue libre, chaîne, ambiance (oiseaux, ruisseau), foule sur les sommets plus tard.
-- Éléments vivants (phase 2+) : autres cyclistes (bots), animaux, voitures garées, banderoles de segments.
+- Éléments vivants (phase 3+) : autres cyclistes (bots), animaux, voitures garées, banderoles de segments.
 
 ## 9. Outil de construction (`tools/world-builder`)
 

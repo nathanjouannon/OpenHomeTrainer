@@ -18,7 +18,7 @@ Cette documentation regroupe tout ce qu'il faut décider et savoir **avant** de 
 | Fichier | Contenu |
 |---|---|
 | [PRD.md](PRD.md) | Product Requirements Document : vision, personas, user stories, exigences fonctionnelles et non fonctionnelles, KPI |
-| [ROADMAP.md](ROADMAP.md) | Phases 0 à 5, livrables, critères de sortie, estimations |
+| [ROADMAP.md](ROADMAP.md) | Phases 0 à 6, livrables, critères de sortie, estimations |
 | [01-architecture.md](01-architecture.md) | Architecture globale, modules, flux de données, boucle de simulation |
 | [02-stack-technique.md](02-stack-technique.md) | Choix technologiques et alternatives écartées |
 | [03-materiel-protocoles.md](03-materiel-protocoles.md) | Home trainers, capteurs, Bluetooth (FTMS, CPS, HRS, FE-C), compatibilité navigateurs |
@@ -45,7 +45,7 @@ Cette documentation regroupe tout ce qu'il faut décider et savoir **avant** de 
 | Code | Monorepo TypeScript (pnpm + Turborepo) | [0002](adr/0002-monorepo-typescript.md) |
 | Rendu 3D | Three.js via React Three Fiber | [0003](adr/0003-rendu-3d-threejs.md) |
 | Physique | Calculée dans le client ; la vitesse découle de la puissance, jamais du trainer | [0004](adr/0004-physique-cote-client.md) |
-| Données MVP | Local-first (IndexedDB), backend à partir de la phase 2 | [0005](adr/0005-local-first-mvp.md) |
+| Données MVP | Local-first (IndexedDB), backend à partir de la phase 3 | [0005](adr/0005-local-first-mvp.md) |
 | Budget et hébergement | **0 €** (hors outil d'IA déjà payé) ; exécution **uniquement en local** ; uniquement des outils, données et assets gratuits | [0010](adr/0010-budget-zero-execution-locale.md) |
 | Monde virtuel | Monde original construit sur un relief réel (MNT) + génération procédurale | [0006](adr/0006-monde-virtuel-relief-reel.md) |
 | Routes du monde virtuel | Uniquement des boucles fermées, tours enchaînés sans fin pour les séances longues | [0009](adr/0009-boucles-uniquement.md) |

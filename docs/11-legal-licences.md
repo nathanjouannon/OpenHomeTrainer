@@ -32,7 +32,7 @@ Toutes les attributions sont affichées dans l'application (écran « Crédits �
 ## 4. Protocoles matériels
 
 - FTMS, CPS, HRS et CSCS sont des **spécifications publiques** du Bluetooth SIG : leur implémentation côté application ne pose pas de difficulté. Une qualification Bluetooth concerne les produits matériels, pas une application web utilisant le Bluetooth de l'OS.
-- ANT+ : profils accessibles après inscription gratuite comme « ANT+ Adopter » ; conditions à relire avant la phase 5.
+- ANT+ : profils accessibles après inscription gratuite comme « ANT+ Adopter » ; conditions à relire avant la phase 6.
 - **Protocoles propriétaires** (Zwift Click/Play/Ride, Elite Sterzo, Wahoo, Shimano Di2, vitesses virtuelles natives des trainers) : leur rétro-ingénierie à des fins d'**interopérabilité** est encadrée en droit européen (directive 2009/24/CE, art. 6), mais certains protocoles incluent un chiffrement ou une authentification dont le contournement peut poser problème, et les CGU des fabricants peuvent l'interdire. ⚠️ Avant de publier ces intégrations :
   - vérifier les CGU des fabricants et l'existence d'un programme partenaire ou SDK officiel ;
   - **BikeControl** (vérifié le 2026-11-02) : code public mais **non open source**. Licence non commerciale propriétaire pour les versions récentes (usage personnel, révocable, usage commercial interdit) ; GPL-3.0 pour les versions antérieures au tag `gpl3`. **Aucune copie de son code** dans HomeRealTrainer ;
@@ -50,7 +50,7 @@ Toutes les attributions sont affichées dans l'application (écran « Crédits �
 - La **fréquence cardiaque** est une **donnée de santé** (art. 9 RGPD) : consentement explicite et séparé, finalité claire, minimisation.
 - Le poids, l'âge et les performances sont des données personnelles.
 - MVP local-first : les données restent dans le navigateur ; pas de traitement serveur, donc obligations réduites. Il faut tout de même une mention d'information.
-- Phase 2 et plus :
+- Phase 3 et plus :
   - en cas d'hébergement public futur : hébergement dans l'UE (aujourd'hui tout est local, les données ne quittent pas la machine) ;
   - politique de confidentialité, registre des traitements ;
   - export (portabilité) et suppression du compte en libre-service ;

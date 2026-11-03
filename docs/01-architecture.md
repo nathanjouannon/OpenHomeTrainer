@@ -16,7 +16,7 @@
 │                            │  recorder    │ ──▶ IndexedDB ──▶ export .fit                                     │
 │                            └──────────────┘                                                                  │
 └────────────────────────────────────│─────────────────────────────────────────────────────────────────────────┘
-                                     │ HTTPS (phase 2+)              WebSocket (phase 4)
+                                     │ HTTPS (phase 3+)              WebSocket (phase 5)
                               ┌──────▼──────┐                     ┌──────────────────┐
                               │  API REST   │                     │ Serveur temps    │
                               │  (Fastify)  │                     │ réel (rooms)     │
@@ -49,8 +49,8 @@
 | `@hrt/world` | Chargement du monde 3D, streaming de chunks, avatar, caméras | three | Non |
 | `@hrt/imagery` | Mode B : interface `ImageryProvider` et implémentations | shared | Partiellement |
 | `apps/web` | Application React : écrans, HUD, orchestration | tous | — |
-| `apps/api` (phase 2) | API REST, auth, stockage | shared | Oui |
-| `apps/realtime` (phase 4) | Serveur WebSocket multijoueur | shared | Oui |
+| `apps/api` (phase 3) | API REST, auth, stockage | shared | Oui |
+| `apps/realtime` (phase 5) | Serveur WebSocket multijoueur | shared | Oui |
 | `tools/world-builder` | Scripts hors ligne : MNT → heightmap, OSM → routes et végétation, compression des assets | — | Oui |
 
 Règle de dépendance : `physics`, `route-engine`, `workouts` et `recorder` sont du **TypeScript pur**, sans DOM, sans Three.js et sans React. Ils sont testés en isolation et réutilisables côté serveur (validation, anti-triche).
@@ -98,7 +98,7 @@ Points importants :
 | HUD | Composants React rafraîchis à 4 Hz maximum | Zustand avec sélecteurs |
 | Appareils connectés | Store dédié | Zustand |
 | Profil, réglages | Persistés | Zustand `persist` + IndexedDB / localStorage |
-| Données serveur (phase 2) | Cache | TanStack Query |
+| Données serveur (phase 3) | Cache | TanStack Query |
 
 Il ne faut **jamais** faire passer l'état à 20 Hz par des re-renders React : le HUD lit à basse fréquence et la scène 3D lit l'état directement dans `useFrame`.
 
@@ -169,5 +169,5 @@ HTTPS est obligatoire dès le premier jour : Web Bluetooth n'est disponible qu'e
 ## 7. Observabilité
 
 - Phase 1 : erreurs capturées localement (handler global → console + journal téléchargeable), journal BLE téléchargeable, panneau de debug (FPS, latence BLE). Pas de service SaaS de monitoring.
-- Phase 2 et plus : logs structurés (pino) dans des fichiers locaux.
+- Phase 3 et plus : logs structurés (pino) dans des fichiers locaux.
 - Pas de télémétrie distante tant qu'il n'y a pas d'hébergement public.

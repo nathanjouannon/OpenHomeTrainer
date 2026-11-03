@@ -14,27 +14,27 @@ Les versions exactes seront figées au moment de l'initialisation du dépôt (ph
 | 3D | **Three.js + React Three Fiber + drei** | Plus grand écosystème WebGL/WebGPU, `WebGPURenderer` avec repli WebGL2, nombreux exemples terrain/eau/ciel | Babylon.js (solide, plan B si le spike échoue), PlayCanvas, Unity WebGL (build lourd, mauvaise intégration web) |
 | Post-processing | `postprocessing` (pmndrs) | Bloom, SMAA, tonemapping performants | — |
 | État | **Zustand** | Léger, utilisable hors React (boucle de simulation) | Redux (verbeux) |
-| Données serveur | TanStack Query (phase 2) | Cache, retry | — |
+| Données serveur | TanStack Query (phase 3) | Cache, retry | — |
 | Styles | Tailwind CSS | Rapide pour HUD et menus | CSS Modules |
 | Cartes 2D | **MapLibre GL JS** + tuiles gratuites (OpenFreeMap, sans clé) ou tuiles locales (PMTiles) | Open source, tuiles vectorielles, terrain 3D, 0 € | Leaflet (pas de 3D), Mapbox GL (payant) |
 | Graphiques | uPlot (temps réel) + Recharts ou ECharts (récap) | uPlot est très rapide pour les séries longues | Chart.js |
 | Stockage local | **IndexedDB via Dexie** | Sorties longues (14 400 échantillons pour 4 h), requêtes simples | localStorage (trop petit) |
 | i18n | i18next | Standard | — |
-| PWA | vite-plugin-pwa (phase 2) | Cache des assets, installation | — |
+| PWA | vite-plugin-pwa (phase 3) | Cache des assets, installation | — |
 
 ## 2. Matériel et formats
 
 | Besoin | Choix |
 |---|---|
 | Bluetooth | **Web Bluetooth API** native, sans bibliothèque (parsers maison, testés) |
-| ANT+ (phase 5) | WebUSB + clé ANT+ USB |
+| ANT+ (phase 6) | WebUSB + clé ANT+ USB |
 | Export FIT | **@garmin/fitsdk** (SDK officiel JavaScript) |
 | Parsing GPX/TCX | `@tmcw/togeojson` ou parser maison sur `DOMParser` |
 | Parsing FIT | @garmin/fitsdk (décodeur) |
 | Géodésie | `@turf/turf` (distances, cap, rééchantillonnage) |
 | Écran actif | Screen Wake Lock API |
 
-## 3. Backend (phase 2 et plus)
+## 3. Backend (phase 3 et plus)
 
 | Besoin | Choix | Pourquoi |
 |---|---|---|
@@ -47,7 +47,7 @@ Les versions exactes seront figées au moment de l'initialisation du dépôt (ph
 | Fichiers | Disque local, ou **MinIO** (compatible S3, open source) en Docker | FIT, GPX, médias ; même API que S3 si un hébergement arrive un jour |
 | Environnement serveur | **Docker Compose** local | Postgres/PostGIS, Redis, MinIO, API lancés d'une commande |
 | Cache / pub-sub | Redis (ou Valkey) | Sessions, présence multijoueur |
-| Temps réel (phase 4) | **Colyseus** ou `uWebSockets.js` maison | Colyseus fournit rooms, synchronisation d'état et matchmaking ; voir [08](08-multijoueur.md) |
+| Temps réel (phase 5) | **Colyseus** ou `uWebSockets.js` maison | Colyseus fournit rooms, synchronisation d'état et matchmaking ; voir [08](08-multijoueur.md) |
 | Jobs | BullMQ | Upload Strava, pré-calcul des parcours du mode B |
 
 ## 4. Outils hors ligne (construction du monde)

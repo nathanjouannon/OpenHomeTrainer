@@ -36,7 +36,7 @@ L'application est accessible depuis un simple navigateur, et le relief est fidè
 - Copier un monde, des parcours, des noms ou des visuels de Zwift, MyWhoosh ou d'autres jeux existants. Le monde, la marque et les assets sont **originaux**.
 - Courses e-sport officielles avec contrôle anti-triche avancé.
 - Course à pied (tapis connecté).
-- Matériel propriétaire (direction, freinage, ventilateur intelligent) avant la phase 5.
+- Matériel propriétaire (direction, freinage, ventilateur intelligent) avant la phase 6.
 
 ## 4. Personas
 
@@ -128,9 +128,9 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 
 | ID | Story | Prio | Critères d'acceptation |
 |---|---|---|---|
-| US-30 | Je veux importer un fichier GPX et rouler dessus | M (phase 3) | Parcours affiché sur une carte avec profil ; départ possible |
-| US-31 | Je veux que la pente soit réaliste même si mon GPX est bruité | M (phase 3) | Pente lissée, pas de pics aberrants > 25 % sur une route normale |
-| US-32 | Je veux voir de vraies images de la route pendant que je roule | M (phase 3) | Images affichées en avançant au rythme de la vitesse simulée ; transitions fluides |
+| US-30 | Je veux importer un fichier GPX et rouler dessus | M (phase 4) | Parcours affiché sur une carte avec profil ; départ possible |
+| US-31 | Je veux que la pente soit réaliste même si mon GPX est bruité | M (phase 4) | Pente lissée, pas de pics aberrants > 25 % sur une route normale |
+| US-32 | Je veux voir de vraies images de la route pendant que je roule | M (phase 4) | Images affichées en avançant au rythme de la vitesse simulée ; transitions fluides |
 | US-33 | Je veux tracer un parcours sur une carte | S | Tracé point par point avec routage cyclable automatique |
 | US-34 | Je veux une solution de repli quand aucune image n'existe | S | Bascule sur carte 3D/satellite + profil, sans planter |
 | US-35 | Je veux rouler sur des parcours célèbres préparés | C | Catalogue de cols et de classiques |
@@ -150,11 +150,11 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 | US-70 | En tant que cycliste avec un trainer sans cassette (Zwift Cog), je veux changer de vitesse virtuellement | **M (phase 1)** | Chaque passage (clavier au MVP) modifie la résistance de façon perceptible en < 500 ms |
 | US-71 | Je veux choisir ma transmission virtuelle | S | Préréglages + personnalisation (plateaux, pignons, séquentiel) |
 | US-72 | Je veux changer de vitesse avec une manette ou une télécommande de guidon | S | Gamepad API et télécommandes appairées au système fonctionnent |
-| US-73 | Je veux utiliser un contrôleur compatible OpenBikeControl (natif, ou Zwift Click / Play / Ride, Di2… via BikeControl) | S (phase 2), M version finale | Appairage Web Bluetooth du service OpenBikeControl, reconnexion, passage de vitesse < 150 ms jusqu'à l'envoi BLE au trainer |
+| US-73 | Je veux utiliser un contrôleur compatible OpenBikeControl (natif, ou Zwift Click / Play / Ride, Di2… via BikeControl) | S (phase 3), M version finale | Appairage Web Bluetooth du service OpenBikeControl, reconnexion, passage de vitesse < 150 ms jusqu'à l'envoi BLE au trainer |
 | US-74 | Je veux réassigner n'importe quel bouton à n'importe quelle action | S | Écran de mapping « appuyer pour assigner », profils sauvegardés |
 | US-75 | Je veux voir le rapport engagé | S | Indicateur dans le HUD |
 | US-76 | En ERG, je veux que les boutons de vitesse ajustent la puissance cible | S | ±5 W par appui |
-| US-77 | Je veux utiliser mon téléphone comme télécommande | S (phase 2) | Page compagnon via QR code sur le réseau local |
+| US-77 | Je veux utiliser mon téléphone comme télécommande | S (phase 3) | Page compagnon via QR code sur le réseau local |
 | US-78 | Je veux diriger aux intersections avec un contrôleur | C | Sterzo ou joystick reconnus |
 
 ### Après la sortie
@@ -167,14 +167,14 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 | US-53 | Je veux consulter l'historique de mes sorties | M | Liste avec stats ; détail consultable |
 | US-54 | Je veux ne rien perdre si l'onglet se ferme ou plante | M | Sauvegarde incrémentale ; reprise ou export de la sortie partielle |
 
-### Compte et social (phase 2 et plus)
+### Compte et social (phase 3 et plus)
 
 | ID | Story | Prio | Critères d'acceptation |
 |---|---|---|---|
 | US-60 | Je veux un compte pour retrouver mes données sur plusieurs appareils | S | Inscription, connexion, synchronisation |
-| US-61 | Je veux voir d'autres cyclistes rouler en même temps que moi | C (phase 4) | Avatars des autres joueurs visibles en temps réel |
-| US-62 | Je veux profiter de l'aspiration derrière d'autres coureurs | C (phase 4) | Gain de vitesse à puissance égale dans le sillage |
-| US-63 | Je veux organiser une sortie de groupe | C (phase 4) | Événement à heure fixe avec point de départ commun |
+| US-61 | Je veux voir d'autres cyclistes rouler en même temps que moi | C (phase 5) | Avatars des autres joueurs visibles en temps réel |
+| US-62 | Je veux profiter de l'aspiration derrière d'autres coureurs | C (phase 5) | Gain de vitesse à puissance égale dans le sillage |
+| US-63 | Je veux organiser une sortie de groupe | C (phase 5) | Événement à heure fixe avec point de départ commun |
 
 ## 7. Exigences fonctionnelles
 
