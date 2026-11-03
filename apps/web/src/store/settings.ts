@@ -1,6 +1,6 @@
 // Rider profile and app settings, persisted in localStorage (docs/07 §2.1).
 
-import { DEFAULT_PRESET_ID, type DrivetrainPreset } from '@hrt/drivetrain';
+import { type CassetteSpeeds, DEFAULT_CASSETTE_SPEEDS, isCassetteSpeeds } from '@hrt/drivetrain';
 import { useSyncExternalStore } from 'react';
 import type { PowerSource } from '../ride/ride-session';
 
@@ -24,7 +24,8 @@ export interface Settings {
   difficulty: number;
   quality: Quality;
   virtualShifting: boolean;
-  drivetrainPreset: DrivetrainPreset['id'];
+  /** Number of cogs of the virtual cassette (50/34 chainrings). */
+  cassetteSpeeds: CassetteSpeeds;
   powerSource: PowerSource;
   camera: CameraMode;
   hudSize: 'S' | 'M' | 'L' | 'XL';
@@ -61,7 +62,7 @@ export const defaultSettings = (): Settings => ({
   difficulty: 0.5,
   quality: 'medium',
   virtualShifting: true,
-  drivetrainPreset: DEFAULT_PRESET_ID,
+  cassetteSpeeds: DEFAULT_CASSETTE_SPEEDS,
   powerSource: 'trainer',
   camera: 'pov',
   hudSize: 'M',
@@ -78,6 +79,9 @@ function load(): Settings {
     const saved = JSON.parse(raw) as Partial<Settings>;
     // Older settings: the first-person camera became the POV camera.
     if (!CAMERA_MODES.includes(saved.camera as CameraMode)) delete saved.camera;
+    // Older settings: drivetrain presets became a cassette size.
+    delete (saved as Record<string, unknown>).drivetrainPreset;
+    if (!isCassetteSpeeds(saved.cassetteSpeeds)) delete saved.cassetteSpeeds;
     return { ...defaults, ...saved, profile: { ...defaults.profile, ...saved.profile } };
   } catch {
     return defaults;

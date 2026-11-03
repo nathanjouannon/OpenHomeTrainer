@@ -27,7 +27,7 @@ export interface TrainerControllerOptions {
 export const DEFAULT_TRAINER_CONTROLLER_OPTIONS: Readonly<TrainerControllerOptions> = {
   difficulty: 0.5,
   descentFactor: 0.5,
-  // One click of the default sequential drivetrain (≈ +6.8 % ratio) ≈ +0.66 % grade.
+  // One cog in the middle of a road cassette (≈ +10–14 % ratio) ≈ +1–1.3 % grade.
   gearOffsetPerLogRatio: 10,
   minGradePercent: -10,
   maxGradePercent: 20,

@@ -6,6 +6,8 @@ export type RideAction =
   | 'pause'
   | 'shiftUp'
   | 'shiftDown'
+  | 'shiftFrontUp'
+  | 'shiftFrontDown'
   | 'camera1'
   | 'camera2'
   | 'camera3'
@@ -25,6 +27,8 @@ export const DEFAULT_KEYMAP: Readonly<Record<string, RideAction>> = {
   '-': 'shiftDown',
   '+': 'shiftUp',
   '=': 'shiftUp',
+  q: 'shiftFrontDown',
+  s: 'shiftFrontUp',
   '1': 'camera1',
   '2': 'camera2',
   '3': 'camera3',

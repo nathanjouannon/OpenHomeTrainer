@@ -57,15 +57,17 @@ Comme l'application est aussi pilotable entièrement au clavier, BikeControl peu
 | Paramètre | Exemple | Défaut |
 |---|---|---|
 | Plateaux virtuels | `[50, 34]` | 50/34 |
-| Cassette virtuelle | `[11, 12, 13, 14, 15, 17, 19, 21, 24, 27, 30, 34]` | 11–34, 12 vitesses |
-| Mode | `double` (plateau + pignon) ou `séquentiel` (liste triée de rapports) | séquentiel 24 vitesses |
+| Cassette virtuelle | 10 à 13 vitesses, au choix dans les réglages | 11–34, 12 vitesses |
 | Rapport physique du trainer | plateau / pignon réellement engagés, ex. 50 × 17 | à renseigner (utilisé par la stratégie réaliste) |
 | Circonférence de roue | 2,105 m (700 × 25c) | 2,105 m |
 | Rapport de départ | index | milieu de plage |
 
-Préréglages fournis : *Route 2×12*, *Compacte*, *Gravel 1×12 (40 × 10–44)*, *Séquentiel 24*, *Personnalisé*.
+Cassettes proposées (plateaux 50/34) : 10 v 11–28, 11 v 11–28, **12 v 11–34** (défaut), 13 v 11–34.
 
-En mode séquentiel, les rapports sont triés et dédupliqués pour que chaque clic donne un écart régulier (≈ 6–10 %).
+Le passage se fait comme sur un vrai vélo :
+- `A` / `Z` : un pignon plus grand / plus petit, sur le plateau engagé ;
+- `Q` / `S` : petit / grand plateau, le pignon reste le même ;
+- en bout de cassette, un clic de plus change de plateau tout seul et prend le premier pignon qui donne le rapport suivant (comme le *synchro shift* Shimano Di2). Deux boutons suffisent donc pour parcourir toute la plage.
 
 ### 3.2 Grandeurs dérivées
 

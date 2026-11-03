@@ -1,4 +1,4 @@
-import { presetById } from '@hrt/drivetrain';
+import { roadDrivetrain } from '@hrt/drivetrain';
 import { DEFAULT_RIDER_PARAMS } from '@hrt/physics';
 import { encodeRideFit } from '@hrt/recorder';
 import { buildLoopRoute } from '@hrt/route-engine';
@@ -38,7 +38,7 @@ function makeSession(overrides: Partial<RideSessionConfig> = {}) {
   const session = new RideSession({
     route,
     rider: { ...DEFAULT_RIDER_PARAMS, ftpW: 250 },
-    drivetrain: presetById('sequential-24').config,
+    drivetrain: roadDrivetrain(12),
     difficulty: 0.5,
     powerSource: 'trainer',
     ride: {
@@ -122,7 +122,16 @@ describe('RideSession', () => {
     session.shift(1);
     const { command } = session.step(DT);
     expect(command?.gradePercent).toBeGreaterThan(before);
-    expect(session.state.gearLabel).toBe(`${(session.gearbox?.neutralIndex ?? 0) + 2}/24`);
+    expect(session.state.gearLabel).toBe('50×21');
+  });
+
+  it('the front shift changes chainring and keeps the cog position', () => {
+    const { session } = makeSession();
+    const cog = session.state.gearIndex;
+    session.shift(-1, 'front');
+    expect(session.state.gearLabel).toBe('34×24');
+    expect(session.state.gearIndex).toBe(cog);
+    expect(session.state.gearCount).toBe(12);
   });
 
   it('does not move nor record while paused', () => {

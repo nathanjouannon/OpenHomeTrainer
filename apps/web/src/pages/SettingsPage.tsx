@@ -1,4 +1,4 @@
-import { DRIVETRAIN_PRESETS } from '@hrt/drivetrain';
+import { CASSETTE_SPEEDS, CASSETTES, type CassetteSpeeds } from '@hrt/drivetrain';
 import type { ReactNode } from 'react';
 import { errorLog } from '../error-log';
 import { useT } from '../i18n';
@@ -9,7 +9,7 @@ import {
   updateSettings,
   useSettings,
 } from '../store/settings';
-import { downloadBlob, Page, useLocalized } from './common';
+import { downloadBlob, Page } from './common';
 
 function Field({ label, children, help }: { label: string; children: ReactNode; help?: string }) {
   return (
@@ -27,7 +27,6 @@ const num = (v: string, min: number, max: number) => Math.min(max, Math.max(min,
 export function SettingsPage() {
   const t = useT();
   const s = useSettings();
-  const loc = useLocalized();
   const p = s.profile;
   return (
     <Page title={t('settings.title')}>
@@ -131,17 +130,21 @@ export function SettingsPage() {
           />
           {t('settings.virtualShifting')}
         </label>
-        <Field label={t('settings.drivetrain')}>
+        <Field label={t('settings.cassette')}>
           <select
-            value={s.drivetrainPreset}
+            value={s.cassetteSpeeds}
             disabled={!s.virtualShifting}
             onChange={(e) =>
-              updateSettings({ drivetrainPreset: e.target.value as Settings['drivetrainPreset'] })
+              updateSettings({ cassetteSpeeds: Number(e.target.value) as CassetteSpeeds })
             }
           >
-            {DRIVETRAIN_PRESETS.map((d) => (
-              <option key={d.id} value={d.id}>
-                {loc(d.name)}
+            {CASSETTE_SPEEDS.map((n) => (
+              <option key={n} value={n}>
+                {t('settings.cassetteOption', {
+                  speeds: n,
+                  min: CASSETTES[n][0] ?? 0,
+                  max: CASSETTES[n].at(-1) ?? 0,
+                })}
               </option>
             ))}
           </select>

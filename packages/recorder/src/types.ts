@@ -17,7 +17,7 @@ export interface RideSample {
   lapDistanceM: number;
   altitudeM: number;
   gradePercent: number;
-  /** 0-based index of the virtual gear, or null without virtual shifting. */
+  /** Virtual gear (chainring index × cog count + cog index, 0 = easiest), or null without virtual shifting. */
   gear: number | null;
 }
 

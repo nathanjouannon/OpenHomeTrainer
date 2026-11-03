@@ -73,7 +73,7 @@ const fr = {
   'ride.bestLap': 'Meilleur tour !',
   'ride.goalReached': 'Objectif atteint !',
   'ride.keys':
-    'Espace pause · A/Z vitesses · 1–4 caméras · H HUD · L tour manuel · F plein écran · ↑/↓ puissance (simulé)',
+    'Espace pause · A/Z pignons · Q/S plateaux · 1–4 caméras · H HUD · L tour manuel · F plein écran · ↑/↓ puissance (simulé)',
   'hud.power': 'Puissance',
   'hud.wkg': 'W/kg',
   'hud.cadence': 'Cadence',
@@ -131,7 +131,8 @@ const fr = {
   'settings.difficultyHelp':
     'Part de la pente réelle ressentie sur le trainer. Ne change pas la vitesse, seulement la sensation.',
   'settings.virtualShifting': 'Vitesses virtuelles',
-  'settings.drivetrain': 'Transmission virtuelle',
+  'settings.cassette': 'Cassette virtuelle (plateaux 50/34)',
+  'settings.cassetteOption': '{speeds} vitesses ({min}–{max})',
   'settings.powerSource': 'Source de puissance',
   'settings.powerSource.trainer': 'Home trainer',
   'settings.powerSource.powermeter': 'Capteur de puissance',
@@ -226,7 +227,7 @@ const en: Record<MessageKey, string> = {
   'ride.bestLap': 'Best lap!',
   'ride.goalReached': 'Goal reached!',
   'ride.keys':
-    'Space pause · A/Z gears · 1–4 cameras · H HUD · L manual lap · F full screen · ↑/↓ power (simulated)',
+    'Space pause · A/Z cogs · Q/S chainrings · 1–4 cameras · H HUD · L manual lap · F full screen · ↑/↓ power (simulated)',
   'hud.power': 'Power',
   'hud.wkg': 'W/kg',
   'hud.cadence': 'Cadence',
@@ -284,7 +285,8 @@ const en: Record<MessageKey, string> = {
   'settings.difficultyHelp':
     'Share of the real grade you feel on the trainer. It does not change the speed, only the feel.',
   'settings.virtualShifting': 'Virtual shifting',
-  'settings.drivetrain': 'Virtual drivetrain',
+  'settings.cassette': 'Virtual cassette (50/34 chainrings)',
+  'settings.cassetteOption': '{speeds} speeds ({min}–{max})',
   'settings.powerSource': 'Power source',
   'settings.powerSource.trainer': 'Smart trainer',
   'settings.powerSource.powermeter': 'Power meter',

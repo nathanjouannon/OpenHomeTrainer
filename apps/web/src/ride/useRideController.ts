@@ -2,7 +2,7 @@
 // incremental saving, wake lock and keyboard actions.
 
 import type { TrainerCommand } from '@hrt/drivetrain';
-import { presetById } from '@hrt/drivetrain';
+import { roadDrivetrain } from '@hrt/drivetrain';
 import { DEFAULT_RIDER_PARAMS } from '@hrt/physics';
 import { type RideHeader, RideSaver } from '@hrt/recorder';
 import type { Route } from '@hrt/route-engine';
@@ -80,7 +80,7 @@ export function useRideController(route: Route, worldId: string, goal: RideGoal 
         cda: CDA_BY_BIKE[p.bikeType],
         ftpW: p.ftpW,
       },
-      drivetrain: s.virtualShifting ? presetById(s.drivetrainPreset).config : null,
+      drivetrain: s.virtualShifting ? roadDrivetrain(s.cassetteSpeeds) : null,
       difficulty: s.difficulty,
       powerSource: s.powerSource,
       ride: {
@@ -152,6 +152,8 @@ export function useRideController(route: Route, worldId: string, goal: RideGoal 
       dispatcher.on('pause', () => session.togglePause()),
       dispatcher.on('shiftUp', () => session.shift(1)),
       dispatcher.on('shiftDown', () => session.shift(-1)),
+      dispatcher.on('shiftFrontUp', () => session.shift(1, 'front')),
+      dispatcher.on('shiftFrontDown', () => session.shift(-1, 'front')),
       dispatcher.on('lap', () => session.manualLap()),
       dispatcher.on('simPowerUp', () => deviceHub.simulatedTrainer?.adjustRiderPower(1)),
       dispatcher.on('simPowerDown', () => deviceHub.simulatedTrainer?.adjustRiderPower(-1)),

@@ -34,7 +34,7 @@ Les hooks git (lefthook) lancent lint, typecheck et tests au commit, et le build
 
 ## Raccourcis pendant la sortie
 
-`Espace` pause · `A` / `Z` (ou `−` / `+`) vitesse plus facile / plus dure · `1`–`4` caméras (POV, poursuite, latérale, drone) · `C` caméra suivante · `H` masquer le HUD · `L` tour manuel · `F` plein écran · `↑` / `↓` puissance (trainer simulé).
+`Espace` pause · `A` / `Z` (ou `−` / `+`) pignon plus facile / plus dur · `Q` / `S` petit / grand plateau · `1`–`4` caméras (POV, poursuite, latérale, drone) · `C` caméra suivante · `H` masquer le HUD · `L` tour manuel · `F` plein écran · `↑` / `↓` puissance (trainer simulé).
 
 ## Structure
 

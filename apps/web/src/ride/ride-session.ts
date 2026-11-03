@@ -56,8 +56,11 @@ export interface LiveState {
   lapTimeS: number;
   lastLapS: number | null;
   bestLapS: number | null;
+  /** Cog position on the cassette, 0 = largest (easiest); null without virtual shifting. */
   gearIndex: number | null;
+  /** Number of cogs of the cassette. */
   gearCount: number;
+  /** "50×17". */
   gearLabel: string | null;
   /** Grade last sent to the trainer. */
   trainerGradePercent: number | null;
@@ -129,8 +132,8 @@ export class RideSession {
       lapTimeS: 0,
       lastLapS: null,
       bestLapS: null,
-      gearIndex: this.gearbox?.index ?? null,
-      gearCount: this.gearbox?.count ?? 0,
+      gearIndex: this.gearbox?.rearIndex ?? null,
+      gearCount: this.gearbox?.cogCount ?? 0,
       gearLabel: this.gearbox?.label() ?? null,
       trainerGradePercent: null,
       paused: false,
@@ -186,13 +189,22 @@ export class RideSession {
     };
   }
 
-  shift(direction: 1 | -1): void {
-    if (!this.gearbox) return;
-    const changed = direction > 0 ? this.gearbox.shiftUp() : this.gearbox.shiftDown();
+  /** Rear shift by default; `front` changes chainring. 1 = harder. */
+  shift(direction: 1 | -1, derailleur: 'rear' | 'front' = 'rear'): void {
+    const box = this.gearbox;
+    if (!box) return;
+    const changed =
+      derailleur === 'front'
+        ? direction > 0
+          ? box.shiftFrontUp()
+          : box.shiftFrontDown()
+        : direction > 0
+          ? box.shiftUp()
+          : box.shiftDown();
     if (!changed) return;
-    this.state.gearIndex = this.gearbox.index;
-    this.state.gearLabel = this.gearbox.label();
-    this.emit({ type: 'gear', label: this.state.gearLabel, index: this.gearbox.index });
+    this.state.gearIndex = box.rearIndex;
+    this.state.gearLabel = box.label();
+    this.emit({ type: 'gear', label: this.state.gearLabel, index: box.index });
   }
 
   setDifficulty(difficulty: number): void {
