@@ -21,7 +21,7 @@ import {
   Vector3,
 } from 'three';
 import type { CameraMode, Quality } from '../store/settings';
-import { Rider, type RiderHandle } from './Rider';
+import { POV_HIDDEN_LAYER, POV_ONLY_LAYER, Rider, type RiderHandle } from './Rider';
 import {
   asphaltTextures,
   buildAsphalt,
@@ -268,9 +268,14 @@ function placeCamera(
   riderGroup: Object3D | null,
 ) {
   const { pos, dir, right, desired, look } = tmp;
-  // The rider's head and torso (layer 1) are hidden in the POV view.
-  if (mode === 'pov') cam.layers.disable(1);
-  else cam.layers.enable(1);
+  // The rider's head, torso and arms are hidden in the POV view, which has its own arms.
+  if (mode === 'pov') {
+    cam.layers.disable(POV_HIDDEN_LAYER);
+    cam.layers.enable(POV_ONLY_LAYER);
+  } else {
+    cam.layers.enable(POV_HIDDEN_LAYER);
+    cam.layers.disable(POV_ONLY_LAYER);
+  }
   const fov = mode === 'pov' ? 80 : 62;
   if (cam.fov !== fov) {
     cam.fov = fov;

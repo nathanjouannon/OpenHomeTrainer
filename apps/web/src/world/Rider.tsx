@@ -208,6 +208,7 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
         geometry={new BoxGeometry(0.12, 0.04, 0.26)}
       />
       <DropBar tape={mats.dark} hood={mats.hood} glove={mats.glove} metal={mats.metal} />
+      <PovArms skin={mats.skin} jersey={mats.jersey} glove={mats.glove} />
       {/* Cranks */}
       <group ref={crank} position={BB.toArray()}>
         <mesh
@@ -285,10 +286,94 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
 });
 
 /** Layer 1 is not rendered by the POV camera (the head would fill the view). */
-const POV_HIDDEN_LAYER = 1;
+export const POV_HIDDEN_LAYER = 1;
+/** Layer 2 is rendered by the POV camera only. */
+export const POV_ONLY_LAYER = 2;
 const hideInPov = (o: Object3D | null) => {
   o?.layers.set(POV_HIDDEN_LAYER);
 };
+const onlyInPov = (o: Object3D | null) => {
+  o?.layers.set(POV_ONLY_LAYER);
+};
+
+/** Unit cylinder thinner at the far end (b), for forearms. */
+const taperedCylinder = new CylinderGeometry(0.72, 1, 1, 10).translate(0, 0.5, 0);
+
+/**
+ * Arms seen from the POV camera. The camera sits about where the shoulders
+ * are, so the body arms would be cut in the middle of the view. These start
+ * from an elbow held low and wide, out of the frame (and beyond the near
+ * plane), and the forearms come up from the bottom of the view to the hands
+ * on the hoods, like the arms of a first-person game.
+ */
+function PovArms({
+  skin,
+  jersey,
+  glove,
+}: {
+  skin: MeshStandardMaterial;
+  jersey: MeshStandardMaterial;
+  glove: MeshStandardMaterial;
+}) {
+  const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
+  return (
+    <group>
+      {[1, -1].flatMap((side) => {
+        const shoulder = v(side * 0.19, 1.38, 0.16);
+        const elbow = v(side * 0.27, 0.95, 0.25);
+        const wrist = v(side * 0.205, 0.995, 0.53);
+        const sleeveEnd = elbow.clone().lerp(shoulder, 0.45);
+        const cuffStart = elbow.clone().lerp(wrist, 0.86);
+        return [
+          <mesh
+            key={`upper${side}`}
+            material={skin}
+            geometry={unitCylinder}
+            ref={(m) => {
+              limb(m, elbow, sleeveEnd, 0.042);
+              onlyInPov(m);
+            }}
+          />,
+          <mesh
+            key={`sleeve${side}`}
+            material={jersey}
+            geometry={unitCylinder}
+            ref={(m) => {
+              limb(m, sleeveEnd, shoulder, 0.05);
+              onlyInPov(m);
+            }}
+          />,
+          <mesh
+            key={`elbow${side}`}
+            material={skin}
+            position={elbow.toArray()}
+            geometry={new SphereGeometry(0.042, 10, 8)}
+            ref={onlyInPov}
+          />,
+          <mesh
+            key={`forearm${side}`}
+            material={skin}
+            geometry={taperedCylinder}
+            ref={(m) => {
+              limb(m, elbow, wrist, 0.04);
+              onlyInPov(m);
+            }}
+          />,
+          // Glove cuff over the wrist, joining the forearm to the hand.
+          <mesh
+            key={`cuff${side}`}
+            material={glove}
+            geometry={unitCylinder}
+            ref={(m) => {
+              limb(m, cuffStart, wrist.clone().lerp(elbow, -0.06), 0.031);
+              onlyInPov(m);
+            }}
+          />,
+        ];
+      })}
+    </group>
+  );
+}
 
 /**
  * Road drop handlebar seen in the POV view: tops, ramps, hoods with brake and
