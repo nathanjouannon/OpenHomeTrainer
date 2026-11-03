@@ -2,6 +2,7 @@ import {
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
+  DataArrayTexture,
   DataTexture,
   DirectionalLight,
   FloatType,
@@ -13,6 +14,8 @@ import {
   Texture,
   WebGLRenderTarget,
 } from 'three';
+import { int, texture, uv } from 'three/tsl';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
 import { describe, expect, it } from 'vitest';
 import { canvasBytes, estimateGpuMemory, textureSizeBytes } from './gpu-memory';
 
@@ -34,6 +37,28 @@ describe('estimateGpuMemory', () => {
     expect(m.textureBytes).toBe(64 * 32 * 4);
     expect(m.targetBytes).toBe(0);
     expect(m.totalBytes).toBe(m.geometryBytes + m.textureBytes);
+  });
+
+  it('finds the textures of the TSL nodes of a node material', () => {
+    const layers = new DataArrayTexture(new Uint8Array(16 * 16 * 4 * 3), 16, 16, 3);
+    layers.generateMipmaps = false;
+    const material = new MeshStandardNodeMaterial();
+    material.colorNode = texture(layers, uv()).depth(int(1)).mul(0.5);
+    const scene = new Group();
+    scene.add(new Mesh(new BoxGeometry(), material));
+    const m = estimateGpuMemory(scene, null);
+    expect(m.textures).toBe(1);
+    expect(m.textureBytes).toBe(16 * 16 * 3 * 4);
+  });
+
+  it('adds the textures a node material lists in userData', () => {
+    const map = new DataArrayTexture(new Uint8Array(8 * 8 * 4 * 2), 8, 8, 2);
+    map.generateMipmaps = false;
+    const material = new MeshStandardNodeMaterial();
+    material.userData.textures = [map];
+    const scene = new Group();
+    scene.add(new Mesh(new BoxGeometry(), material));
+    expect(estimateGpuMemory(scene, null).textureBytes).toBe(8 * 8 * 2 * 4);
   });
 
   it('adds instance attributes', () => {

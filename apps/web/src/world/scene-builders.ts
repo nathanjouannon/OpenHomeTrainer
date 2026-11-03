@@ -16,6 +16,7 @@ import {
   Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { LAYER_COUNT } from './terrain-splat';
 import { cellSizeM, mulberry32, type Terrain, type TreeInstance } from './world-data';
 
 export const CHUNKS_PER_SIDE = 8;
@@ -79,6 +80,8 @@ export function buildChunkGeometry(
   step: number,
   baseElevation: number,
   waterLevel: number | null,
+  /** Splat weights per sample (terrain-splat.ts), for the PBR terrain material. */
+  splat: Uint8Array | null = null,
 ): BufferGeometry {
   const s = t.samples;
   const cellsPerChunk = (s - 1) / CHUNKS_PER_SIDE;
@@ -93,6 +96,8 @@ export function buildChunkGeometry(
   const norms = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
   const uvs = new Float32Array(vertexCount * 2);
+  const splat0 = splat ? new Uint8Array(vertexCount * 3) : null;
+  const splat1 = splat ? new Uint8Array(vertexCount * 3) : null;
   const color = new Color();
   // Coarse LODs skip samples: near a road, take the lowest sample of the
   // skipped block so the coarse surface never rises above the asphalt.
@@ -124,6 +129,10 @@ export function buildChunkGeometry(
     terrainColor(z, normals[i * 3 + 1] as number, i, waterLevel, color);
     colors.set([color.r, color.g, color.b], v * 3);
     uvs.set([(c * cell) / 4, (r * cell) / 4], v * 2);
+    if (splat && splat0 && splat1) {
+      splat0.set(splat.subarray(i * LAYER_COUNT, i * LAYER_COUNT + 3), v * 3);
+      splat1.set(splat.subarray(i * LAYER_COUNT + 3, i * LAYER_COUNT + 6), v * 3);
+    }
   };
   for (let j = 0; j < n; j++)
     for (let k = 0; k < n; k++) put(j * n + k, r0 + j * step, c0 + k * step, 0);
@@ -161,6 +170,10 @@ export function buildChunkGeometry(
   g.setAttribute('normal', new BufferAttribute(norms, 3));
   g.setAttribute('color', new BufferAttribute(colors, 3));
   g.setAttribute('uv', new BufferAttribute(uvs, 2));
+  if (splat0 && splat1) {
+    g.setAttribute('splat0', new BufferAttribute(splat0, 3, true));
+    g.setAttribute('splat1', new BufferAttribute(splat1, 3, true));
+  }
   g.setIndex(indices);
   g.computeBoundingSphere();
   return g;

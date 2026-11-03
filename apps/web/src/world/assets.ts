@@ -5,6 +5,7 @@
 import { type DataTexture, EquirectangularReflectionMapping } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { ASSETS_BASE_URL, type AssetManifest, isAssetManifest } from './asset-manifest';
+import { loadTextureArrays, type TextureArrays } from './texture-arrays';
 
 let manifest: Promise<AssetManifest | null> | null = null;
 
@@ -36,4 +37,13 @@ export async function loadEnvironmentMap(): Promise<EnvironmentMap | null> {
   } catch {
     return null;
   }
+}
+
+/** Texture arrays of the given slots, in order; null if one of them is missing. */
+export async function loadTextureSlots(slots: readonly string[]): Promise<TextureArrays | null> {
+  const textures = (await assetManifest())?.textures;
+  if (!textures) return null;
+  const sets = slots.map((slot) => textures[slot]);
+  if (sets.some((s) => !s)) return null;
+  return loadTextureArrays(sets as NonNullable<(typeof sets)[number]>[]);
 }

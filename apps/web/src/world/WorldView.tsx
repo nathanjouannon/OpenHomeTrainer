@@ -22,7 +22,7 @@ import {
 } from 'three';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import type { CameraMode, Quality } from '../store/settings';
-import { type EnvironmentMap, loadEnvironmentMap } from './assets';
+import { type EnvironmentMap, loadEnvironmentMap, loadTextureSlots } from './assets';
 import { FOG_COLOR, Lighting, SUN_POSITION } from './Lighting';
 import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
 import { PostFX } from './PostFX';
@@ -33,7 +33,7 @@ import {
   type RiderHandle,
   SHADOW_ONLY_LAYER,
 } from './Rider';
-import { renderProfile } from './render-profile';
+import { renderProfile, terrainProfile } from './render-profile';
 import { createWorldRenderer, frameInfo, rendererBackend } from './renderer';
 import type { RendererBackend, RendererPreference } from './renderer-options';
 import {
@@ -61,12 +61,19 @@ import {
   treeGeometries,
 } from './scene-builders';
 import { generateSettlements, type Settlements } from './settlements';
+import { createTerrainMaterial } from './terrain-material';
+import { computeSplatMap, TERRAIN_LAYERS } from './terrain-splat';
+import type { TextureArrays } from './texture-arrays';
 import { realClock, useWorldClock, type WorldClock, WorldClockContext } from './world-clock';
-import { placeTrees, type WorldData } from './world-data';
+import { forestCover, placeTrees, valueNoise2d, type WorldData } from './world-data';
 
 const TREES_BY_QUALITY: Record<Quality, number> = { low: 25_000, medium: 60_000, high: 110_000 };
 const TREE_VIEW_DISTANCE_M: Record<Quality, number> = { low: 1800, medium: 2800, high: 4000 };
 const LOD_DISTANCES_M = [0, 1300, 2800];
+/** Same seed as the trees, so that the forest floor lies under the forests. */
+const FOREST_SEED = 7;
+/** Trees thin out between these altitudes (see placeTrees), and so does their floor. */
+const TREELINE_M = [1750, 1900] as const;
 /** The rider keeps to the right of the road. */
 const LANE_OFFSET_M = 1.3;
 
@@ -86,6 +93,8 @@ export interface BuiltWorld {
   shadowTreeGeometries: ReturnType<typeof shadowTreeGeometries>;
   /** CC0 environment map, null when the assets are not downloaded. */
   environment: EnvironmentMap | null;
+  /** PBR ground textures (TERRAIN_LAYERS order), null when not downloaded. */
+  terrainTextures: TextureArrays | null;
 }
 
 /** Heavy geometry work, done once on the loading screen. */
@@ -97,12 +106,25 @@ export async function buildWorldScene(
   const t = world.terrain;
   const base = t.minElevationM;
   const environment = loadEnvironmentMap();
+  const terrainTextures = loadTextureSlots(TERRAIN_LAYERS);
   const normals = terrainNormals(t);
   const water = world.manifest.waterLevelM;
+  const forest = forestCover(FOREST_SEED);
+  const [treelineLow, treelineHigh] = TREELINE_M;
+  const splat = computeSplatMap(
+    t,
+    normals,
+    water,
+    (x, y, z) =>
+      forest(x, y, z) * Math.min(1, Math.max(0, (treelineHigh - z) / (treelineHigh - treelineLow))),
+    valueNoise2d(11),
+  );
   const chunks: BufferGeometry[][] = [];
   for (let r = 0; r < CHUNKS_PER_SIDE; r++) {
     for (let c = 0; c < CHUNKS_PER_SIDE; c++) {
-      chunks.push(LOD_STEPS.map((step) => buildChunkGeometry(t, normals, r, c, step, base, water)));
+      chunks.push(
+        LOD_STEPS.map((step) => buildChunkGeometry(t, normals, r, c, step, base, water, splat)),
+      );
     }
     onProgress((r + 1) / CHUNKS_PER_SIDE / 2);
     // Let the loading screen repaint.
@@ -122,7 +144,11 @@ export async function buildWorldScene(
     roads.sidewalks.push(...tops);
     roads.curbs.push(...curbs);
   }
-  const trees = batchTrees(placeTrees(world, TREES_BY_QUALITY[quality], 7, settlements), t, base);
+  const trees = batchTrees(
+    placeTrees(world, TREES_BY_QUALITY[quality], FOREST_SEED, settlements),
+    t,
+    base,
+  );
   const built: BuiltWorld = {
     base,
     terrainSizeM: t.sizeM,
@@ -133,6 +159,7 @@ export async function buildWorldScene(
     treeGeometries: treeGeometries(),
     shadowTreeGeometries: shadowTreeGeometries(),
     environment: await environment,
+    terrainTextures: await terrainTextures,
   };
   onProgress(1);
   return built;
@@ -266,7 +293,7 @@ function Scene({
       <WorldSky />
       <Lighting shadows={renderProfile(quality).shadows} environment={built.environment} />
       {post && <PostFX profile={post} />}
-      <Terrain built={built} />
+      <Terrain built={built} quality={quality} />
       <Roads built={built} />
       {world.manifest.waterLevelM !== null && (
         <Water level={world.manifest.waterLevelM - base} size={world.terrain.sizeM} />
@@ -411,16 +438,21 @@ function placeCamera(
   cam.lookAt(look);
 }
 
-function Terrain({ built }: { built: BuiltWorld }) {
+function Terrain({ built, quality }: { built: BuiltWorld; quality: Quality }) {
+  const backend = rendererBackend(useThree((s) => s.gl));
   const material = useMemo(
     () =>
-      new MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.95,
-        map: terrainDetailTexture(),
-      }),
-    [],
+      built.terrainTextures
+        ? createTerrainMaterial(built.terrainTextures, terrainProfile(quality, backend))
+        : // Without the CC0 textures: vertex colours and a procedural detail texture.
+          new MeshStandardMaterial({
+            vertexColors: true,
+            roughness: 0.95,
+            map: terrainDetailTexture(),
+          }),
+    [built, quality, backend],
   );
+  useEffect(() => () => material.dispose(), [material]);
   const lods = useMemo(
     () =>
       built.chunks.map((levels) => {
@@ -663,6 +695,8 @@ export function useDisposeOnUnmount(built: BuiltWorld | null) {
     () => () => {
       if (!built) return;
       built.environment?.texture.dispose();
+      built.terrainTextures?.albedo.dispose();
+      built.terrainTextures?.surface.dispose();
       for (const levels of built.chunks) for (const g of levels) g.dispose();
       for (const list of Object.values(built.roads)) for (const g of list) g.dispose();
     },

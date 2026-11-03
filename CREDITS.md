@@ -11,6 +11,12 @@ Tous en [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.fr) : aucun
 | Asset | Usage | Source et auteur |
 | --- | --- | --- |
 | HDRI « Alps Field » (1k) | Lumière d'ambiance et reflets (lot 2.2) ; le disque du soleil est écrêté, le soleil de la scène le remplace | [Poly Haven](https://polyhaven.com/a/alps_field), Andreas Mischok |
+| « Grass004 » (1K JPG) | Herbe du terrain (lot 2.4) | [ambientCG](https://ambientcg.com/view?id=Grass004), Lennart Demes |
+| « Ground037 » (1K JPG) | Prairie du terrain (lot 2.4) | [ambientCG](https://ambientcg.com/view?id=Ground037), Lennart Demes |
+| « Forest Ground 04 » (1k) | Terre : sol forestier, accotements, rives (lot 2.4) | [Poly Haven](https://polyhaven.com/a/forest_ground_04), Rob Tuytel, Rico Cilliers |
+| « Rock030 » (1K JPG) | Roche des pentes raides (lot 2.4) | [ambientCG](https://ambientcg.com/view?id=Rock030), Lennart Demes |
+| « Gray Rocks » (1k) | Éboulis en altitude (lot 2.4) | [Poly Haven](https://polyhaven.com/a/gray_rocks), Dimitrios Savva |
+| « Snow 02 » (1k) | Neige au-dessus de ~1 900 m (lot 2.4) | [Poly Haven](https://polyhaven.com/a/snow_02), Rob Tuytel |
 
 ## Outils de test
 

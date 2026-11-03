@@ -12,6 +12,8 @@ export interface Terrain {
   minElevationM: number;
   /** 1 where a sample was lowered for a road (coarse LODs keep these low). */
   nearRoad?: Uint8Array;
+  /** Horizontal distance of each sample to the nearest road axis (m), Infinity when far. */
+  roadDistM?: Float32Array;
 }
 
 /** The ground under the road and its shoulders is sunk this much under the asphalt. */
@@ -151,6 +153,7 @@ export function flattenAlongRoutes(
     t.heights[i] = dist <= fullM ? flat : h + (flat - h) * smooth;
   }
   t.nearRoad = nearRoad;
+  t.roadDistM = bestDist;
 }
 
 /** Small seeded PRNG: the same seed always gives the same forest. */
@@ -228,7 +231,7 @@ export function placeTrees(
     }
   }
   const water = world.manifest.waterLevelM;
-  const noise = valueNoise2d(seed);
+  const forest = forestCover(seed);
   const out: TreeInstance[] = [];
   for (let attempt = 0; out.length < count && attempt < count * 30; attempt++) {
     const x = (rand() * 2 - 1) * (half - 20);
@@ -245,10 +248,7 @@ export function placeTrees(
         terrainHeightAt(t, x, y + 5) - terrainHeightAt(t, x, y - 5),
       ) / 10;
     if (slope > 0.9) continue;
-    // Forest patches and open meadows; the valley floor is mostly open fields.
-    const density = noise(x / 900, y / 900) * 0.7 + noise(x / 220, y / 220) * 0.3;
-    const valley = z < 520 ? 0.45 : 0;
-    if (rand() > density * 1.6 - 0.45 - valley) continue;
+    if (rand() > forest(x, y, z)) continue;
     const conifer = z > 900 ? rand() < 0.85 : rand() < 0.35;
     out.push({
       x,
@@ -263,7 +263,22 @@ export function placeTrees(
   return out;
 }
 
-function valueNoise2d(seed: number): (x: number, y: number) => number {
+/**
+ * Share of the trees kept at (x, y, z), 0..1 (before the road, water, slope
+ * and altitude rules): forest patches and open meadows, the valley floor
+ * mostly open fields. Also the forest floor of the terrain (lot 2.4).
+ */
+export function forestCover(seed = 7): (x: number, y: number, z: number) => number {
+  const noise = valueNoise2d(seed);
+  return (x, y, z) => {
+    const density = noise(x / 900, y / 900) * 0.7 + noise(x / 220, y / 220) * 0.3;
+    const valley = z < 520 ? 0.45 : 0;
+    return Math.min(1, Math.max(0, density * 1.6 - 0.45 - valley));
+  };
+}
+
+/** Smooth value noise in 0..1, period-free, one unit = one cell. */
+export function valueNoise2d(seed: number): (x: number, y: number) => number {
   const hash = (x: number, y: number) => {
     let h = (x * 374761393 + y * 668265263 + seed * 1442695041) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);

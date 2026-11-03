@@ -148,3 +148,23 @@ Même machine et mêmes conditions. Pire cas sur les 16 points de vue, et FPS mo
 - **Images** : couleurs plus contrastées et plus saturées (étalonnage), occlusion au pied des murs, des bordures et sous les voitures, halo discret face au soleil, bords lissés par SMAA.
 - **Coût** (qualité moyenne, WebGPU) : FPS moyen médian 225 → 130, surtout l'occlusion ambiante (~2 ms) ; halo + SMAA ~1 ms, compensés en partie par la fin du MSAA du canvas. Tous les budgets de FPS restent tenus, mais la marge pour les shaders du terrain (lot 2.4) se réduit : à surveiller.
 - **Draw calls** : +15 environ (passes du post-traitement) ; 299 au maximum en qualité moyenne (`collines-montee`), à la limite du budget de 300. La mémoire baisse un peu (plus de tampons MSAA).
+
+### Après les matières du terrain (runs `apres-2.4-webgpu` et `apres-2.4-webgl2`, 2026-11-03)
+
+Même machine et mêmes conditions. Pire cas sur les 16 points de vue, et FPS moyen médian :
+
+| Qualité | Backend | FPS moyen min. | FPS moyen médian | 1 % low min. | Draw calls max. | Triangles max. | Mémoire GPU estimée |
+|---|---|---|---|---|---|---|---|
+| Basse | WebGPU | 206 | 328 | 125 | 225 | 1,43 M | 222 Mo |
+| Basse | WebGL2 (repli) | 162 | 248 | 97 | 225 | 1,43 M | 222 Mo |
+| Moyenne | WebGPU | 78 | 105 | 33 | 299 | 1,95 M | 311 Mo |
+| Moyenne | WebGL2 (repli) | 69 | 82 | 37 | 299 | 1,95 M | 311 Mo |
+| Haute | WebGPU | 51 | 62 | 21 | 315 | 3,28 M | 388 Mo |
+| Haute | WebGL2 (repli) | 41 | 55 | 24 | 315 | 3,28 M | 388 Mo |
+
+- **Images** : plus d'aplats sur le terrain : herbe et prairie par taches, terre sous les bois denses, le long des accotements et sur les rives, roche sur les pentes raides et les talus des routes, éboulis en altitude ; aucun motif répété visible à hauteur de cycliste. Draw calls et triangles inchangés (le terrain garde une matière par LOD).
+- **Coût** (qualité moyenne, WebGPU) : FPS moyen médian 130 → 105. La première version échantillonnait les 6 matières sur chaque pixel (médian ~70, 66 au pire sur `col-sommet`) ; le shader n'échantillonne plus que les couches présentes au pixel (1 à 3 en général).
+- **Repli WebGL2** : sans échantillonnage stochastique (triplanaire gardé), il retrouve presque son niveau du lot 2.3 (82 contre 84 en médiane en qualité moyenne). Avec le stochastique, il passait sous les budgets (53 FPS au pire en moyenne, 21 en haute).
+- **Mémoire estimée** : +72 Mo, surtout les deux *texture arrays* (6 couches 1024², mipmaps comprises, ~67 Mo) et les poids de la splatmap dans les sommets. L'estimation compte désormais les textures des matières TSL (`userData.textures`).
+- **Mesure** : le MacBook Air chauffe pendant les runs longs enchaînés (jusqu'à −25 % de FPS sur le run suivant). Laisser refroidir la machine quelques minutes entre deux runs complets.
+- Points de vigilance : marge réduite en qualité haute (51 FPS au pire en WebGPU, 41 en WebGL2, toujours ≥ 30) ; à surveiller pour la végétation du lot 2.6.

@@ -108,11 +108,29 @@ function bufferBytes(b: BufferAttribute | InterleavedBuffer): number {
   return b.array.byteLength;
 }
 
-/** Textures referenced by a material: map, normalMap… and shader uniforms. */
+/** A node of a TSL graph (node materials), as far as this estimate needs it. */
+interface GraphNode {
+  isNode: true;
+  value?: unknown;
+  traverse(callback: (node: GraphNode) => void): void;
+}
+const isGraphNode = (v: unknown): v is GraphNode =>
+  typeof v === 'object' && v !== null && (v as { isNode?: unknown }).isNode === true;
+
+/** Textures referenced by a material: map, normalMap…, shader uniforms and TSL nodes. */
 function collectTextures(m: Material, out: Set<Texture>): void {
   for (const value of Object.values(m)) {
     if (value instanceof Texture) out.add(value);
+    else if (isGraphNode(value)) {
+      value.traverse((node) => {
+        if (node.value instanceof Texture) out.add(node.value);
+      });
+    }
   }
+  // Textures used inside TSL functions are out of reach of the traversal:
+  // node materials list them in userData.textures.
+  const listed: unknown = m.userData.textures;
+  if (Array.isArray(listed)) for (const t of listed) if (t instanceof Texture) out.add(t);
   const uniforms = (m as Material & { uniforms?: Record<string, { value: unknown }> }).uniforms;
   for (const u of Object.values(uniforms ?? {})) {
     if (u?.value instanceof Texture) out.add(u.value);

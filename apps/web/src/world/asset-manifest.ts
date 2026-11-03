@@ -18,6 +18,25 @@ export interface AssetManifest {
     /** Luminance the sun disc was clipped to. */
     clippedAt: number;
   };
+  /** PBR texture sets by slot (terrain layers from lot 2.4). */
+  textures?: Record<string, TextureSet>;
+}
+
+/** Files of one PBR texture set (paths relative to the assets folder). */
+export interface TextureSetFiles {
+  color: string;
+  /** OpenGL convention (green up). */
+  normal: string;
+  roughness: string;
+  ao?: string;
+  /** Height (displacement), used to blend the terrain layers. */
+  height?: string;
+}
+
+export interface TextureSet extends TextureSetFiles {
+  source: string;
+  license: 'CC0';
+  author: string;
 }
 
 export const isAssetManifest = (v: unknown): v is AssetManifest =>

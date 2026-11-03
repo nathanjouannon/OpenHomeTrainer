@@ -9,9 +9,15 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { ASSETS_FORMAT, type AssetManifest } from '../../../apps/web/src/world/asset-manifest';
-import { HDRI, HDRI_CLIP_PERCENTILE } from './asset-catalog';
+import {
+  ASSETS_FORMAT,
+  type AssetManifest,
+  type TextureSet,
+  type TextureSetFiles,
+} from '../../../apps/web/src/world/asset-manifest';
+import { HDRI, HDRI_CLIP_PERCENTILE, TEXTURES, type TextureAsset } from './asset-catalog';
 import { clipHighlights, findSun, luminancePercentile, parseHdr, writeHdr } from './hdr';
+import { listZip, readZipEntry } from './zip';
 
 const { values } = parseArgs({
   options: {
@@ -35,13 +41,89 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function download(file: PolyHavenFile): Promise<Uint8Array> {
+async function download(file: { url: string; md5?: string }): Promise<Uint8Array> {
   const res = await fetch(file.url, { headers: { 'User-Agent': USER_AGENT } });
   if (!res.ok) throw new Error(`${file.url}: HTTP ${res.status}`);
   const buf = new Uint8Array(await res.arrayBuffer());
-  const md5 = createHash('md5').update(buf).digest('hex');
-  if (md5 !== file.md5) throw new Error(`${file.url}: checksum mismatch`);
+  if (file.md5 && createHash('md5').update(buf).digest('hex') !== file.md5) {
+    throw new Error(`${file.url}: checksum mismatch`);
+  }
   return buf;
+}
+
+const MAPS = ['color', 'normal', 'roughness', 'ao', 'height'] as const;
+type MapName = (typeof MAPS)[number];
+/** Map names on Poly Haven and in the ambientCG archives. */
+const POLY_HAVEN_MAPS: Record<MapName, string> = {
+  color: 'Diffuse',
+  normal: 'nor_gl',
+  roughness: 'Rough',
+  ao: 'AO',
+  height: 'Displacement',
+};
+const AMBIENT_CG_MAPS: Record<MapName, string> = {
+  color: 'Color',
+  normal: 'NormalGL',
+  roughness: 'Roughness',
+  ao: 'AmbientOcclusion',
+  height: 'Displacement',
+};
+
+async function fetchTextureMaps(t: TextureAsset): Promise<Partial<Record<MapName, Uint8Array>>> {
+  const out: Partial<Record<MapName, Uint8Array>> = {};
+  if (t.source === 'polyhaven') {
+    const files = await getJson<Record<string, Record<string, { jpg?: PolyHavenFile }>>>(
+      `${POLY_HAVEN_API}/files/${t.id}`,
+    );
+    for (const map of MAPS) {
+      const f = files[POLY_HAVEN_MAPS[map]]?.['1k']?.jpg;
+      if (f) out[map] = await download(f);
+    }
+    return out;
+  }
+  const zip = await download({ url: `https://ambientcg.com/get?file=${t.id}_1K-JPG.zip` });
+  const entries = listZip(zip);
+  for (const map of MAPS) {
+    const e = entries.find((x) => x.name.endsWith(`_${AMBIENT_CG_MAPS[map]}.jpg`));
+    if (e) out[map] = readZipEntry(zip, e);
+  }
+  return out;
+}
+
+const sourceUrl = (t: TextureAsset) =>
+  t.source === 'polyhaven'
+    ? `https://polyhaven.com/a/${t.id}`
+    : `https://ambientcg.com/view?id=${t.id}`;
+
+async function fetchTextures(
+  previous: AssetManifest['textures'],
+): Promise<Record<string, TextureSet>> {
+  const out: Record<string, TextureSet> = {};
+  for (const [slot, t] of Object.entries(TEXTURES)) {
+    const source = sourceUrl(t);
+    const prev = previous?.[slot];
+    const dir = `textures/${slot}`;
+    if (!values.force && prev?.source === source && existsSync(resolve(outDir, prev.color))) {
+      console.log(`Texture ${slot} (${t.id}): already there`);
+      out[slot] = prev;
+      continue;
+    }
+    console.log(`Texture ${slot} (${t.source} ${t.id})…`);
+    const maps = await fetchTextureMaps(t);
+    if (!maps.color || !maps.normal || !maps.roughness) {
+      throw new Error(`Texture ${t.id}: colour, normal or roughness map missing`);
+    }
+    const files: Partial<TextureSetFiles> = {};
+    for (const map of MAPS) {
+      const data = maps[map];
+      if (!data) continue;
+      const file = `${dir}/${map}.jpg`;
+      await save(resolve(outDir, file), data);
+      files[map] = file;
+    }
+    out[slot] = { ...(files as TextureSetFiles), source, license: 'CC0', author: t.author };
+  }
+  return out;
 }
 
 async function save(path: string, data: Uint8Array | string) {
@@ -94,6 +176,7 @@ async function main() {
     format: ASSETS_FORMAT,
     generatedAt: new Date().toISOString(),
     hdri: await fetchHdri(previous.hdri),
+    textures: await fetchTextures(previous.textures),
   };
   await save(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`Assets → ${outDir}`);
