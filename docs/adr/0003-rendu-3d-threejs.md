@@ -34,7 +34,7 @@ Scène de la page `#/3d` : terrain 4 × 4 km issu d'un MNT réel (513 × 513 som
 **Compatibilité avec React Three Fiber 9** (vérifiée) :
 
 - le renderer se crée par une fabrique asynchrone passée à `<Canvas gl={…}>` (`apps/web/src/world/renderer.ts`) : `await renderer.init()` avant le premier rendu ;
-- R3F pilote sa propre boucle `requestAnimationFrame`, alors que `WebGPURenderer` ne remet à zéro ses compteurs par image (`info.render`) que dans sa propre boucle d'animation : la fabrique les remet à zéro à chaque `render()`, comme `WebGLRenderer`. Les compteurs portent aussi d'autres noms (`drawCalls` au lieu de `calls`) : on les lit via `frameInfo()` ;
+- R3F pilote sa propre boucle `requestAnimationFrame`, alors que `WebGPURenderer` ne remet à zéro ses compteurs par image (`info.render`) que dans sa propre boucle d'animation : la fabrique les remet à zéro à chaque `render()` de premier niveau, comme `WebGLRenderer` (depuis le lot 2.2, les rendus imbriqués, comme ceux des cartes d'ombres, s'ajoutent aux compteurs de l'image au lieu de les effacer). Les compteurs portent aussi d'autres noms (`drawCalls` au lieu de `calls`) : on les lit via `frameInfo()` ;
 - `useThree().gl` reste typé `WebGLRenderer` par R3F : on passe par `asWorldRenderer()` pour l'API WebGPU ;
 - fonctionnent sans changement : `dpr`, tone mapping et espace colorimétrique réglés par R3F, `LOD`, `InstancedMesh` avec couleurs par instance, layers de caméra (vue POV), `polygonOffset`, brouillard de scène, textures canvas, bump maps ;
 - drei : seul `<Sky>` posait problème. Pour la suite, n'utiliser que des composants drei sans shader GLSL, ou leurs équivalents TSL de `three/addons`.

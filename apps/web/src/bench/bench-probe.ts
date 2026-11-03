@@ -6,6 +6,7 @@ import { type Object3D, Vector2 } from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
 import { FrameStats } from '../world/frame-stats';
 import { estimateGpuMemory } from '../world/gpu-memory';
+import { sceneRenderTargets } from '../world/render-targets';
 import { asWorldRenderer, frameInfo, gpuName, rendererBackend } from '../world/renderer';
 import type { BenchClock } from '../world/world-clock';
 import type { BenchEnvironment, BenchMetrics, BenchQuality } from './protocol';
@@ -82,12 +83,16 @@ export class BenchProbe {
     shot.clock.mode = 'frozen';
     const s = this.stats.snapshot();
     const size = a.gl.getDrawingBufferSize(new Vector2());
-    const mem = estimateGpuMemory(a.scene, {
-      width: size.x,
-      height: size.y,
-      antialias: a.gl.samples > 0,
-      halfFloatOutput: true,
-    });
+    const mem = estimateGpuMemory(
+      a.scene,
+      {
+        width: size.x,
+        height: size.y,
+        antialias: a.gl.samples > 0,
+        halfFloatOutput: true,
+      },
+      sceneRenderTargets(a.scene),
+    );
     const info = a.gl.info;
     return {
       viewpoint: shot.viewpointId,

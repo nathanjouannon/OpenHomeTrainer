@@ -30,12 +30,19 @@ export async function createWorldRenderer(
   await renderer.init();
   // WebGPURenderer only resets its per-frame counters in its own animation
   // loop, and R3F drives its own requestAnimationFrame loop: reset them at
-  // each render, as WebGLRenderer does.
+  // each top-level render, as WebGLRenderer does. Nested renders (shadow
+  // maps) add to the counts of the frame.
   renderer.info.autoReset = false;
   const render = renderer.render.bind(renderer);
+  let depth = 0;
   renderer.render = (scene, camera) => {
-    renderer.info.reset();
-    return render(scene, camera);
+    if (depth === 0) renderer.info.reset();
+    depth++;
+    try {
+      return render(scene, camera);
+    } finally {
+      depth--;
+    }
   };
   return renderer;
 }

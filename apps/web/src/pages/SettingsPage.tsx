@@ -181,7 +181,7 @@ export function SettingsPage() {
             <option value="imperial">{t('settings.units.imperial')}</option>
           </select>
         </Field>
-        <Field label={t('settings.quality')}>
+        <Field label={t('settings.quality')} help={t('settings.quality.hint')}>
           <select
             value={s.quality}
             onChange={(e) => updateSettings({ quality: e.target.value as Settings['quality'] })}

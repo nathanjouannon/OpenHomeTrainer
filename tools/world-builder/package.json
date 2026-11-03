@@ -7,7 +7,8 @@
     "fetch-dem": "tsx src/fetch-dem.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build-world": "tsx src/build-world.ts"
+    "build-world": "tsx src/build-world.ts",
+    "fetch-assets": "tsx src/fetch-assets.ts"
   },
   "dependencies": {
     "pngjs": "^7.0.0",

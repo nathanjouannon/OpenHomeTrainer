@@ -3,12 +3,16 @@
 // Local frame: +Z forward, +Y up, +X to the rider's left.
 
 import { useFrame } from '@react-three/fiber';
-import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BoxGeometry,
+  type BufferAttribute,
+  BufferGeometry,
   CylinderGeometry,
   type Group,
-  type Mesh,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
   PlaneGeometry,
@@ -16,6 +20,7 @@ import {
   TorusGeometry,
   Vector3,
 } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const WHEEL_R = 0.34;
 const CRANK_L = 0.17;
@@ -73,6 +78,35 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
   };
   const torso = useRef<Group>(null);
   const state = useRef({ crankAngle: 0, wheelAngle: 0, standing: 0 });
+
+  // Shadows: the ~80 parts of the bike and the upper body are merged into one
+  // silhouette that only the shadow cameras see (one draw call per cascade);
+  // the legs, animated by the pedalling, cast their own shadow.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: built once, from the first pose
+  useLayoutEffect(() => {
+    const g = group.current;
+    if (!g) return;
+    const legMeshes = new Set(Object.values(legs).map((r) => r.current));
+    const proxy = buildShadowProxy(g, (m) => !legMeshes.has(m));
+    g.traverse((o) => {
+      if (!(o as Mesh).isMesh) return;
+      o.castShadow = legMeshes.has(o as Mesh);
+      // The POV arms sit inside the silhouette of the hidden upper body: they
+      // would shadow themselves.
+      o.receiveShadow = o.layers.mask !== 1 << POV_ONLY_LAYER;
+    });
+    // Fewer draw calls: the parts that never move relative to their group
+    // (frame, bars, wheel parts…) are merged per material.
+    const merged = mergeStaticParts(g, legMeshes);
+    if (proxy) g.add(proxy);
+    return () => {
+      if (proxy) {
+        g.remove(proxy);
+        proxy.geometry.dispose();
+      }
+      for (const m of merged) m.geometry.dispose();
+    };
+  }, []);
 
   const mats = useMemo(
     () => ({
@@ -289,6 +323,83 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
 export const POV_HIDDEN_LAYER = 1;
 /** Layer 2 is rendered by the POV camera only. */
 export const POV_ONLY_LAYER = 2;
+/** Layer 3 is rendered by the shadow cameras only (shadow silhouettes). */
+export const SHADOW_ONLY_LAYER = 3;
+
+const proxyMaterial = new MeshBasicMaterial();
+
+/**
+ * Merges, in every group of `root`, the child meshes that share a material,
+ * the camera layers and the shadow flags (except `animated` ones). Returns
+ * the merged meshes.
+ */
+export function mergeStaticParts(root: Object3D, animated: ReadonlySet<Object3D | null>): Mesh[] {
+  const out: Mesh[] = [];
+  const visit = (group: Object3D) => {
+    for (const child of [...group.children]) if (!(child as Mesh).isMesh) visit(child);
+    const buckets = new Map<string, Mesh[]>();
+    for (const child of group.children) {
+      const m = child as Mesh;
+      if (!m.isMesh || animated.has(m) || Array.isArray(m.material)) continue;
+      const key = `${m.material.uuid}|${m.layers.mask}|${m.castShadow}|${m.receiveShadow}`;
+      const list = buckets.get(key) ?? [];
+      list.push(m);
+      buckets.set(key, list);
+    }
+    for (const meshes of buckets.values()) {
+      if (meshes.length < 2) continue;
+      const parts = meshes.map((m) => {
+        m.updateMatrix();
+        const g = m.geometry.index ? m.geometry.clone() : m.geometry.clone().toNonIndexed();
+        g.applyMatrix4(m.matrix);
+        for (const name of Object.keys(g.attributes)) {
+          if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
+        }
+        return g;
+      });
+      const geometry = mergeGeometries(parts);
+      for (const p of parts) p.dispose();
+      const first = meshes[0] as Mesh;
+      if (!geometry) continue;
+      const merged = new Mesh(geometry, first.material);
+      merged.layers.mask = first.layers.mask;
+      merged.castShadow = first.castShadow;
+      merged.receiveShadow = first.receiveShadow;
+      for (const m of meshes) group.remove(m);
+      group.add(merged);
+      out.push(merged);
+    }
+  };
+  visit(root);
+  return out;
+}
+
+/**
+ * One mesh with the geometry of every part of `root` accepted by `include`
+ * (POV-only parts excluded), in the root's frame, on the shadow-only layer.
+ */
+function buildShadowProxy(root: Object3D, include: (m: Mesh) => boolean): Mesh | null {
+  root.updateMatrixWorld(true);
+  const toRoot = new Matrix4().copy(root.matrixWorld).invert();
+  const parts: BufferGeometry[] = [];
+  root.traverse((o) => {
+    const m = o as Mesh;
+    if (!m.isMesh || !include(m) || m.layers.mask === 1 << POV_ONLY_LAYER) return;
+    const src = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry;
+    const g = new BufferGeometry();
+    g.setAttribute('position', (src.getAttribute('position') as BufferAttribute).clone());
+    g.applyMatrix4(new Matrix4().multiplyMatrices(toRoot, m.matrixWorld));
+    parts.push(g);
+  });
+  const merged = parts.length ? mergeGeometries(parts) : null;
+  for (const p of parts) p.dispose();
+  if (!merged) return null;
+  const proxy = new Mesh(merged, proxyMaterial);
+  proxy.layers.set(SHADOW_ONLY_LAYER);
+  proxy.castShadow = true;
+  proxy.frustumCulled = false;
+  return proxy;
+}
 const hideInPov = (o: Object3D | null) => {
   o?.layers.set(POV_HIDDEN_LAYER);
 };

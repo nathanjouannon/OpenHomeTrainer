@@ -76,6 +76,10 @@ Mise en œuvre : phase 2 « Rendu réaliste » de la [roadmap](ROADMAP.md).
 | Post-traitement | Tonemapping ACES ou AgX, bloom léger, SMAA ; profondeur de champ désactivée par défaut |
 | Renderer | `WebGPURenderer` de Three.js avec repli WebGL2 automatique |
 
+### Ce qui est en place (phase 2)
+
+- **Lumière et ombres** (lot 2.2, `apps/web/src/world/Lighting.tsx`) : soleil directionnel avec ombres portées en cascade (`CSMShadowNode`, 3 cascades ; 160 m en qualité moyenne avec des cartes de 1024², 200 m en haute avec 2048², rien en basse). Le terrain reçoit les ombres sans en projeter. Pour tenir le budget de draw calls, le cycliste projette son ombre par une silhouette fusionnée (une seule géométrie vue des seules caméras d'ombre, plus les jambes animées), et les objets instanciés sur tout le monde (arbres, lampadaires, balises, voitures garées) ne projettent leur ombre qu'à moins de ~220 m de la caméra, via des copies « ombre seulement » rafraîchies toutes les 0,4 s (`NearShadows.tsx`), avec une silhouette simplifiée pour les arbres. Sans cela, chaque cascade redessinerait toutes les instances d'un objet dont la sphère englobante couvre le monde. Lumière d'ambiance et reflets : HDRI CC0 (« Alps Field ») dont le disque solaire est écrêté au téléchargement (0,05 % des pixels les plus lumineux) et que l'on tourne pour que son soleil soit du côté de celui de la scène ; repli sur une lumière hémisphérique sans les assets. Tonemapping AgX, brouillard de la couleur de l'horizon. Les profils par qualité sont dans `render-profile.ts`.
+
 ### Budgets de performance (config de référence, qualité « moyenne », 1080p)
 
 | Indicateur | Budget |

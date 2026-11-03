@@ -9,6 +9,7 @@ Prérequis : Node.js ≥ 20.19 (LTS 24 recommandé), pnpm 10, Chrome ou Edge.
 ```sh
 pnpm install
 pnpm build-world    # télécharge le relief réel et construit le monde v1 (une fois, ~10 s)
+pnpm fetch-assets   # télécharge les textures et l'environment map CC0 (une fois)
 pnpm dev            # http://localhost:5173
 ```
 
@@ -23,6 +24,7 @@ Aide au développement : `#/ride/world-1/boucle-du-lac?at=3000&camera=chase` aff
 | `pnpm dev`                  | Application web (Vite)                                  |
 | `pnpm start`                | Build de production + serveur local                     |
 | `pnpm build-world`          | Construit le monde (`--preview fichier.png` : carte)    |
+| `pnpm fetch-assets`         | Assets CC0 du monde (`--force` : tout retélécharger)    |
 | `pnpm fetch-dem`            | Relief du spike 3D (`#/3d`)                             |
 | `pnpm test`                 | Tests unitaires (Vitest) de tous les packages           |
 | `pnpm typecheck`            | Vérification TypeScript                                 |

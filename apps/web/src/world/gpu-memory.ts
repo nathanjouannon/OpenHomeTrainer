@@ -73,6 +73,11 @@ export function estimateGpuMemory(
     for (const m of materials) collectTextures(m, textures);
   });
   for (const g of geometries) collectBuffers(g, buffers);
+  // Environment map and background of a scene.
+  const sceneMaps = scene as Object3D & { environment?: unknown; background?: unknown };
+  for (const t of [sceneMaps.environment, sceneMaps.background]) {
+    if (t instanceof Texture) textures.add(t);
+  }
 
   let geometryBytes = 0;
   for (const b of buffers) geometryBytes += bufferBytes(b);

@@ -113,3 +113,21 @@ Même machine et mêmes conditions que `phase-1`. Pire cas sur les 16 points de 
 - **1 % low en WebGPU** : sans plafond d'écran, une image sur quelques centaines dure 80 à 150 ms sur les points de vue les plus chargés, sans création de shader, de géométrie ni de texture à ce moment-là. C'est le rythme d'images de WebGPU quand le GPU est saturé bien au-delà de la fréquence de l'écran. **Avec `--vsync`** (usage réel), les trois pires points de vue en qualité haute tiennent 60 FPS avec un 1 % low à 57. Pour juger les à-coups en WebGPU, faire un run `--vsync`.
 - **Repli WebGL2** : environ 35 % plus lent que l'ancien `WebGLRenderer` (passe de sortie supplémentaire, backend WebGL de `WebGPURenderer` moins optimisé), mais toujours bien au-dessus des budgets (≥ 128 FPS en moyenne, ≥ 82 en haute).
 - **Draw calls** : +1 (la passe qui copie le tampon de sortie dans le canvas). **Mémoire estimée** : +47 Mo à 1080p avec MSAA, à cause du tampon de sortie en demi-flottants.
+
+### Après la lumière et les ombres (runs `apres-2.2-webgpu` et `apres-2.2-webgl2`, 2026-11-03)
+
+Même machine et mêmes conditions. Pire cas sur les 16 points de vue, et FPS moyen médian :
+
+| Qualité | Backend | FPS moyen min. | FPS moyen médian | 1 % low min. | Draw calls max. | Triangles max. | Mémoire GPU estimée |
+|---|---|---|---|---|---|---|---|
+| Basse | WebGPU | 334 | 462 | 149 | 225 | 1,43 M | 142 Mo |
+| Basse | WebGL2 (repli) | 227 | 299 | 127 | 225 | 1,43 M | 142 Mo |
+| Moyenne | WebGPU | 175 | 225 | 33 | 282 | 1,95 M | 264 Mo |
+| Moyenne | WebGL2 (repli) | 94 | 113 | 55 | 282 | 1,95 M | 264 Mo |
+| Haute | WebGPU | 101 | 149 | 12 | 298 | 3,28 M | 340 Mo |
+| Haute | WebGL2 (repli) | 63 | 80 | 34 | 298 | 3,28 M | 340 Mo |
+
+- **Images** : ombres portées du cycliste, des arbres, des maisons, des lampadaires et des voitures ; lumière d'ambiance plus douce (HDRI) ; image un peu plus terne avec AgX, que l'étalonnage du lot 2.3 doit corriger.
+- **Coût des ombres** (qualité moyenne, WebGPU) : FPS moyen médian 300 → 225 (−25 %), triangles max. 1,73 → 1,95 M (les objets proches redessinés dans 3 cascades), mémoire +29 Mo (cartes d'ombres et HDRI).
+- **Draw calls** : en baisse en basse qualité (268 → 225) grâce à la fusion des pièces du cycliste ; en moyenne et haute, la fusion compense les passes d'ombre (282 et 298 au maximum, toujours sur `collines-montee`).
+- Points de vigilance : le budget de 2 M triangles est presque atteint en qualité moyenne (`col-rive-lac`) ; les imposteurs du lot 2.6 doivent le faire baisser.

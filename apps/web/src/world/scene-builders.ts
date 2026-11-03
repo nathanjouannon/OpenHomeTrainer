@@ -259,6 +259,31 @@ export function treeGeometries(): { conifer: BufferGeometry; broadleaf: BufferGe
   return { conifer, broadleaf };
 }
 
+/**
+ * Low-poly silhouettes of the tree models, only drawn into the shadow maps
+ * (about a quarter of the triangles; nobody sees the shape of a shadow's facets).
+ */
+export function shadowTreeGeometries(): { conifer: BufferGeometry; broadleaf: BufferGeometry } {
+  // Positions only, non-indexed (the icosahedron has no index).
+  const flat = (g: BufferGeometry) => {
+    const out = new BufferGeometry();
+    out.setAttribute('position', (g.index ? g.toNonIndexed() : g).getAttribute('position'));
+    return out;
+  };
+  const trunk = () => flat(new CylinderGeometry(0.2, 0.2, 3.2, 3, 1, true).translate(0, 1.6, 0));
+  const conifer = mergeGeometries([
+    trunk(),
+    flat(new ConeGeometry(2.2, 4.4, 6, 1, true).translate(0, 3.6, 0)),
+    flat(new ConeGeometry(1.5, 4.2, 6, 1, true).translate(0, 6.6, 0)),
+  ]);
+  const broadleaf = mergeGeometries([
+    trunk(),
+    flat(new IcosahedronGeometry(2.6, 0).scale(1.1, 0.95, 1).translate(0, 5.2, 0)),
+  ]);
+  if (!conifer || !broadleaf) throw new Error('Could not build tree shadow geometries');
+  return { conifer, broadleaf };
+}
+
 export interface TreeBatch {
   kind: TreeInstance['kind'];
   chunk: number;
@@ -308,4 +333,53 @@ export function batchTrees(trees: readonly TreeInstance[], t: Terrain, base: num
     out.push({ kind, chunk, center, matrices, colors, count: list.length });
   }
   return out;
+}
+
+/**
+ * Appends to `out` (from instance `start`) the instance matrices of `matrices`
+ * whose position is within `radiusM` of (x, z), horizontally; returns the new
+ * instance count, at most `out.length / 16`. Feeds the shadow-only copies of
+ * instanced objects around the camera.
+ */
+export function collectNear(
+  matrices: ArrayLike<number> & { subarray(a: number, b: number): Float32Array },
+  count: number,
+  x: number,
+  z: number,
+  radiusM: number,
+  out: Float32Array,
+  start = 0,
+): number {
+  const max = Math.floor(out.length / 16);
+  const r2 = radiusM * radiusM;
+  let n = start;
+  for (let i = 0; i < count && n < max; i++) {
+    const dx = (matrices[i * 16 + 12] as number) - x;
+    const dz = (matrices[i * 16 + 14] as number) - z;
+    if (dx * dx + dz * dz > r2) continue;
+    out.set(matrices.subarray(i * 16, i * 16 + 16), n * 16);
+    n++;
+  }
+  return n;
+}
+
+/** Same as `collectNear`, over the tree batches of one kind. */
+export function collectNearTrees(
+  batches: readonly TreeBatch[],
+  kind: TreeInstance['kind'],
+  x: number,
+  z: number,
+  radiusM: number,
+  chunkSizeM: number,
+  out: Float32Array,
+): number {
+  // A batch covers one chunk: skip those entirely out of reach.
+  const reach = radiusM + chunkSizeM * Math.SQRT1_2;
+  let n = 0;
+  for (const b of batches) {
+    if (b.kind !== kind) continue;
+    if (Math.hypot(b.center.x - x, b.center.z - z) > reach) continue;
+    n = collectNear(b.matrices, b.count, x, z, radiusM, out, n);
+  }
+  return n;
 }

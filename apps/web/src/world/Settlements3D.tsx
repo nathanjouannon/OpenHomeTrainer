@@ -14,6 +14,7 @@ import {
   PlaneGeometry,
   Vector3,
 } from 'three';
+import { NearShadows } from './NearShadows';
 import {
   barnTexture,
   buildBuildings,
@@ -70,10 +71,13 @@ export function Settlements3D({
   settlements,
   routes,
   base,
+  shadowRadiusM,
 }: {
   settlements: Settlements;
   routes: Map<string, Route>;
   base: number;
+  /** Lamps, posts and parked cars cast shadows within this distance of the camera. */
+  shadowRadiusM: number | null;
 }) {
   const s = settlements;
   const built = useMemo(() => buildBuildings(s.buildings, base), [s, base]);
@@ -116,9 +120,9 @@ export function Settlements3D({
 
   return (
     <>
-      <mesh geometry={built.walls} material={mats.walls} />
-      <mesh geometry={built.barns} material={mats.barns} />
-      <mesh geometry={built.roofs} material={mats.roofs} />
+      <mesh geometry={built.walls} material={mats.walls} castShadow receiveShadow />
+      <mesh geometry={built.barns} material={mats.barns} castShadow receiveShadow />
+      <mesh geometry={built.roofs} material={mats.roofs} castShadow receiveShadow />
       {s.lamps.length > 0 && (
         <instancedMesh ref={lamps} args={[geo.lamp, mats.painted, s.lamps.length]} />
       )}
@@ -126,7 +130,14 @@ export function Settlements3D({
         <instancedMesh ref={posts} args={[geo.post, mats.painted, s.delineators.length]} />
       )}
       {s.parkedCars.length > 0 && (
-        <instancedMesh ref={cars} args={[geo.car, mats.car, s.parkedCars.length]} />
+        <instancedMesh ref={cars} args={[geo.car, mats.car, s.parkedCars.length]} receiveShadow />
+      )}
+      {shadowRadiusM !== null && (
+        <>
+          <NearShadows source={lamps} geometry={geo.lamp} radiusM={shadowRadiusM} max={256} />
+          <NearShadows source={posts} geometry={geo.post} radiusM={shadowRadiusM} max={256} />
+          <NearShadows source={cars} geometry={geo.car} radiusM={shadowRadiusM} max={256} />
+        </>
       )}
       {s.signs.map((sign) => (
         <VillageSign key={`${sign.x},${sign.y},${sign.end}`} sign={sign} base={base} />
@@ -142,12 +153,12 @@ function VillageSign({ sign, base }: { sign: Settlements['signs'][number]; base:
   return (
     <group position={position} rotation={[0, yawToScene(sign.yaw), 0]}>
       {[-0.55, 0.55].map((x) => (
-        <mesh key={x} position={[x, 1.1, -0.03]}>
+        <mesh key={x} position={[x, 1.1, -0.03]} castShadow>
           <cylinderGeometry args={[0.03, 0.03, 2.2, 8]} />
           <meshStandardMaterial color="#8a8d92" metalness={0.6} roughness={0.4} />
         </mesh>
       ))}
-      <mesh position={[0, 1.95, 0]} geometry={new PlaneGeometry(1.45, 0.55)}>
+      <mesh position={[0, 1.95, 0]} geometry={new PlaneGeometry(1.45, 0.55)} castShadow>
         <meshStandardMaterial map={map} side={DoubleSide} roughness={0.5} />
       </mesh>
     </group>
@@ -237,12 +248,23 @@ function Pedestrians({
   if (people.length === 0) return null;
   return (
     <>
-      <instancedMesh ref={body} args={[geo.body, material, people.length]} frustumCulled={false} />
-      <instancedMesh ref={head} args={[geo.head, material, people.length]} frustumCulled={false} />
+      <instancedMesh
+        ref={body}
+        args={[geo.body, material, people.length]}
+        frustumCulled={false}
+        castShadow
+      />
+      <instancedMesh
+        ref={head}
+        args={[geo.head, material, people.length]}
+        frustumCulled={false}
+        castShadow
+      />
       <instancedMesh
         ref={legs}
         args={[geo.leg, material, people.length * 2]}
         frustumCulled={false}
+        castShadow
       />
     </>
   );
@@ -320,6 +342,12 @@ export function Traffic({
   });
 
   return (
-    <instancedMesh ref={mesh} args={[geometry, material, TRAFFIC_CARS]} frustumCulled={false} />
+    <instancedMesh
+      ref={mesh}
+      args={[geometry, material, TRAFFIC_CARS]}
+      frustumCulled={false}
+      castShadow
+      receiveShadow
+    />
   );
 }

@@ -12,6 +12,7 @@ import {
   type InstancedMesh,
   LOD,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
   type PerspectiveCamera,
@@ -21,7 +22,17 @@ import {
 } from 'three';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import type { CameraMode, Quality } from '../store/settings';
-import { POV_HIDDEN_LAYER, POV_ONLY_LAYER, Rider, type RiderHandle } from './Rider';
+import { type EnvironmentMap, loadEnvironmentMap } from './assets';
+import { FOG_COLOR, Lighting, SUN_POSITION } from './Lighting';
+import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
+import {
+  POV_HIDDEN_LAYER,
+  POV_ONLY_LAYER,
+  Rider,
+  type RiderHandle,
+  SHADOW_ONLY_LAYER,
+} from './Rider';
+import { renderProfile } from './render-profile';
 import { createWorldRenderer, frameInfo, rendererBackend } from './renderer';
 import type { RendererBackend, RendererPreference } from './renderer-options';
 import {
@@ -39,7 +50,9 @@ import {
   batchTrees,
   buildChunkGeometry,
   CHUNKS_PER_SIDE,
+  collectNearTrees,
   LOD_STEPS,
+  shadowTreeGeometries,
   type TreeBatch,
   terrainDetailTexture,
   terrainNormals,
@@ -58,6 +71,7 @@ const LANE_OFFSET_M = 1.3;
 
 export interface BuiltWorld {
   base: number;
+  terrainSizeM: number;
   chunks: BufferGeometry[][];
   roads: {
     asphalt: BufferGeometry[];
@@ -68,6 +82,9 @@ export interface BuiltWorld {
   settlements: Settlements;
   trees: TreeBatch[];
   treeGeometries: ReturnType<typeof treeGeometries>;
+  shadowTreeGeometries: ReturnType<typeof shadowTreeGeometries>;
+  /** CC0 environment map, null when the assets are not downloaded. */
+  environment: EnvironmentMap | null;
 }
 
 /** Heavy geometry work, done once on the loading screen. */
@@ -78,6 +95,7 @@ export async function buildWorldScene(
 ): Promise<BuiltWorld> {
   const t = world.terrain;
   const base = t.minElevationM;
+  const environment = loadEnvironmentMap();
   const normals = terrainNormals(t);
   const water = world.manifest.waterLevelM;
   const chunks: BufferGeometry[][] = [];
@@ -104,8 +122,19 @@ export async function buildWorldScene(
     roads.curbs.push(...curbs);
   }
   const trees = batchTrees(placeTrees(world, TREES_BY_QUALITY[quality], 7, settlements), t, base);
+  const built: BuiltWorld = {
+    base,
+    terrainSizeM: t.sizeM,
+    chunks,
+    roads,
+    settlements,
+    trees,
+    treeGeometries: treeGeometries(),
+    shadowTreeGeometries: shadowTreeGeometries(),
+    environment: await environment,
+  };
   onProgress(1);
-  return { base, chunks, roads, settlements, trees, treeGeometries: treeGeometries() };
+  return built;
 }
 
 export interface RideView {
@@ -149,6 +178,7 @@ export function WorldView({
   return (
     <Canvas
       dpr={dpr}
+      shadows={renderProfile(props.quality).shadows ? 'soft' : false}
       camera={{ fov: 62, near: 0.3, far: 9000, position: [0, 50, 0] }}
       gl={(defaults) =>
         createWorldRenderer(defaults.canvas as HTMLCanvasElement, {
@@ -194,7 +224,7 @@ function Scene({
     [],
   );
   const base = built.base;
-  const fogColor = '#c3d3e2';
+  const fogColor = FOG_COLOR;
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
 
   useFrame((state, frameDelta) => {
@@ -231,15 +261,19 @@ function Scene({
       <color attach="background" args={[fogColor]} />
       <fog attach="fog" args={[fogColor, 600, 7500]} />
       <WorldSky />
-      <hemisphereLight args={['#e3edf7', '#4d5a33', 1.0]} />
-      <directionalLight position={[600, 900, -900]} intensity={2.3} color="#fff4e2" />
+      <Lighting shadows={renderProfile(quality).shadows} environment={built.environment} />
       <Terrain built={built} />
       <Roads built={built} />
       {world.manifest.waterLevelM !== null && (
         <Water level={world.manifest.waterLevelM - base} size={world.terrain.sizeM} />
       )}
       <Trees built={built} quality={quality} />
-      <Settlements3D settlements={built.settlements} routes={world.routes} base={base} />
+      <Settlements3D
+        settlements={built.settlements}
+        routes={world.routes}
+        base={base}
+        shadowRadiusM={shadowRadius(quality)}
+      />
       <Traffic
         route={route}
         settlements={built.settlements}
@@ -252,7 +286,11 @@ function Scene({
   );
 }
 
-const SUN_POSITION = new Vector3(600, 700, -900);
+/** Reach of the shadows of the instanced objects, null without shadows. */
+const shadowRadius = (quality: Quality) => {
+  const s = renderProfile(quality).shadows;
+  return s ? s.maxFarM + NEAR_SHADOWS_MARGIN_M : null;
+};
 
 /** Physical sky (TSL shader, works on WebGPU and WebGL2). */
 function WorldSky() {
@@ -384,7 +422,10 @@ function Terrain({ built }: { built: BuiltWorld }) {
       built.chunks.map((levels) => {
         const lod = new LOD();
         levels.forEach((geometry, i) => {
-          lod.addLevel(new Mesh(geometry, material), LOD_DISTANCES_M[i] ?? 0);
+          const mesh = new Mesh(geometry, material);
+          // The terrain receives shadows but casts none (cascades only reach ~200 m).
+          mesh.receiveShadow = true;
+          lod.addLevel(mesh, LOD_DISTANCES_M[i] ?? 0);
         });
         return lod;
       }),
@@ -427,16 +468,16 @@ function Roads({ built }: { built: BuiltWorld }) {
   return (
     <>
       {r.asphalt.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.asphalt} />
+        <mesh key={g.uuid} geometry={g} material={mats.asphalt} receiveShadow />
       ))}
       {r.shoulders.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.gravel} />
+        <mesh key={g.uuid} geometry={g} material={mats.gravel} receiveShadow />
       ))}
       {r.sidewalks.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.sidewalk} />
+        <mesh key={g.uuid} geometry={g} material={mats.sidewalk} receiveShadow />
       ))}
       {r.curbs.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.curb} />
+        <mesh key={g.uuid} geometry={g} material={mats.curb} receiveShadow />
       ))}
     </>
   );
@@ -444,12 +485,16 @@ function Roads({ built }: { built: BuiltWorld }) {
 
 function Water({ level, size }: { level: number; size: number }) {
   return (
-    <mesh position={[0, level, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={[0, level, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
       <planeGeometry args={[size, size]} />
       <meshStandardMaterial color="#3e6f8f" roughness={0.12} metalness={0.15} />
     </mesh>
   );
 }
+
+/** Most trees in the shadow casting radius, per kind (dense forest included). */
+const SHADOW_TREES_MAX = 4000;
+const TREE_UPDATE_S = 0.4;
 
 function Trees({ built, quality }: { built: BuiltWorld; quality: Quality }) {
   const refs = useRef<(InstancedMesh | null)[]>([]);
@@ -457,10 +502,15 @@ function Trees({ built, quality }: { built: BuiltWorld; quality: Quality }) {
     () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }),
     [],
   );
+  // Only seen by the shadow cameras.
+  const shadowMaterial = useMemo(() => new MeshBasicMaterial(), []);
   const viewDistance = TREE_VIEW_DISTANCE_M[quality];
-  const timer = useRef(0);
+  const shadows = renderProfile(quality).shadows;
+  // Updated on the first frame.
+  const timer = useRef(TREE_UPDATE_S);
   const camera = useThree((s) => s.camera);
   const clock = useWorldClock();
+  const shadowRefs = useRef<Partial<Record<TreeBatch['kind'], InstancedMesh | null>>>({});
 
   useLayoutEffect(() => {
     built.trees.forEach((batch, i) => {
@@ -473,18 +523,28 @@ function Trees({ built, quality }: { built: BuiltWorld; quality: Quality }) {
     });
   }, [built]);
 
-  // Only the chunks near the camera are drawn.
+  // Only the chunks near the camera are drawn; only the trees near the camera
+  // cast shadows (whole chunks would be drawn again in every cascade).
   useFrame((_, delta) => {
     timer.current += clock.step(delta);
-    if (timer.current < 0.4) return;
+    if (timer.current < TREE_UPDATE_S) return;
     timer.current = 0;
+    const { x, z } = camera.position;
     built.trees.forEach((batch, i) => {
       const mesh = refs.current[i];
       if (!mesh) return;
-      const dx = batch.center.x - camera.position.x;
-      const dz = batch.center.z - camera.position.z;
-      mesh.visible = Math.hypot(dx, dz) < viewDistance + 900;
+      mesh.visible = Math.hypot(batch.center.x - x, batch.center.z - z) < viewDistance + 900;
     });
+    if (!shadows) return;
+    const chunkM = built.terrainSizeM / CHUNKS_PER_SIDE;
+    for (const kind of ['conifer', 'broadleaf'] as const) {
+      const mesh = shadowRefs.current[kind];
+      if (!mesh) continue;
+      const out = mesh.instanceMatrix.array as Float32Array;
+      const radius = shadows.maxFarM + NEAR_SHADOWS_MARGIN_M;
+      mesh.count = collectNearTrees(built.trees, kind, x, z, radius, chunkM, out);
+      mesh.instanceMatrix.needsUpdate = true;
+    }
   });
 
   return (
@@ -503,8 +563,25 @@ function Trees({ built, quality }: { built: BuiltWorld; quality: Quality }) {
             batch.count,
           ]}
           frustumCulled
+          receiveShadow
         />
       ))}
+      {shadows &&
+        (['conifer', 'broadleaf'] as const).map((kind) => (
+          <instancedMesh
+            key={`shadow-${kind}`}
+            ref={(m) => {
+              shadowRefs.current[kind] = m;
+              if (m) {
+                m.count = 0;
+                m.layers.set(SHADOW_ONLY_LAYER);
+              }
+            }}
+            args={[built.shadowTreeGeometries[kind], shadowMaterial, SHADOW_TREES_MAX]}
+            frustumCulled={false}
+            castShadow
+          />
+        ))}
     </>
   );
 }
@@ -563,12 +640,12 @@ function StartArch({ route, base }: { route: Route; base: number }) {
         <meshStandardMaterial map={checker} polygonOffset polygonOffsetFactor={-8} />
       </mesh>
       {[-halfSpan, halfSpan].map((x) => (
-        <mesh key={x} position={[x, 2.6, 0]}>
+        <mesh key={x} position={[x, 2.6, 0]} castShadow>
           <boxGeometry args={[0.35, 5.2, 0.35]} />
           <meshStandardMaterial color={white} />
         </mesh>
       ))}
-      <mesh position={[0, 4.9, 0]}>
+      <mesh position={[0, 4.9, 0]} castShadow>
         <boxGeometry args={[halfSpan * 2 + 0.4, 0.9, 0.12]} />
         <meshStandardMaterial map={banner} side={DoubleSide} />
       </mesh>
@@ -581,6 +658,7 @@ export function useDisposeOnUnmount(built: BuiltWorld | null) {
   useEffect(
     () => () => {
       if (!built) return;
+      built.environment?.texture.dispose();
       for (const levels of built.chunks) for (const g of levels) g.dispose();
       for (const list of Object.values(built.roads)) for (const g of list) g.dispose();
     },
