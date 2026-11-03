@@ -29,6 +29,8 @@ Aide au développement : `#/ride/world-1/boucle-du-lac?at=3000&camera=chase` aff
 | `pnpm lint` / `pnpm format` | Biome                                                   |
 | `pnpm verify`               | Lint + typecheck + tests (ce que lancent les hooks git) |
 | `pnpm build`                | Build de production                                     |
+| `pnpm bench`                | Banc de comparaison du rendu : captures + mesures       |
+| `pnpm bench:compare a b`    | Rapport avant/après entre deux runs du banc             |
 
 Les hooks git (lefthook) lancent lint, typecheck et tests au commit, et le build au push.
 
@@ -47,5 +49,6 @@ packages/route-engine  Format de route, boucles, interpolation, tours, manifeste
 packages/drivetrain    Vitesses virtuelles et pilotage du trainer (difficulté, stratégie S1)
 packages/recorder      Enregistrement 1 Hz, stats, stockage IndexedDB, export .fit
 tools/world-builder    Scripts hors ligne : relief réel, planificateur de routes, monde
+tools/bench            Banc de comparaison du rendu (Playwright + Chrome)
 content/worlds         Sources des mondes (points de passage des boucles)
 ```

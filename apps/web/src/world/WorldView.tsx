@@ -3,7 +3,7 @@
 import { emptyRoutePoint, type Route, type RoutePoint } from '@hrt/route-engine';
 import { Sky } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   type BufferGeometry,
   CanvasTexture,
@@ -45,6 +45,7 @@ import {
   treeGeometries,
 } from './scene-builders';
 import { generateSettlements, type Settlements } from './settlements';
+import { realClock, useWorldClock, type WorldClock, WorldClockContext } from './world-clock';
 import { placeTrees, type WorldData } from './world-data';
 
 const TREES_BY_QUALITY: Record<Quality, number> = { low: 25_000, medium: 60_000, high: 110_000 };
@@ -125,9 +126,13 @@ interface Props {
   quality: Quality;
   reduceMotion: boolean;
   onFrame?: (deltaS: number, info: { calls: number; triangles: number }) => void;
+  /** Animation time and randomness (real clock by default; fixed step for the benchmark). */
+  clock?: WorldClock;
+  /** Extra objects or probes rendered inside the canvas (benchmark). */
+  children?: ReactNode;
 }
 
-export function WorldView(props: Props) {
+export function WorldView({ clock = realClock, children, ...props }: Props) {
   const dpr = props.quality === 'high' ? Math.min(2, window.devicePixelRatio) : 1;
   return (
     <Canvas
@@ -135,7 +140,10 @@ export function WorldView(props: Props) {
       camera={{ fov: 62, near: 0.3, far: 9000, position: [0, 50, 0] }}
       gl={{ antialias: props.quality !== 'low', powerPreference: 'high-performance' }}
     >
-      <Scene {...props} />
+      <WorldClockContext.Provider value={clock}>
+        <Scene {...props} />
+        {children}
+      </WorldClockContext.Provider>
     </Canvas>
   );
 }
@@ -150,7 +158,8 @@ function Scene({
   quality,
   reduceMotion,
   onFrame,
-}: Props) {
+}: Omit<Props, 'clock' | 'children'>) {
+  const clock = useWorldClock();
   const rider = useRef<RiderHandle>(null);
   const tmp = useMemo(
     () => ({
@@ -170,8 +179,9 @@ function Scene({
   const fogColor = '#c3d3e2';
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
 
-  useFrame((state, delta) => {
-    onFrame?.(delta, state.gl.info.render);
+  useFrame((state, frameDelta) => {
+    onFrame?.(frameDelta, state.gl.info.render);
+    const delta = clock.step(frameDelta);
     tmp.t += delta;
     const v = view();
     const d = v.prevDistanceM + (v.distanceM - v.prevDistanceM) * alpha();
@@ -412,6 +422,7 @@ function Trees({ built, quality }: { built: BuiltWorld; quality: Quality }) {
   const viewDistance = TREE_VIEW_DISTANCE_M[quality];
   const timer = useRef(0);
   const camera = useThree((s) => s.camera);
+  const clock = useWorldClock();
 
   useLayoutEffect(() => {
     built.trees.forEach((batch, i) => {
@@ -426,7 +437,7 @@ function Trees({ built, quality }: { built: BuiltWorld; quality: Quality }) {
 
   // Only the chunks near the camera are drawn.
   useFrame((_, delta) => {
-    timer.current += delta;
+    timer.current += clock.step(delta);
     if (timer.current < 0.4) return;
     timer.current = 0;
     built.trees.forEach((batch, i) => {

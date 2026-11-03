@@ -12,6 +12,7 @@ import { BleSpikePage } from './spikes/ble/BleSpikePage';
 // Pages with Three.js are loaded only when needed.
 const RidePage = lazy(() => import('./pages/RidePage'));
 const WorldSpikePage = lazy(() => import('./spikes/world/WorldSpikePage'));
+const BenchPage = lazy(() => import('./bench/BenchPage'));
 
 export function App() {
   const t = useT();
@@ -43,6 +44,12 @@ export function App() {
       return <SettingsPage />;
     case 'ble':
       return <BleSpikePage />;
+    case 'bench':
+      return (
+        <Suspense fallback={loading}>
+          <BenchPage auto={query.has('auto')} />
+        </Suspense>
+      );
     case '3d':
       return (
         <Suspense fallback={loading}>

@@ -95,7 +95,7 @@ Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de d�
 
 | Lot | Contenu |
 |---|---|
-| 2.0 Banc de comparaison | Points de vue fixes sur chaque boucle (route dégagée, forêt, village, col, lac) avec captures automatiques avant/après ; mesure FPS, draw calls, triangles et mémoire GPU par niveau de qualité. Sert de référence pour tous les lots suivants. |
+| 2.0 Banc de comparaison ✅ | Points de vue fixes sur chaque boucle (route dégagée, forêt, village, col, lac) avec captures automatiques avant/après ; mesure FPS, draw calls, triangles et mémoire GPU par niveau de qualité. Sert de référence pour tous les lots suivants. **Livré le 2026-11-03** : `pnpm bench`, `pnpm bench:compare`, run de référence `phase-1` ([10 §7](10-qualite-tests.md)). |
 | 2.1 **WebGPU** | Bascule sur `WebGPURenderer` de Three.js avec repli WebGL2 automatique ; matériaux et shaders en TSL ; vérification de compatibilité avec React Three Fiber. Mise à jour de l'[ADR 0003](adr/0003-rendu-3d-threejs.md). |
 | 2.2 Lumière et ombres | Ombres portées en cascade limitées à ~200 m autour du cycliste ; éclairage d'ambiance par environment map HDRI CC0 ; soleil, ciel et brouillard cohérents ; tonemapping AgX. |
 | 2.3 Post-traitement | Occlusion ambiante à l'écran (GTAO), anticrénelage SMAA ou TAA, bloom léger, étalonnage des couleurs (LUT) ; chaque effet lié au niveau de qualité. |

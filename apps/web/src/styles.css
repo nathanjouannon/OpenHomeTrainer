@@ -527,6 +527,24 @@ button.link.danger {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Comparison bench (#/bench) ---------- */
+
+table.bench-results {
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+table.bench-results th,
+table.bench-results td {
+  text-align: right;
+  padding: 0.15rem 0.5rem;
+}
+
+table.bench-results th:first-child,
+table.bench-results td:first-child {
+  text-align: left;
+}
+
 table.laps {
   width: 100%;
   border-collapse: collapse;

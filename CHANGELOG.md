@@ -4,7 +4,11 @@ Toutes les évolutions notables du projet. Format inspiré de [Keep a Changelog]
 
 ## [Non publié]
 
-Phase 2 « Rendu réaliste » en préparation : voir la [roadmap](docs/ROADMAP.md).
+Phase 2 « Rendu réaliste » en cours : voir la [roadmap](docs/ROADMAP.md).
+
+### Ajouté
+
+- **Banc de comparaison du rendu** (lot 2.0) : page `#/bench` et commandes `pnpm bench` / `pnpm bench:compare`. 16 points de vue fixes sur les 3 boucles, captures reproductibles à l'octet près, FPS moyen et 1 % low, draw calls, triangles et mémoire GPU estimée pour chaque qualité, rapports HTML avant/après. Run de référence `phase-1` mesuré (voir [docs/10 §7](docs/10-qualite-tests.md)).
 
 ## [0.1.0] — 2026-11-03 — Jalon M1 : MVP en monde virtuel
 

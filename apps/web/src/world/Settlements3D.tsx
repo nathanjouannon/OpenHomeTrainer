@@ -35,6 +35,7 @@ import {
   SIDEWALK_HEIGHT_M,
   SIDEWALK_WIDTH_M,
 } from './settlements';
+import { useWorldClock } from './world-clock';
 
 /** Scene rotation (around Y) of a world heading: local +Z points along the heading. */
 const yawToScene = (heading: number) => Math.PI - heading;
@@ -169,12 +170,13 @@ function Pedestrians({
     () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }),
     [],
   );
+  const clock = useWorldClock();
   const body = useRef<InstancedMesh>(null);
   const head = useRef<InstancedMesh>(null);
   const legs = useRef<InstancedMesh>(null);
   const state = useMemo(
-    () => people.map((p) => ({ d: p.startM, v: p.speedMs, phase: Math.random() * 6 })),
-    [people],
+    () => people.map((p) => ({ d: p.startM, v: p.speedMs, phase: clock.random() * 6 })),
+    [people, clock],
   );
   const tmp = useMemo(
     () => ({
@@ -196,7 +198,7 @@ function Pedestrians({
   }, [people]);
 
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.1);
+    const dt = Math.min(clock.step(delta), 0.1);
     const { o, leg, p } = tmp;
     people.forEach((person, i) => {
       const st = state[i];
@@ -273,14 +275,15 @@ export function Traffic({
     () => settlements.spans.filter((s) => s.routeId === route.id),
     [settlements, route],
   );
+  const clock = useWorldClock();
   // biome-ignore lint/correctness/useExhaustiveDependencies: new cars when the route changes
   const cars = useMemo(
     () =>
       Array.from({ length: TRAFFIC_CARS }, (_, i) => ({
-        d: riderDistance() + 300 + i * 450 + Math.random() * 200,
-        color: Math.floor(Math.random() * CAR_COLORS.length),
+        d: riderDistance() + 300 + i * 450 + clock.random() * 200,
+        color: Math.floor(clock.random() * CAR_COLORS.length),
       })),
-    [route, riderDistance],
+    [route, riderDistance, clock],
   );
   const tmp = useMemo(() => ({ o: new Object3D(), p: emptyRoutePoint() }), []);
 
@@ -293,7 +296,7 @@ export function Traffic({
   }, [cars]);
 
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.1);
+    const dt = Math.min(clock.step(delta), 0.1);
     const rider = riderDistance();
     const L = route.lengthM;
     cars.forEach((car, i) => {
@@ -303,7 +306,7 @@ export function Traffic({
       );
       car.d -= (inVillage ? 12 : 21) * dt;
       // Passed the rider: reappear far ahead, out of sight.
-      if (car.d < rider - 80) car.d = rider + 700 + Math.random() * 900;
+      if (car.d < rider - 80) car.d = rider + 700 + clock.random() * 900;
       const p = route.sampleAt(car.d, tmp.p);
       const offset = -ROAD_HALF_WIDTH_M / 2;
       const x = p.x + Math.cos(p.heading) * offset;

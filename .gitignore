@@ -19,3 +19,6 @@ apps/web/public/worlds/
 
 # World builder cache (downloaded DEM tiles)
 tools/world-builder/.cache/
+
+# Comparison bench results (captures and metrics, lot 2.0)
+bench-results/

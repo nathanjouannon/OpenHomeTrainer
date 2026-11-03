@@ -17,7 +17,9 @@
     "fetch-dem": "pnpm --filter @hrt/world-builder fetch-dem",
     "prepare": "lefthook install",
     "build-world": "pnpm --filter @hrt/world-builder build-world",
-    "start": "pnpm --filter @hrt/web build && pnpm --filter @hrt/web preview"
+    "start": "pnpm --filter @hrt/web build && pnpm --filter @hrt/web preview",
+    "bench": "pnpm --filter @hrt/bench bench",
+    "bench:compare": "pnpm --filter @hrt/bench compare"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",

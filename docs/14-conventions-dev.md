@@ -54,7 +54,7 @@ Nom de scope npm interne : `@hrt/*`.
 
 ## 4. CI (GitHub Actions)
 
-Budget zéro : la vérification tourne **en local** via des hooks git (lefthook) : lint + typecheck + tests unitaires au commit, build + E2E au push. Si le dépôt est poussé sur GitHub, la même chaîne tourne dans GitHub Actions (gratuit pour un dépôt public, quota de minutes gratuites pour un dépôt privé). Le test d'endurance et le scénario de performance 3D sont lancés à la demande (`pnpm test:endurance`, `pnpm test:perf`). Pas de déploiement : l'application tourne en local.
+Budget zéro : la vérification tourne **en local** via des hooks git (lefthook) : lint + typecheck + tests unitaires au commit, build + E2E au push. Si le dépôt est poussé sur GitHub, la même chaîne tourne dans GitHub Actions (gratuit pour un dépôt public, quota de minutes gratuites pour un dépôt privé). Le test d'endurance et le banc de comparaison du rendu sont lancés à la demande (`pnpm test:endurance`, `pnpm bench`, voir [10 §7](10-qualite-tests.md)). Pas de déploiement : l'application tourne en local.
 
 ## 5. Assets lourds
 
