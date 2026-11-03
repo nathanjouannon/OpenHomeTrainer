@@ -9,6 +9,7 @@ import {
   updateSettings,
   useSettings,
 } from '../store/settings';
+import { RENDERER_PREFERENCES } from '../world/renderer-options';
 import { downloadBlob, Page } from './common';
 
 function Field({ label, children, help }: { label: string; children: ReactNode; help?: string }) {
@@ -188,6 +189,18 @@ export function SettingsPage() {
             {(['low', 'medium', 'high'] as const).map((q) => (
               <option key={q} value={q}>
                 {t(`settings.quality.${q}`)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('settings.renderer')} help={t('settings.renderer.hint')}>
+          <select
+            value={s.renderer}
+            onChange={(e) => updateSettings({ renderer: e.target.value as Settings['renderer'] })}
+          >
+            {RENDERER_PREFERENCES.map((r) => (
+              <option key={r} value={r}>
+                {t(`settings.renderer.${r}`)}
               </option>
             ))}
           </select>

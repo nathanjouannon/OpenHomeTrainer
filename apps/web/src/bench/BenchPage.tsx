@@ -3,6 +3,7 @@
 // `window.hrtBench`, or by hand from the panel (`#/bench`).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { RendererPreference } from '../world/renderer-options';
 import {
   type BuiltWorld,
   buildWorldScene,
@@ -42,7 +43,13 @@ interface SceneState {
 
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
-export default function BenchPage({ auto }: { auto: boolean }) {
+export default function BenchPage({
+  auto,
+  renderer,
+}: {
+  auto: boolean;
+  renderer: RendererPreference;
+}) {
   const probe = useMemo(() => new BenchProbe(), []);
   const [world, setWorld] = useState<WorldData | null>(null);
   const [scene, setScene] = useState<SceneState | null>(null);
@@ -121,6 +128,7 @@ export default function BenchPage({ auto }: { auto: boolean }) {
           shot={shot}
           vp={vp}
           probe={probe}
+          renderer={renderer}
         />
       )}
       {!auto && (
@@ -142,12 +150,14 @@ function ShotView({
   shot,
   vp,
   probe,
+  renderer,
 }: {
   world: WorldData;
   built: BuiltWorld;
   shot: Shot;
   vp: BenchViewpoint;
   probe: BenchProbe;
+  renderer: RendererPreference;
 }) {
   const route = world.routes.get(vp.routeId);
   // Stable functions: a new one would respawn the traffic in the middle of a shot.
@@ -166,6 +176,7 @@ function ShotView({
       alpha={alpha}
       camera={vp.camera}
       quality={shot.quality}
+      renderer={renderer}
       reduceMotion={false}
       clock={shot.clock}
     >

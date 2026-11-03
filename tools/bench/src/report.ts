@@ -114,6 +114,9 @@ export function comparabilityWarnings(before: BenchRun, after: BenchRun): string
   if (vb.width !== va.width || vb.height !== va.height) {
     w.push(`Résolutions différentes : ${vb.width}×${vb.height} / ${va.width}×${va.height}`);
   }
+  if (before.environment.backend !== after.environment.backend) {
+    w.push(`Backends différents : ${before.environment.backend} / ${after.environment.backend}`);
+  }
   if (before.options.vsync !== after.options.vsync) w.push('Réglage vsync différent');
   if (before.options.headless !== after.options.headless) {
     w.push('Un run sans fenêtre, l’autre avec : FPS peu comparables');

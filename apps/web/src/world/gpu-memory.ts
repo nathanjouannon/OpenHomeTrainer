@@ -35,6 +35,11 @@ export interface CanvasBuffer {
   height: number;
   /** MSAA enabled on the canvas. */
   antialias: boolean;
+  /**
+   * WebGPURenderer draws the scene in a half-float buffer (with its own depth
+   * and MSAA buffers), then tone-maps it into the canvas.
+   */
+  halfFloatOutput?: boolean;
 }
 
 const MSAA_SAMPLES = 4;
@@ -139,8 +144,13 @@ function bytesPerTexel(format: number, type: number): number {
 }
 
 /** Canvas: front and back colour buffers, depth-stencil, plus the MSAA buffers. */
-export function canvasBytes({ width, height, antialias }: CanvasBuffer): number {
+export function canvasBytes({ width, height, antialias, halfFloatOutput }: CanvasBuffer): number {
   const pixels = width * height;
+  if (halfFloatOutput) {
+    // Canvas (front and back, no depth) + RGBA16F output buffer and its depth.
+    const resolved = pixels * 4 * 2 + pixels * (8 + 4);
+    return antialias ? resolved + pixels * (8 + 4) * MSAA_SAMPLES : resolved;
+  }
   const resolved = pixels * 4 * 2 + pixels * 4;
   return antialias ? resolved + pixels * (4 + 4) * MSAA_SAMPLES : resolved;
 }

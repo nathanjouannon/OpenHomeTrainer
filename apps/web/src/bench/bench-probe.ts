@@ -2,9 +2,11 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
-import { type Object3D, Vector2, type WebGLRenderer } from 'three';
+import { type Object3D, Vector2 } from 'three';
+import type { WebGPURenderer } from 'three/webgpu';
 import { FrameStats } from '../world/frame-stats';
 import { estimateGpuMemory } from '../world/gpu-memory';
+import { asWorldRenderer, frameInfo, gpuName, rendererBackend } from '../world/renderer';
 import type { BenchClock } from '../world/world-clock';
 import type { BenchEnvironment, BenchMetrics, BenchQuality } from './protocol';
 
@@ -22,7 +24,7 @@ export interface Shot {
 
 interface Attached {
   key: string;
-  gl: WebGLRenderer;
+  gl: WebGPURenderer;
   scene: Object3D;
 }
 
@@ -80,8 +82,12 @@ export class BenchProbe {
     shot.clock.mode = 'frozen';
     const s = this.stats.snapshot();
     const size = a.gl.getDrawingBufferSize(new Vector2());
-    const antialias = a.gl.getContext().getContextAttributes()?.antialias ?? false;
-    const mem = estimateGpuMemory(a.scene, { width: size.x, height: size.y, antialias });
+    const mem = estimateGpuMemory(a.scene, {
+      width: size.x,
+      height: size.y,
+      antialias: a.gl.samples > 0,
+      halfFloatOutput: true,
+    });
     const info = a.gl.info;
     return {
       viewpoint: shot.viewpointId,
@@ -103,7 +109,7 @@ export class BenchProbe {
       renderer: {
         geometries: info.memory.geometries,
         textures: info.memory.textures,
-        programs: info.programs?.length ?? 0,
+        programs: info.memory.programs,
       },
       canvas: { width: size.x, height: size.y },
     };
@@ -112,15 +118,10 @@ export class BenchProbe {
   environment(): BenchEnvironment {
     const a = this.attached;
     if (!a) throw new Error('No viewpoint shown');
-    const ctx = a.gl.getContext();
-    const ext = ctx.getExtension('WEBGL_debug_renderer_info');
-    const gpu = String(
-      ext ? ctx.getParameter(ext.UNMASKED_RENDERER_WEBGL) : ctx.getParameter(ctx.RENDERER),
-    );
     return {
       userAgent: navigator.userAgent,
-      gpu,
-      backend: 'webgl2',
+      gpu: gpuName(a.gl),
+      backend: rendererBackend(a.gl),
       devicePixelRatio: window.devicePixelRatio,
       viewport: { width: window.innerWidth, height: window.innerHeight },
     };
@@ -129,12 +130,12 @@ export class BenchProbe {
 
 /** Rendered inside the canvas of a shot: feeds the probe with every frame. */
 export function BenchProbeHook({ probe, shotKey }: { probe: BenchProbe; shotKey: string }) {
-  const gl = useThree((s) => s.gl);
+  const gl = asWorldRenderer(useThree((s) => s.gl));
   const scene = useThree((s) => s.scene);
   useEffect(() => {
     probe.attach({ key: shotKey, gl, scene });
     return () => probe.detach(shotKey);
   }, [probe, shotKey, gl, scene]);
-  useFrame((state, delta) => probe.frame(shotKey, delta, state.gl.info.render));
+  useFrame((state, delta) => probe.frame(shotKey, delta, frameInfo(state.gl)));
   return null;
 }

@@ -8,6 +8,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SummaryPage } from './pages/SummaryPage';
 import { useLocation } from './router';
 import { BleSpikePage } from './spikes/ble/BleSpikePage';
+import { rendererFromQuery } from './world/renderer-options';
 
 // Pages with Three.js are loaded only when needed.
 const RidePage = lazy(() => import('./pages/RidePage'));
@@ -47,7 +48,7 @@ export function App() {
     case 'bench':
       return (
         <Suspense fallback={loading}>
-          <BenchPage auto={query.has('auto')} />
+          <BenchPage auto={query.has('auto')} renderer={rendererFromQuery(query, 'auto')} />
         </Suspense>
       );
     case '3d':

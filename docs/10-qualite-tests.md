@@ -59,7 +59,7 @@ pnpm bench -- --label apres-2.1
 pnpm bench:compare avant-2.1 apres-2.1     # bench-results/compare-avant-2.1-vs-apres-2.1.html
 ```
 
-Options utiles : `--quality medium`, `--views col-sommet,lac-foret`, `--duration 8`, `--no-build`, `--url http://localhost:5173` (serveur déjà lancé), `--headed` (Chrome visible), `--vsync` (FPS plafonné par l'écran). Chaque run écrit `bench-results/<label>/` : `captures/<point de vue>@<qualité>.jpg`, `results.json` et `report.html`. Le dossier est hors git (environ 15 Mo par run) ; garder au moins le run de référence `phase-1`.
+Options utiles : `--quality medium`, `--views col-sommet,lac-foret`, `--duration 8`, `--no-build`, `--url http://localhost:5173` (serveur déjà lancé), `--headed` (Chrome visible), `--vsync` (FPS plafonné par l'écran), `--webgl2` (force le repli WebGL2 ; sans cette option, Chrome sans fenêtre tourne en WebGPU sur Mac). Le backend utilisé est noté dans le rapport, et le comparateur prévient si deux runs n'ont pas le même. Chaque run écrit `bench-results/<label>/` : `captures/<point de vue>@<qualité>.jpg`, `results.json` et `report.html`. Le dossier est hors git (environ 15 Mo par run) ; garder au moins le run de référence `phase-1`.
 
 La page `#/bench` s'utilise aussi à la main : choix du point de vue et de la qualité, mesure d'un point ou de tous.
 
@@ -72,7 +72,7 @@ La page `#/bench` s'utilise aussi à la main : choix du point de vue et de la qu
 - **Images reproductibles** : pour une prise, la page `#/bench?auto=1` monte une scène neuve, avec une horloge d'animation à pas fixe (1/60 s par image) et un aléa à graine fixe (piétons, voitures). Après 120 images, l'animation est figée et la capture est prise. Deux runs du même code donnent des captures identiques à l'octet près, quel que soit le FPS.
 - **FPS** : mesuré ensuite pendant 4 s avec les animations en temps réel, **sans plafond d'écran** (vsync désactivé) pour voir la marge au-dessus de 60 FPS. Chrome tourne sans fenêtre mais avec le GPU (Metal sur Mac), en 1920 × 1080 et ratio de pixels 1.
 - **Draw calls et triangles** : ceux de l'image capturée (déterministes).
-- **Mémoire GPU** : **estimée** (ni WebGL ni WebGPU ne l'exposent) en additionnant les buffers de géométrie et d'instances, les textures avec leurs mipmaps, les shadow maps et le framebuffer du canvas (`apps/web/src/world/gpu-memory.ts`). Utile pour comparer deux versions, pas comme valeur absolue.
+- **Mémoire GPU** : **estimée** (ni WebGL ni WebGPU ne l'exposent) en additionnant les buffers de géométrie et d'instances, les textures avec leurs mipmaps, les shadow maps, le framebuffer du canvas et, depuis le lot 2.1, le tampon de sortie en demi-flottants de `WebGPURenderer` (`apps/web/src/world/gpu-memory.ts`). Utile pour comparer deux versions, pas comme valeur absolue.
 - **Budgets** ([05 §4](05-monde-virtuel.md)) : FPS moyen ≥ 60 en qualité basse et moyenne, ≥ 30 en haute ; en basse et moyenne, < 300 draw calls, < 2 M triangles, < 1,5 Go de mémoire GPU. Les dépassements sont signalés dans la console et en rouge dans les rapports.
 - **Bruit** : sur la config de référence (MacBook Air M1, sans ventilateur), deux runs du même build diffèrent d'environ ±6 % sur le FPS moyen et jusqu'à ±16 % sur le 1 % low. Le comparateur ignore les écarts sous ±10 % (FPS moyen) et ±20 % (1 % low). Comparer des runs faits dans les mêmes conditions (secteur branché, machine au repos) ; le comparateur prévient si le GPU, la résolution ou les options diffèrent.
 
@@ -93,3 +93,23 @@ MacBook Air M1, Chrome 156 sans fenêtre, WebGL2, 1920 × 1080. Pire cas sur les
 - en qualité haute, le nombre de triangles dépasse 2 M sur 8 points de vue (arbres lointains) : sans conséquence sur le FPS aujourd'hui, mais les imposteurs du lot 2.6 doivent le faire baisser ;
 - défaut repéré grâce aux captures : à Port-Vérane (`col-port-verane`), un bâtiment semble flotter au-dessus du terrain, en haut à droite de l'image.
 
+### Après la bascule WebGPU (runs `apres-2.1-webgpu` et `apres-2.1-webgl2`, 2026-11-03)
+
+Même machine et mêmes conditions que `phase-1`. Pire cas sur les 16 points de vue, et FPS moyen médian :
+
+| Qualité | Backend | FPS moyen min. | FPS moyen médian | 1 % low min. | Draw calls max. | Triangles max. | Mémoire GPU estimée |
+|---|---|---|---|---|---|---|---|
+| Basse | WebGPU | 383 | 452 | 53 | 268 | 1,43 M | 138 Mo |
+| Basse | WebGL2 (repli) | 268 | 345 | 175 | 268 | 1,43 M | 138 Mo |
+| Moyenne | WebGPU | 252 | 300 | 62 | 280 | 1,73 M | 235 Mo |
+| Moyenne | WebGL2 (repli) | 128 | 152 | 68 | 280 | 1,73 M | 235 Mo |
+| Haute | WebGPU | 127 | 193 | 10 | 296 | 3,06 M | 239 Mo |
+| Haute | WebGL2 (repli) | 82 | 113 | 44 | 296 | 3,06 M | 239 Mo |
+
+(`phase-1`, `WebGLRenderer` : FPS moyen médian 415 / 239 / 176.)
+
+- **Images** : identiques à l'œil à celles de `phase-1` sur les deux backends ; seul le ciel est un peu plus bleu (shader `SkyMesh` de Three.js).
+- **WebGPU** : FPS moyen en hausse (+25 % en médiane en qualité moyenne, +10 % en haute).
+- **1 % low en WebGPU** : sans plafond d'écran, une image sur quelques centaines dure 80 à 150 ms sur les points de vue les plus chargés, sans création de shader, de géométrie ni de texture à ce moment-là. C'est le rythme d'images de WebGPU quand le GPU est saturé bien au-delà de la fréquence de l'écran. **Avec `--vsync`** (usage réel), les trois pires points de vue en qualité haute tiennent 60 FPS avec un 1 % low à 57. Pour juger les à-coups en WebGPU, faire un run `--vsync`.
+- **Repli WebGL2** : environ 35 % plus lent que l'ancien `WebGLRenderer` (passe de sortie supplémentaire, backend WebGL de `WebGPURenderer` moins optimisé), mais toujours bien au-dessus des budgets (≥ 128 FPS en moyenne, ≥ 82 en haute).
+- **Draw calls** : +1 (la passe qui copie le tampon de sortie dans le canvas). **Mémoire estimée** : +47 Mo à 1080p avec MSAA, à cause du tampon de sortie en demi-flottants.

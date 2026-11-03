@@ -9,6 +9,12 @@ Phase 2 « Rendu réaliste » en cours : voir la [roadmap](docs/ROADMAP.md).
 ### Ajouté
 
 - **Banc de comparaison du rendu** (lot 2.0) : page `#/bench` et commandes `pnpm bench` / `pnpm bench:compare`. 16 points de vue fixes sur les 3 boucles, captures reproductibles à l'octet près, FPS moyen et 1 % low, draw calls, triangles et mémoire GPU estimée pour chaque qualité, rapports HTML avant/après. Run de référence `phase-1` mesuré (voir [docs/10 §7](docs/10-qualite-tests.md)).
+- **Rendu WebGPU** (lot 2.1) : la vue 3D passe sur `WebGPURenderer` de Three.js, avec repli automatique en WebGL2 quand le navigateur n'a pas WebGPU ; nouveau réglage « Moteur de rendu » (Automatique / WebGL2) ; backend affiché à côté du FPS pendant la sortie ; option `--webgl2` de `pnpm bench`. Voir l'[ADR 0003](docs/adr/0003-rendu-3d-threejs.md).
+
+### Modifié
+
+- Ciel réécrit en TSL (`SkyMesh` de Three.js) à la place du `<Sky>` de drei, incompatible avec WebGPU.
+- Banc : compteurs de draw calls et de triangles lus de la même façon sur les deux backends ; l'estimation de mémoire GPU inclut le tampon de sortie en demi-flottants de `WebGPURenderer`.
 
 ## [0.1.0] — 2026-11-03 — Jalon M1 : MVP en monde virtuel
 

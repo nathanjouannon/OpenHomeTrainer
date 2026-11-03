@@ -71,4 +71,11 @@ describe('canvasBytes', () => {
       plain + 100 * 100 * 8 * 4,
     );
   });
+
+  it('adds the half-float output buffer of WebGPURenderer', () => {
+    const size = { width: 100, height: 100, halfFloatOutput: true };
+    const plain = canvasBytes({ ...size, antialias: false });
+    expect(plain).toBe(100 * 100 * (8 + 12));
+    expect(canvasBytes({ ...size, antialias: true })).toBe(plain + 100 * 100 * 12 * 4);
+  });
 });

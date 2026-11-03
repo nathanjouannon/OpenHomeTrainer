@@ -9,6 +9,7 @@ import { navigate } from '../router';
 import { useDevices } from '../store/devices';
 import { CAMERA_MODES, getSettings, updateSettings, useSettings } from '../store/settings';
 import { FrameStats } from '../world/frame-stats';
+import type { RendererBackend } from '../world/renderer-options';
 import {
   type BuiltWorld,
   buildWorldScene,
@@ -114,6 +115,7 @@ function RideRunning({
   const [hudVisible, setHudVisible] = useState(true);
   const [focused, setFocused] = useState(true);
   const [fps, setFps] = useState(0);
+  const [backend, setBackend] = useState<RendererBackend | null>(null);
   const stats = useMemo(() => new FrameStats(), []);
   const slots = useDevices();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -188,6 +190,8 @@ function RideRunning({
         alpha={alpha}
         camera={camera}
         quality={settings.quality}
+        renderer={settings.renderer}
+        onRenderer={setBackend}
         reduceMotion={settings.reduceMotion}
         onFrame={(d, info) => stats.record(d, info)}
       />
@@ -212,7 +216,9 @@ function RideRunning({
           </div>
         ))}
       </div>
-      <div className="fps muted">{Math.round(fps)} FPS</div>
+      <div className="fps muted">
+        {Math.round(fps)} FPS{backend && ` · ${backend === 'webgpu' ? 'WebGPU' : 'WebGL2'}`}
+      </div>
       {live.paused && (
         <div className="pause-overlay">
           <div className="pause-card">

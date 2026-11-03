@@ -3,6 +3,7 @@
 import { type CassetteSpeeds, DEFAULT_CASSETTE_SPEEDS, isCassetteSpeeds } from '@hrt/drivetrain';
 import { useSyncExternalStore } from 'react';
 import type { PowerSource } from '../ride/ride-session';
+import { isRendererPreference, type RendererPreference } from '../world/renderer-options';
 
 export type Language = 'fr' | 'en';
 export type Units = 'metric' | 'imperial';
@@ -23,6 +24,8 @@ export interface Settings {
   /** Share of the real grade felt on the trainer, 0..1. */
   difficulty: number;
   quality: Quality;
+  /** 3D backend: WebGPU when available (auto) or always WebGL2. */
+  renderer: RendererPreference;
   virtualShifting: boolean;
   /** Number of cogs of the virtual cassette (50/34 chainrings). */
   cassetteSpeeds: CassetteSpeeds;
@@ -61,6 +64,7 @@ export const defaultSettings = (): Settings => ({
   units: 'metric',
   difficulty: 0.5,
   quality: 'medium',
+  renderer: 'auto',
   virtualShifting: true,
   cassetteSpeeds: DEFAULT_CASSETTE_SPEEDS,
   powerSource: 'trainer',
@@ -82,6 +86,7 @@ function load(): Settings {
     // Older settings: drivetrain presets became a cassette size.
     delete (saved as Record<string, unknown>).drivetrainPreset;
     if (!isCassetteSpeeds(saved.cassetteSpeeds)) delete saved.cassetteSpeeds;
+    if (!isRendererPreference(saved.renderer)) delete saved.renderer;
     return { ...defaults, ...saved, profile: { ...defaults.profile, ...saved.profile } };
   } catch {
     return defaults;

@@ -13,6 +13,8 @@ export interface RunOptions {
   build: boolean;
   headless: boolean;
   vsync: boolean;
+  /** Forces the WebGL2 backend (default: WebGPU when the browser has it). */
+  webgl2: boolean;
 }
 
 export const RUN_USAGE = `pnpm bench [options]
@@ -25,6 +27,7 @@ export const RUN_USAGE = `pnpm bench [options]
   --no-build            réutilise le build existant d'apps/web
   --headed              Chrome visible (défaut : sans fenêtre, GPU actif)
   --vsync               FPS plafonné par l'écran (défaut : sans plafond, pour voir la marge)
+  --webgl2              force le repli WebGL2 (défaut : WebGPU si Chrome le propose)
 `;
 
 const QUALITIES: readonly BenchQuality[] = ['low', 'medium', 'high'];
@@ -39,6 +42,7 @@ export function parseRunArgs(argv: readonly string[]): RunOptions {
     build: true,
     headless: true,
     vsync: false,
+    webgl2: false,
   };
   const list = (v: string) =>
     v
@@ -87,6 +91,9 @@ export function parseRunArgs(argv: readonly string[]): RunOptions {
         break;
       case '--vsync':
         o.vsync = true;
+        break;
+      case '--webgl2':
+        o.webgl2 = true;
         break;
       default:
         throw new Error(`Unknown option ${arg}\n\n${RUN_USAGE}`);

@@ -58,7 +58,13 @@ describe('parseRunArgs', () => {
   it('has sensible defaults', () => {
     const o = parseRunArgs([]);
     expect(o.qualities).toEqual(['low', 'medium', 'high']);
-    expect(o).toMatchObject({ build: true, headless: true, vsync: false, durationS: 4 });
+    expect(o).toMatchObject({
+      build: true,
+      headless: true,
+      vsync: false,
+      webgl2: false,
+      durationS: 4,
+    });
   });
 
   it('parses lists and flags', () => {
@@ -74,6 +80,7 @@ describe('parseRunArgs', () => {
       '2.5',
       '--headed',
       '--vsync',
+      '--webgl2',
     ]);
     expect(o).toMatchObject({
       label: 'avant-2.1',
@@ -82,6 +89,7 @@ describe('parseRunArgs', () => {
       durationS: 2.5,
       headless: false,
       vsync: true,
+      webgl2: true,
     });
   });
 
@@ -161,9 +169,9 @@ describe('comparabilityWarnings', () => {
     expect(comparabilityWarnings(a, run('b', []))).toEqual([]);
     const b = run('b', [], {
       options: { durationS: 4, vsync: true, headless: true },
-      environment: { ...a.environment, gpu: 'Intel' },
+      environment: { ...a.environment, gpu: 'Intel', backend: 'webgpu' },
     });
-    expect(comparabilityWarnings(a, b)).toHaveLength(2);
+    expect(comparabilityWarnings(a, b)).toHaveLength(3);
   });
 });
 

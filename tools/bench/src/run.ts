@@ -90,10 +90,10 @@ async function launchBrowser(o: RunOptions): Promise<Browser> {
   }
 }
 
-async function openBench(browser: Browser, url: string): Promise<Page> {
+async function openBench(browser: Browser, url: string, o: RunOptions): Promise<Page> {
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.error(`  [page] ${e.message}`));
-  await page.goto(`${url}/#/bench?auto=1`);
+  await page.goto(`${url}/#/bench?auto=1${o.webgl2 ? '&renderer=webgl2' : ''}`);
   await page.waitForFunction(() => window.hrtBench !== undefined, null, { timeout: 60_000 });
   return page;
 }
@@ -120,7 +120,7 @@ async function main() {
   const server = o.url ? { url: o.url, stop: () => undefined } : await startServer();
   const browser = await launchBrowser(o);
   try {
-    const page = await openBench(browser, server.url);
+    const page = await openBench(browser, server.url, o);
     const all = await page.evaluate(() => window.hrtBench?.viewpoints ?? []);
     const unknown = o.viewpoints.filter((id) => !all.some((v) => v.id === id));
     if (unknown.length) throw new Error(`Unknown viewpoints: ${unknown.join(', ')}`);

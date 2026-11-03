@@ -1,7 +1,6 @@
 // 3D view of a world during a ride (lot 1.4 rendering + 1.5 cameras).
 
 import { emptyRoutePoint, type Route, type RoutePoint } from '@hrt/route-engine';
-import { Sky } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
@@ -20,8 +19,11 @@ import {
   SRGBColorSpace,
   Vector3,
 } from 'three';
+import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import type { CameraMode, Quality } from '../store/settings';
 import { POV_HIDDEN_LAYER, POV_ONLY_LAYER, Rider, type RiderHandle } from './Rider';
+import { createWorldRenderer, frameInfo, rendererBackend } from './renderer';
+import type { RendererBackend, RendererPreference } from './renderer-options';
 import {
   asphaltTextures,
   buildAsphalt,
@@ -124,7 +126,11 @@ interface Props {
   alpha: () => number;
   camera: CameraMode;
   quality: Quality;
+  /** Read once, when the canvas is created. */
+  renderer?: RendererPreference;
   reduceMotion: boolean;
+  /** Called once the renderer is ready, with the backend it runs on. */
+  onRenderer?: (backend: RendererBackend) => void;
   onFrame?: (deltaS: number, info: { calls: number; triangles: number }) => void;
   /** Animation time and randomness (real clock by default; fixed step for the benchmark). */
   clock?: WorldClock;
@@ -132,13 +138,25 @@ interface Props {
   children?: ReactNode;
 }
 
-export function WorldView({ clock = realClock, children, ...props }: Props) {
+export function WorldView({
+  clock = realClock,
+  children,
+  renderer = 'auto',
+  onRenderer,
+  ...props
+}: Props) {
   const dpr = props.quality === 'high' ? Math.min(2, window.devicePixelRatio) : 1;
   return (
     <Canvas
       dpr={dpr}
       camera={{ fov: 62, near: 0.3, far: 9000, position: [0, 50, 0] }}
-      gl={{ antialias: props.quality !== 'low', powerPreference: 'high-performance' }}
+      gl={(defaults) =>
+        createWorldRenderer(defaults.canvas as HTMLCanvasElement, {
+          antialias: props.quality !== 'low',
+          preference: renderer,
+        })
+      }
+      onCreated={(state) => onRenderer?.(rendererBackend(state.gl))}
     >
       <WorldClockContext.Provider value={clock}>
         <Scene {...props} />
@@ -158,7 +176,7 @@ function Scene({
   quality,
   reduceMotion,
   onFrame,
-}: Omit<Props, 'clock' | 'children'>) {
+}: Omit<Props, 'clock' | 'children' | 'renderer' | 'onRenderer'>) {
   const clock = useWorldClock();
   const rider = useRef<RiderHandle>(null);
   const tmp = useMemo(
@@ -180,7 +198,7 @@ function Scene({
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
 
   useFrame((state, frameDelta) => {
-    onFrame?.(frameDelta, state.gl.info.render);
+    onFrame?.(frameDelta, frameInfo(state.gl));
     const delta = clock.step(frameDelta);
     tmp.t += delta;
     const v = view();
@@ -212,13 +230,7 @@ function Scene({
     <>
       <color attach="background" args={[fogColor]} />
       <fog attach="fog" args={[fogColor, 600, 7500]} />
-      <Sky
-        distance={8000}
-        sunPosition={[600, 700, -900]}
-        turbidity={5}
-        rayleigh={1.1}
-        mieCoefficient={0.004}
-      />
+      <WorldSky />
       <hemisphereLight args={['#e3edf7', '#4d5a33', 1.0]} />
       <directionalLight position={[600, 900, -900]} intensity={2.3} color="#fff4e2" />
       <Terrain built={built} />
@@ -238,6 +250,32 @@ function Scene({
       <Rider ref={rider} />
     </>
   );
+}
+
+const SUN_POSITION = new Vector3(600, 700, -900);
+
+/** Physical sky (TSL shader, works on WebGPU and WebGL2). */
+function WorldSky() {
+  const sky = useMemo(() => {
+    const s = new SkyMesh();
+    s.scale.setScalar(8000);
+    s.turbidity.value = 5;
+    s.rayleigh.value = 1.1;
+    s.mieCoefficient.value = 0.004;
+    s.mieDirectionalG.value = 0.8;
+    s.sunPosition.value.copy(SUN_POSITION);
+    // Clouds come with lot 2.7.
+    s.cloudCoverage.value = 0;
+    return s;
+  }, []);
+  useEffect(
+    () => () => {
+      sky.geometry.dispose();
+      sky.material.dispose();
+    },
+    [sky],
+  );
+  return <primitive object={sky} />;
 }
 
 /** Rider position (right lane) and direction of travel, in the scene frame. */
