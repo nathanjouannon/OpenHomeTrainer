@@ -34,17 +34,35 @@ export async function createWorldRenderer(
   // maps) add to the counts of the frame.
   renderer.info.autoReset = false;
   const render = renderer.render.bind(renderer);
-  let depth = 0;
+  const frame = { depth: 0 };
+  frames.set(renderer, frame);
   renderer.render = (scene, camera) => {
-    if (depth === 0) renderer.info.reset();
-    depth++;
+    if (frame.depth === 0) renderer.info.reset();
+    frame.depth++;
     try {
       return render(scene, camera);
     } finally {
-      depth--;
+      frame.depth--;
     }
   };
   return renderer;
+}
+
+const frames = new WeakMap<WebGPURenderer, { depth: number }>();
+
+/**
+ * Runs the renders of one frame made of several passes (post-processing):
+ * the counters are reset once, then every pass adds to them.
+ */
+export function renderFrame(renderer: WebGPURenderer, draw: () => void): void {
+  const frame = frames.get(renderer);
+  renderer.info.reset();
+  if (frame) frame.depth++;
+  try {
+    draw();
+  } finally {
+    if (frame) frame.depth--;
+  }
 }
 
 /** The renderer of an R3F state (typed as WebGLRenderer by R3F). */

@@ -73,12 +73,13 @@ Mise en œuvre : phase 2 « Rendu réaliste » de la [roadmap](ROADMAP.md).
 | Ciel et lumière | Modèle de ciel physique (atmosphère), soleil directionnel, cascaded shadow maps limitées à ~200 m, éclairage d'ambiance par environment map |
 | Eau | Shader d'eau (réflexion plane ou SSR selon la qualité) |
 | Brume | Brouillard de distance + perspective atmosphérique pour masquer la fin du terrain |
-| Post-traitement | Tonemapping ACES ou AgX, bloom léger, SMAA ; profondeur de champ désactivée par défaut |
+| Post-traitement | Tonemapping AgX, occlusion ambiante GTAO, bloom léger, étalonnage par LUT, SMAA ; profondeur de champ désactivée par défaut |
 | Renderer | `WebGPURenderer` de Three.js avec repli WebGL2 automatique |
 
 ### Ce qui est en place (phase 2)
 
 - **Lumière et ombres** (lot 2.2, `apps/web/src/world/Lighting.tsx`) : soleil directionnel avec ombres portées en cascade (`CSMShadowNode`, 3 cascades ; 160 m en qualité moyenne avec des cartes de 1024², 200 m en haute avec 2048², rien en basse). Le terrain reçoit les ombres sans en projeter. Pour tenir le budget de draw calls, le cycliste projette son ombre par une silhouette fusionnée (une seule géométrie vue des seules caméras d'ombre, plus les jambes animées), et les objets instanciés sur tout le monde (arbres, lampadaires, balises, voitures garées) ne projettent leur ombre qu'à moins de ~220 m de la caméra, via des copies « ombre seulement » rafraîchies toutes les 0,4 s (`NearShadows.tsx`), avec une silhouette simplifiée pour les arbres. Sans cela, chaque cascade redessinerait toutes les instances d'un objet dont la sphère englobante couvre le monde. Lumière d'ambiance et reflets : HDRI CC0 (« Alps Field ») dont le disque solaire est écrêté au téléchargement (0,05 % des pixels les plus lumineux) et que l'on tourne pour que son soleil soit du côté de celui de la scène ; repli sur une lumière hémisphérique sans les assets. Tonemapping AgX, brouillard de la couleur de l'horizon. Les profils par qualité sont dans `render-profile.ts`.
+- **Post-traitement** (lot 2.3, `PostFX.tsx`) : `RenderPipeline` en TSL qui prend la main sur le rendu de R3F. Chaîne : passe de scène (tampon demi-flottant) → occlusion ambiante GTAO sur la profondeur, normales reconstruites (pas de tampon de normales : une cible de moins), multipliée à la couleur → halo (seuil 2, intensité 0,06) → tonemapping AgX et sRGB → LUT 3D 32³ calculée dans le code (`color-grading.ts`, aucun asset) → SMAA. Par qualité : basse = étalonnage seul ; moyenne = GTAO à demi-résolution (8 échantillons), halo, SMAA ; haute = GTAO aux 3/4 (12 échantillons), halo, SMAA. Le MSAA du canvas n'est plus utilisé. Coût mesuré en qualité moyenne sur la config de référence : ~2 ms pour l'occlusion, ~1 ms pour halo + SMAA, en partie compensés par l'abandon du MSAA.
 
 ### Budgets de performance (config de référence, qualité « moyenne », 1080p)
 

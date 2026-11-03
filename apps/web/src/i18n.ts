@@ -146,7 +146,7 @@ const fr = {
   'settings.quality.medium': 'Moyenne',
   'settings.quality.high': 'Haute',
   'settings.quality.hint':
-    'Basse : sans ombres portées. Moyenne : ombres jusqu’à 160 m. Haute : ombres plus nettes jusqu’à 200 m, résolution de l’écran.',
+    'Basse : sans ombres portées ni occlusion. Moyenne : ombres jusqu’à 160 m, occlusion ambiante, halo, anticrénelage SMAA. Haute : ombres plus nettes jusqu’à 200 m, occlusion plus fine, résolution de l’écran.',
   'settings.renderer': 'Moteur de rendu',
   'settings.renderer.auto': 'Automatique (WebGPU si disponible)',
   'settings.renderer.webgl2': 'WebGL2 (compatibilité)',
@@ -306,7 +306,7 @@ const en: Record<MessageKey, string> = {
   'settings.quality.medium': 'Medium',
   'settings.quality.high': 'High',
   'settings.quality.hint':
-    'Low: no cast shadows. Medium: shadows up to 160 m. High: sharper shadows up to 200 m, screen resolution.',
+    'Low: no cast shadows nor occlusion. Medium: shadows up to 160 m, ambient occlusion, bloom, SMAA anti-aliasing. High: sharper shadows up to 200 m, finer occlusion, screen resolution.',
   'settings.renderer': 'Renderer',
   'settings.renderer.auto': 'Automatic (WebGPU when available)',
   'settings.renderer.webgl2': 'WebGL2 (compatibility)',

@@ -25,6 +25,7 @@ import type { CameraMode, Quality } from '../store/settings';
 import { type EnvironmentMap, loadEnvironmentMap } from './assets';
 import { FOG_COLOR, Lighting, SUN_POSITION } from './Lighting';
 import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
+import { PostFX } from './PostFX';
 import {
   POV_HIDDEN_LAYER,
   POV_ONLY_LAYER,
@@ -182,7 +183,8 @@ export function WorldView({
       camera={{ fov: 62, near: 0.3, far: 9000, position: [0, 50, 0] }}
       gl={(defaults) =>
         createWorldRenderer(defaults.canvas as HTMLCanvasElement, {
-          antialias: props.quality !== 'low',
+          // With post-processing, SMAA replaces the MSAA of the canvas.
+          antialias: props.quality !== 'low' && !renderProfile(props.quality).post,
           preference: renderer,
         })
       }
@@ -225,6 +227,7 @@ function Scene({
   );
   const base = built.base;
   const fogColor = FOG_COLOR;
+  const post = renderProfile(quality).post;
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
 
   useFrame((state, frameDelta) => {
@@ -262,6 +265,7 @@ function Scene({
       <fog attach="fog" args={[fogColor, 600, 7500]} />
       <WorldSky />
       <Lighting shadows={renderProfile(quality).shadows} environment={built.environment} />
+      {post && <PostFX profile={post} />}
       <Terrain built={built} />
       <Roads built={built} />
       {world.manifest.waterLevelM !== null && (

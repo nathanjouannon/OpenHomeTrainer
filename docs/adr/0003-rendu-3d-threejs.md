@@ -46,3 +46,10 @@ Scène de la page `#/3d` : terrain 4 × 4 km issu d'un MNT réel (513 × 513 som
 - (−) le chunk 3D grossit (Three.js WebGPU + compilateur TSL) ;
 - (−) `WebGPURenderer` dessine la scène dans un tampon intermédiaire en demi-flottants, puis applique le tone mapping vers le canvas : un peu plus de mémoire vidéo (prise en compte par l'estimation du banc) et une passe plein écran de plus ;
 - la page de spike `#/3d` reste en `WebGLRenderer` avec drei (archive de la phase 0).
+
+## Post-traitement (lot 2.3, 2026-11-03)
+
+- Le post-traitement passe par `RenderPipeline` (ex-`PostProcessing`, renommé en r183) et les nœuds TSL de `three/addons/tsl/display` (`ao`, `bloom`, `lut3D`, `smaa`) : un seul code pour WebGPU et WebGL2, sans `EffectComposer` GLSL ni `@react-three/postprocessing` (incompatibles avec `WebGPURenderer`).
+- Avec R3F, un `useFrame(…, 1)` (priorité positive) prend la main sur le rendu ; il appelle `pipeline.render()` dans `renderFrame()`, qui remet les compteurs à zéro une fois par image pour que toutes les passes s'y ajoutent.
+- `outputColorTransform` est désactivé : le tonemapping et la conversion sRGB (`renderOutput`) sont faits avant l'étalonnage et le SMAA, qui travaillent sur des couleurs d'affichage.
+

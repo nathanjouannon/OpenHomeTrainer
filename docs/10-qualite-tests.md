@@ -131,3 +131,20 @@ Même machine et mêmes conditions. Pire cas sur les 16 points de vue, et FPS mo
 - **Coût des ombres** (qualité moyenne, WebGPU) : FPS moyen médian 300 → 225 (−25 %), triangles max. 1,73 → 1,95 M (les objets proches redessinés dans 3 cascades), mémoire +29 Mo (cartes d'ombres et HDRI).
 - **Draw calls** : en baisse en basse qualité (268 → 225) grâce à la fusion des pièces du cycliste ; en moyenne et haute, la fusion compense les passes d'ombre (282 et 298 au maximum, toujours sur `collines-montee`).
 - Points de vigilance : le budget de 2 M triangles est presque atteint en qualité moyenne (`col-rive-lac`) ; les imposteurs du lot 2.6 doivent le faire baisser.
+
+### Après le post-traitement (runs `apres-2.3-webgpu` et `apres-2.3-webgl2`, 2026-11-03)
+
+Même machine et mêmes conditions. Pire cas sur les 16 points de vue, et FPS moyen médian :
+
+| Qualité | Backend | FPS moyen min. | FPS moyen médian | 1 % low min. | Draw calls max. | Triangles max. | Mémoire GPU estimée |
+|---|---|---|---|---|---|---|---|
+| Basse | WebGPU | 237 | 460 | 152 | 225 | 1,43 M | 150 Mo |
+| Basse | WebGL2 (repli) | 243 | 274 | 149 | 225 | 1,43 M | 150 Mo |
+| Moyenne | WebGPU | 107 | 130 | 54 | 299 | 1,95 M | 239 Mo |
+| Moyenne | WebGL2 (repli) | 75 | 84 | 39 | 299 | 1,95 M | 239 Mo |
+| Haute | WebGPU | 62 | 74 | 25 | 315 | 3,28 M | 316 Mo |
+| Haute | WebGL2 (repli) | 43 | 56 | 23 | 315 | 3,28 M | 316 Mo |
+
+- **Images** : couleurs plus contrastées et plus saturées (étalonnage), occlusion au pied des murs, des bordures et sous les voitures, halo discret face au soleil, bords lissés par SMAA.
+- **Coût** (qualité moyenne, WebGPU) : FPS moyen médian 225 → 130, surtout l'occlusion ambiante (~2 ms) ; halo + SMAA ~1 ms, compensés en partie par la fin du MSAA du canvas. Tous les budgets de FPS restent tenus, mais la marge pour les shaders du terrain (lot 2.4) se réduit : à surveiller.
+- **Draw calls** : +15 environ (passes du post-traitement) ; 299 au maximum en qualité moyenne (`collines-montee`), à la limite du budget de 300. La mémoire baisse un peu (plus de tampons MSAA).

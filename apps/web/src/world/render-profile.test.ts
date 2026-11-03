@@ -18,4 +18,16 @@ describe('renderProfile', () => {
     expect(high.mapSize).toBeGreaterThan(medium.mapSize);
     expect(high.maxFarM).toBeGreaterThanOrEqual(medium.maxFarM);
   });
+
+  it('ties each post-processing effect to the quality level', () => {
+    const low = renderProfile('low').post;
+    const medium = renderProfile('medium').post;
+    const high = renderProfile('high').post;
+    // The same colour grading everywhere: the look does not change with the quality.
+    expect([low?.grading, medium?.grading, high?.grading]).toEqual([true, true, true]);
+    expect(low?.ao).toBeNull();
+    expect(low?.smaa).toBe(false);
+    expect(medium?.ao?.resolutionScale).toBeLessThan(high?.ao?.resolutionScale ?? 0);
+    expect(medium?.smaa && high?.smaa && medium?.bloom && high?.bloom).toBe(true);
+  });
 });

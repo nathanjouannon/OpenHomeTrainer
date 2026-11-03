@@ -21,6 +21,9 @@ export function registerRenderTargets(scene: Object3D, key: string, source: Sour
   };
 }
 
+export const hasRenderTargets = (scene: Object3D, key: string) =>
+  sources.get(scene)?.has(key) ?? false;
+
 export function sceneRenderTargets(scene: Object3D): RenderTarget[] {
   const out = new Set<RenderTarget>();
   for (const source of sources.get(scene)?.values() ?? []) {

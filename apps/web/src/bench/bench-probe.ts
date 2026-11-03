@@ -6,7 +6,7 @@ import { type Object3D, Vector2 } from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
 import { FrameStats } from '../world/frame-stats';
 import { estimateGpuMemory } from '../world/gpu-memory';
-import { sceneRenderTargets } from '../world/render-targets';
+import { hasRenderTargets, sceneRenderTargets } from '../world/render-targets';
 import { asWorldRenderer, frameInfo, gpuName, rendererBackend } from '../world/renderer';
 import type { BenchClock } from '../world/world-clock';
 import type { BenchEnvironment, BenchMetrics, BenchQuality } from './protocol';
@@ -89,7 +89,8 @@ export class BenchProbe {
         width: size.x,
         height: size.y,
         antialias: a.gl.samples > 0,
-        halfFloatOutput: true,
+        // With post-processing, the scene pass holds the half-float buffer (a render target).
+        halfFloatOutput: !hasRenderTargets(a.scene, 'post'),
       },
       sceneRenderTargets(a.scene),
     );
