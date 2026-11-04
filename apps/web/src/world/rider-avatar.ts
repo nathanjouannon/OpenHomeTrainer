@@ -33,7 +33,7 @@ import {
   type Shape,
 } from './avatar-shape';
 import { buildHelmetGeometry } from './helmet';
-import { HAND_DIR, HIP_Y, HIP_Z, pedalPosition, solveTwoBone, WRIST } from './rider-geometry';
+import { HAND_DIR, pedalPosition, SEAT, solveTwoBone, WRIST } from './rider-geometry';
 
 const X = new Vector3(1, 0, 0);
 const Z = new Vector3(0, 0, 1);
@@ -47,6 +47,8 @@ const LEAN_SHARES: readonly [string, number][] = [
 ];
 /** Pitch of the head once the neck has compensated the lean (looking slightly down). */
 const HEAD_PITCH = 0.17;
+/** Share of the arms' length used to reach the hoods (the elbows stay slightly bent). */
+const REACH = 0.96;
 /** Roll (rad) of the hands about the forearm: thumbs up and in on the hoods. */
 const HAND_ROLL = 1.0;
 /** Finger flexion (rad) by phalanx, thumb included, for the grip on the hoods. */
@@ -74,7 +76,7 @@ const CLOTH_OFFSET: Record<Garment, number> = {
 };
 
 /** Middle of the head above the head bone (rider frame at rest), origin of the helmet. */
-const HELMET_ORIGIN = new Vector3(0, 0.075, 0.02);
+const HELMET_ORIGIN = new Vector3(0, 0.078, 0.02);
 
 /** Side (px) of the garment mask. */
 const MASK_SIZE = 1024;
@@ -100,8 +102,9 @@ export class AvatarRig {
   private readonly eyeLocal = new Vector3();
   private readonly legs: { l: LegBones; r: LegBones };
   private readonly arms: { l: ArmBones; r: ArmBones };
-  private readonly hipRest: Vector3;
-  private readonly shoulderRest: Vector3;
+  /** Forward lean of the torso (rad) seated and standing, see `calibrateLean`. */
+  private lean = 0;
+  private standingLean = 0;
   private readonly footToBall: Vector3;
 
   // Scratch values.
@@ -143,8 +146,8 @@ export class AvatarRig {
 
     this.legs = { l: legBones(bone, 'l'), r: legBones(bone, 'r') };
     this.arms = { l: armBones(bone, 'l'), r: armBones(bone, 'r') };
-    this.hipRest = this.restMid(this.legs.l.thigh, this.legs.r.thigh);
-    this.shoulderRest = this.restMid(this.arms.l.upper, this.arms.r.upper);
+    this.lean = this.calibrateLean(this.hipAt(0));
+    this.standingLean = this.calibrateLean(this.hipAt(1));
     this.footToBall = this.restPos(this.legs.l.ball).sub(this.restPos(this.legs.l.foot));
     this.eyeLocal
       .copy(EYE_OFFSET)
@@ -163,22 +166,12 @@ export class AvatarRig {
    * the saddle).
    */
   pose(crankAngle: number, standing: number) {
-    for (const [b, q] of this.restQ) {
-      b.quaternion.copy(q);
-      b.position.copy(this.restP.get(b) as Vector3);
-      b.updateMatrix();
-    }
-    const lift = standing * 0.12;
-    const forward = standing * 0.12;
-    const hip = new Vector3(0, HIP_Y + lift, HIP_Z + forward);
+    this.resetBones();
+    const hip = this.hipAt(standing);
 
-    // Torso: leaning as far as the arms need to reach the hoods. The pelvis
-    // turns first and is then placed on the saddle; the spine follows.
-    const lean = this.leanFor(hip) - standing * 0.1;
-    LEAN_SHARES.forEach(([name, share], i) => {
-      this.rotateAboutX(this.bone(name), lean * share);
-      if (i === 0) this.placePelvis(hip);
-    });
+    // Torso: leaning as far as the arms need to reach the hoods.
+    const lean = this.lean + (this.standingLean - this.lean) * standing;
+    this.poseTorso(lean, hip);
     this.rotateAboutAxis(this.bone('spine_02'), Z, Math.sin(crankAngle) * (0.02 + standing * 0.08));
     const compensation = -(lean - HEAD_PITCH) / 2;
     this.rotateAboutX(this.bone('neck_01'), compensation);
@@ -188,6 +181,27 @@ export class AvatarRig {
       this.poseLeg(side === 1 ? this.legs.l : this.legs.r, side, crankAngle);
       this.poseArm(side === 1 ? this.arms.l : this.arms.r, side);
     }
+  }
+
+  /** Hip joints (middle point): on the saddle, or raised and moved forward out of the saddle. */
+  private hipAt(standing: number): Vector3 {
+    return new Vector3(0, SEAT.y + standing * 0.08, SEAT.z + standing * 0.14);
+  }
+
+  private resetBones() {
+    for (const [b, q] of this.restQ) {
+      b.quaternion.copy(q);
+      b.position.copy(this.restP.get(b) as Vector3);
+      b.updateMatrix();
+    }
+  }
+
+  /** The pelvis turns first and is then placed on the saddle; the spine follows. */
+  private poseTorso(lean: number, hip: Vector3) {
+    LEAN_SHARES.forEach(([name, share], i) => {
+      this.rotateAboutX(this.bone(name), lean * share);
+      if (i === 0) this.placePelvis(hip);
+    });
   }
 
   // --- legs and arms ---
@@ -239,25 +253,29 @@ export class AvatarRig {
     this.rotateAboutAxis(arm.hand, HAND_DIR, roll / 2);
   }
 
-  /** Forward lean (rad) putting the shoulders at 93 % of the arms' reach from the hoods. */
-  private leanFor(hip: Vector3): number {
-    const reach = (0.93 * (this.armLength(this.arms.l) + this.armLength(this.arms.r))) / 2;
-    const dy = this.shoulderRest.y - this.hipRest.y;
-    const dz = this.shoulderRest.z - this.hipRest.z;
-    const dx = this.shoulderRest.x;
-    const missing = (lean: number) => {
-      const y = hip.y + dy * Math.cos(lean) - dz * Math.sin(lean);
-      const z = hip.z + dy * Math.sin(lean) + dz * Math.cos(lean);
-      return Math.hypot(WRIST.x - dx, WRIST.y - y, WRIST.z - z) - reach;
+  /**
+   * Forward lean (rad), seated, that puts the shoulders at 93 % of the arms'
+   * reach from the hoods. Found on the real skeleton (the spine bends, so the
+   * shoulders are not where a rigid torso would put them).
+   */
+  private calibrateLean(hip: Vector3): number {
+    const reach = (REACH * (this.armLength(this.arms.l) + this.armLength(this.arms.r))) / 2;
+    const wrist = new Vector3(WRIST.x, WRIST.y, WRIST.z);
+    const distance = (lean: number) => {
+      this.resetBones();
+      this.poseTorso(lean, hip);
+      return this.riderPos(this.arms.l.upper, this.v2).distanceTo(wrist);
     };
     // The further the torso leans, the closer the shoulders get to the hoods.
-    let lo = 0.2;
-    let hi = 1.2;
+    let lo = 0.3;
+    let hi = 1.4;
     for (let i = 0; i < 14; i++) {
       const mid = (lo + hi) / 2;
-      if (missing(mid) > 0) lo = mid;
+      if (distance(mid) > reach) lo = mid;
       else hi = mid;
     }
+    // The search left the skeleton leaned: back to the rest pose.
+    this.resetBones();
     return (lo + hi) / 2;
   }
 
@@ -509,10 +527,6 @@ export class AvatarRig {
   private restPos(bone: Bone): Vector3 {
     // Bones keep their rest transform until `pose` runs, so this is exact in the constructor only.
     return this.riderPos(bone, new Vector3());
-  }
-
-  private restMid(a: Bone, b: Bone): Vector3 {
-    return this.restPos(a).add(this.restPos(b)).multiplyScalar(0.5);
   }
 
   private setRiderQuat(bone: Bone, q: Quaternion) {

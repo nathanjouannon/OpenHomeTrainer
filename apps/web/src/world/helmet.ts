@@ -8,7 +8,7 @@ import { BufferAttribute, type BufferGeometry, Color, SphereGeometry, Vector3 } 
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /** Half-width and height of the shell, depth in front of and behind the origin (m). */
-export const HELMET = { rx: 0.1, ry: 0.145, rzFront: 0.125, rzBack: 0.185 } as const;
+export const HELMET = { rx: 0.1, ry: 0.158, rzFront: 0.125, rzBack: 0.185 } as const;
 /** How much the rim rises at the front and drops at the back (m). */
 const TILT = 0.05;
 /** How far (unit sphere) the shell goes below the equator before the rim. */

@@ -410,7 +410,7 @@ function riderPose(
 const POV_EYE = new Vector3(0, 1.43, 0.06);
 const POV_PITCH = -0.36;
 /** With the avatar the eyes are the real ones, higher and further forward: looking down more shows the arms and the bars. */
-const POV_PITCH_AVATAR = -0.48;
+const POV_PITCH_AVATAR = -0.57;
 /** Wider than the procedural POV (80°): the real eyes are higher and further forward, the bars and the arms would leave the frame. */
 const POV_FOV_AVATAR = 96;
 
