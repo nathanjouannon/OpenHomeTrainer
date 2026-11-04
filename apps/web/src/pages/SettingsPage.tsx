@@ -4,6 +4,7 @@ import { errorLog } from '../error-log';
 import { useT } from '../i18n';
 import {
   type BikeType,
+  QUALITY_SETTINGS,
   type Settings,
   updateProfile,
   updateSettings,
@@ -186,7 +187,7 @@ export function SettingsPage() {
             value={s.quality}
             onChange={(e) => updateSettings({ quality: e.target.value as Settings['quality'] })}
           >
-            {(['low', 'medium', 'high'] as const).map((q) => (
+            {QUALITY_SETTINGS.map((q) => (
               <option key={q} value={q}>
                 {t(`settings.quality.${q}`)}
               </option>

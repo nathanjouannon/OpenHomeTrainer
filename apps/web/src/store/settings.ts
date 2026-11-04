@@ -8,6 +8,12 @@ import { isRendererPreference, type RendererPreference } from '../world/renderer
 export type Language = 'fr' | 'en';
 export type Units = 'metric' | 'imperial';
 export type Quality = 'low' | 'medium' | 'high';
+/** `auto` renders at medium and lowers resolution and grass when the FPS drops (lot 2.9). */
+export type QualitySetting = Quality | 'auto';
+export const QUALITY_SETTINGS: readonly QualitySetting[] = ['auto', 'low', 'medium', 'high'];
+
+/** The preset the world is built and drawn with for a setting. */
+export const resolveQuality = (q: QualitySetting): Quality => (q === 'auto' ? 'medium' : q);
 export type BikeType = 'road' | 'aero' | 'gravel' | 'mtb';
 
 export interface Settings {
@@ -23,7 +29,7 @@ export interface Settings {
   units: Units;
   /** Share of the real grade felt on the trainer, 0..1. */
   difficulty: number;
-  quality: Quality;
+  quality: QualitySetting;
   /** 3D backend: WebGPU when available (auto) or always WebGL2. */
   renderer: RendererPreference;
   virtualShifting: boolean;
@@ -63,7 +69,7 @@ export const defaultSettings = (): Settings => ({
   language: browserLanguage(),
   units: 'metric',
   difficulty: 0.5,
-  quality: 'medium',
+  quality: 'auto',
   renderer: 'auto',
   virtualShifting: true,
   cassetteSpeeds: DEFAULT_CASSETTE_SPEEDS,
@@ -86,6 +92,7 @@ function load(): Settings {
     // Older settings: drivetrain presets became a cassette size.
     delete (saved as Record<string, unknown>).drivetrainPreset;
     if (!isCassetteSpeeds(saved.cassetteSpeeds)) delete saved.cassetteSpeeds;
+    if (!QUALITY_SETTINGS.includes(saved.quality as QualitySetting)) delete saved.quality;
     if (!isRendererPreference(saved.renderer)) delete saved.renderer;
     return { ...defaults, ...saved, profile: { ...defaults.profile, ...saved.profile } };
   } catch {

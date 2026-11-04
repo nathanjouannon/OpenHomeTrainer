@@ -113,7 +113,7 @@ Mise en œuvre : phase 2 « Rendu réaliste » de la [roadmap](ROADMAP.md).
 | Téléchargement initial du monde | < 80 Mo (compressé), puis streaming |
 | Taille d'un chunk | < 3 Mo |
 
-Ajustement automatique de qualité : si le FPS moyen reste sous 45 pendant 10 s, on baisse la densité de végétation, la distance des ombres et la résolution de rendu (scaling dynamique).
+Ajustement automatique de qualité (lot 2.9, `auto-quality.ts`, réglage « Auto » par défaut) : le monde est construit et dessiné en qualité moyenne ; si le FPS moyen d'une fenêtre de 10 s est sous 45, on descend d'un niveau parmi 3 : résolution de rendu 85 / 70 / 60 % et herbe autour de la caméra 70 / 45 / 0 % (rayon, densité, hautes herbes, fleurs). Les niveaux ne remontent pas pendant la sortie (pas d'oscillation autour du seuil) ; une fenêtre interrompue par un onglet masqué ou une pause (image > 1 s) est recommencée. Aucun niveau ne reconstruit le monde, donc pas de rechargement ; les arbres, les ombres et le post-traitement restent ceux de la qualité moyenne. Un préréglage manuel (basse, moyenne, haute) n'est jamais ajusté.
 
 ## 5. Streaming et chargement
 

@@ -2,7 +2,7 @@
 
 import { emptyRoutePoint, type Route, type RoutePoint } from '@hrt/route-engine';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { type ReactNode, useEffect, useMemo, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type BufferGeometry,
   CanvasTexture,
@@ -21,6 +21,7 @@ import {
 import type { CameraMode, Quality } from '../store/settings';
 import { AerialPerspective, WorldSky } from './Atmosphere';
 import { type EnvironmentMap, loadEnvironmentMap, loadTextureSlots } from './assets';
+import { AutoQuality, adaptProfile, autoLevel } from './auto-quality';
 import { FreeCamera, type FreeCameraProps } from './FreeCamera';
 import { FOG_COLOR, Lighting } from './Lighting';
 import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
@@ -201,6 +202,8 @@ interface Props {
   /** Dev mode: when set, the free camera replaces `camera`. */
   freeCamera?: Omit<FreeCameraProps, 'base'>;
   quality: Quality;
+  /** Automatic quality (lot 2.9): lowers resolution and grass when the FPS stays low. */
+  adaptive?: boolean;
   /** Read once, when the canvas is created. */
   renderer?: RendererPreference;
   reduceMotion: boolean;
@@ -218,9 +221,29 @@ export function WorldView({
   children,
   renderer = 'auto',
   onRenderer,
+  adaptive = false,
+  onFrame,
   ...props
 }: Props) {
-  const dpr = props.quality === 'high' ? Math.min(2, window.devicePixelRatio) : 1;
+  const [level, setLevel] = useState(0);
+  const auto = useRef(new AutoQuality());
+  // A new quality or a switch to a manual preset starts over from the full profile.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on these inputs only
+  useEffect(() => {
+    auto.current = new AutoQuality();
+    setLevel(0);
+  }, [adaptive, props.quality]);
+  const handleFrame = useCallback(
+    (d: number, info: { calls: number; triangles: number }) => {
+      onFrame?.(d, info);
+      if (!adaptive) return;
+      const next = auto.current.push(d);
+      if (next !== null) setLevel(next);
+    },
+    [adaptive, onFrame],
+  );
+  const baseDpr = props.quality === 'high' ? Math.min(2, window.devicePixelRatio) : 1;
+  const dpr = baseDpr * autoLevel(level).resolution;
   return (
     <Canvas
       dpr={dpr}
@@ -236,7 +259,7 @@ export function WorldView({
       onCreated={(state) => onRenderer?.(rendererBackend(state.gl))}
     >
       <WorldClockContext.Provider value={clock}>
-        <Scene {...props} />
+        <Scene {...props} level={level} onFrame={handleFrame} />
         {children}
       </WorldClockContext.Provider>
     </Canvas>
@@ -254,7 +277,10 @@ function Scene({
   quality,
   reduceMotion,
   onFrame,
-}: Omit<Props, 'clock' | 'children' | 'renderer' | 'onRenderer'>) {
+  level,
+}: Omit<Props, 'clock' | 'children' | 'renderer' | 'onRenderer' | 'adaptive'> & {
+  level: number;
+}) {
   const clock = useWorldClock();
   const rider = useRef<RiderHandle>(null);
   const tmp = useMemo(
@@ -273,7 +299,7 @@ function Scene({
   );
   const base = built.base;
   const fogColor = FOG_COLOR;
-  const profile = renderProfile(quality);
+  const profile = useMemo(() => adaptProfile(renderProfile(quality), level), [quality, level]);
   const post = profile.post;
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
   const terrainMaterials = useTerrainMaterials(built, quality);
@@ -332,7 +358,7 @@ function Scene({
       )}
       <Vegetation
         data={built.vegetation}
-        profile={renderProfile(quality).vegetation}
+        profile={profile.vegetation}
         terrainSizeM={built.terrainSizeM}
         shadowRadiusM={shadowRadius(quality)}
       />

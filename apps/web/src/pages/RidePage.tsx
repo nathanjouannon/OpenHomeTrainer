@@ -8,7 +8,13 @@ import type { RideAction } from '../ride/actions';
 import { type RideGoal, useRideController } from '../ride/useRideController';
 import { navigate } from '../router';
 import { useDevices } from '../store/devices';
-import { CAMERA_MODES, getSettings, updateSettings, useSettings } from '../store/settings';
+import {
+  CAMERA_MODES,
+  getSettings,
+  resolveQuality,
+  updateSettings,
+  useSettings,
+} from '../store/settings';
 import { FrameStats } from '../world/frame-stats';
 import { type CameraPose, parsePoseParam } from '../world/free-camera';
 import type { RendererBackend } from '../world/renderer-options';
@@ -55,7 +61,7 @@ export default function RidePage({
 
   useEffect(() => {
     let cancelled = false;
-    const quality = getSettings().quality;
+    const quality = resolveQuality(getSettings().quality);
     loadWorld(worldId, (f) => setProgress(f * 0.4))
       .then(async (data) => {
         const built = await buildWorldScene(data, quality, (f) => setProgress(0.4 + f * 0.6));
@@ -209,7 +215,8 @@ function RideRunning({
             ? { start: urlPose, onPose: (pose, speedMs) => setFreePose({ pose, speedMs }) }
             : undefined
         }
-        quality={settings.quality}
+        quality={resolveQuality(settings.quality)}
+        adaptive={settings.quality === 'auto'}
         renderer={settings.renderer}
         onRenderer={setBackend}
         reduceMotion={settings.reduceMotion}
