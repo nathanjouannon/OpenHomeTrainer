@@ -1,66 +1,48 @@
-import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import {
-  collectNearTrees,
-  shadowTreeGeometries,
-  type TreeBatch,
-  treeGeometries,
-} from './scene-builders';
+import { collectNear } from './scene-builders';
 
-/** A batch of trees at the given (x, z) scene positions. */
-function batch(kind: TreeBatch['kind'], center: [number, number], at: [number, number][]) {
-  const matrices = new Float32Array(at.length * 16);
-  at.forEach(([x, z], i) => {
-    matrices.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 5, z, 1], i * 16);
-  });
-  return {
-    kind,
-    chunk: 0,
-    center: new Vector3(center[0], 0, center[1]),
-    matrices,
-    colors: new Float32Array(at.length * 3),
-    count: at.length,
-  } satisfies TreeBatch;
-}
+describe('collectNear', () => {
+  const at = (points: [number, number][]) => {
+    const matrices = new Float32Array(points.length * 16);
+    points.forEach(([x, z], i) => {
+      matrices.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 5, z, 1], i * 16);
+    });
+    return matrices;
+  };
 
-describe('collectNearTrees', () => {
-  const batches = [
-    batch(
-      'conifer',
-      [0, 0],
-      [
-        [10, 0],
-        [0, 150],
-        [300, 0],
-      ],
-    ),
-    batch('broadleaf', [0, 0], [[5, 5]]),
-    // Too far for any of its trees to be in reach.
-    batch('conifer', [5000, 0], [[4990, 0]]),
-  ];
-
-  it('keeps the trees of one kind within the radius', () => {
+  it('keeps the instances within the radius, horizontally', () => {
+    const matrices = at([
+      [10, 0],
+      [0, 150],
+      [300, 0],
+    ]);
     const out = new Float32Array(16 * 10);
-    expect(collectNearTrees(batches, 'conifer', 0, 0, 200, 1250, out)).toBe(2);
+    expect(collectNear(matrices, 3, 0, 0, 200, out)).toBe(2);
     expect([out[12], out[14]]).toEqual([10, 0]);
     expect([out[16 + 12], out[16 + 14]]).toEqual([0, 150]);
-    expect(collectNearTrees(batches, 'broadleaf', 0, 0, 200, 1250, out)).toBe(1);
   });
 
   it('never writes more than the buffer holds', () => {
     const out = new Float32Array(16);
-    expect(collectNearTrees(batches, 'conifer', 0, 0, 1000, 1250, out)).toBe(1);
+    expect(
+      collectNear(
+        at([
+          [1, 1],
+          [2, 2],
+        ]),
+        2,
+        0,
+        0,
+        1000,
+        out,
+      ),
+    ).toBe(1);
   });
-});
 
-describe('shadowTreeGeometries', () => {
-  it('builds light silhouettes of both kinds of tree', () => {
-    const shadow = shadowTreeGeometries();
-    const full = treeGeometries();
-    for (const kind of ['conifer', 'broadleaf'] as const) {
-      const n = shadow[kind].getAttribute('position').count;
-      expect(n).toBeGreaterThan(0);
-      expect(n).toBeLessThan(full[kind].getAttribute('position').count / 2);
-    }
+  it('appends after `start`', () => {
+    const out = new Float32Array(16 * 4);
+    const n = collectNear(at([[1, 1]]), 1, 0, 0, 10, out, 2);
+    expect(n).toBe(3);
+    expect([out[2 * 16 + 12], out[2 * 16 + 14]]).toEqual([1, 1]);
   });
 });

@@ -2,18 +2,15 @@
 
 import { emptyRoutePoint, type Route, type RoutePoint } from '@hrt/route-engine';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 import {
   type BufferGeometry,
   CanvasTexture,
   Color,
   DoubleSide,
-  InstancedBufferAttribute,
-  type InstancedMesh,
   LOD,
   type Material,
   Mesh,
-  MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
   type PerspectiveCamera,
@@ -27,14 +24,10 @@ import { type EnvironmentMap, loadEnvironmentMap, loadTextureSlots } from './ass
 import { FreeCamera, type FreeCameraProps } from './FreeCamera';
 import { FOG_COLOR, Lighting, SUN_POSITION } from './Lighting';
 import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
+import { Vegetation, type VegetationData } from './Plants3D';
 import { PostFX } from './PostFX';
-import {
-  POV_HIDDEN_LAYER,
-  POV_ONLY_LAYER,
-  Rider,
-  type RiderHandle,
-  SHADOW_ONLY_LAYER,
-} from './Rider';
+import { grassMask, placeShrubs, RoadIndex } from './plants';
+import { POV_HIDDEN_LAYER, POV_ONLY_LAYER, Rider, type RiderHandle } from './Rider';
 import { RoadFurniture, type RoadsideInstances, roadsideInstances } from './RoadFurniture';
 import { renderProfile, terrainProfile } from './render-profile';
 import { createWorldRenderer, frameInfo, rendererBackend } from './renderer';
@@ -50,28 +43,22 @@ import { createAsphaltMaterial, createGravelMaterial } from './road-material';
 import { planRoadside, ROAD_LAYERS } from './roadside';
 import { Settlements3D, Traffic } from './Settlements3D';
 import {
-  batchTrees,
   buildChunkGeometry,
   CHUNKS_PER_SIDE,
-  collectNearTrees,
   groundSampler,
   LOD_STEPS,
-  shadowTreeGeometries,
-  type TreeBatch,
   terrainDetailTexture,
   terrainNormals,
   toScene,
-  treeGeometries,
 } from './scene-builders';
 import { generateSettlements, type Settlements } from './settlements';
 import { createTerrainMaterial } from './terrain-material';
 import { computeSplatMap, TERRAIN_LAYERS } from './terrain-splat';
 import type { TextureArrays } from './texture-arrays';
+import { batchPlants, plantOf } from './vegetation-builders';
 import { realClock, useWorldClock, type WorldClock, WorldClockContext } from './world-clock';
-import { forestCover, placeTrees, valueNoise2d, type WorldData } from './world-data';
+import { forestCover, occupancy, placeTrees, valueNoise2d, type WorldData } from './world-data';
 
-const TREES_BY_QUALITY: Record<Quality, number> = { low: 25_000, medium: 60_000, high: 110_000 };
-const TREE_VIEW_DISTANCE_M: Record<Quality, number> = { low: 1800, medium: 2800, high: 4000 };
 const LOD_DISTANCES_M = [0, 1300, 2800];
 /** Same seed as the trees, so that the forest floor lies under the forests. */
 const FOREST_SEED = 7;
@@ -88,9 +75,8 @@ export interface BuiltWorld {
   /** Guardrails, walls, fences and delineators (lot 2.5). */
   roadside: RoadsideInstances;
   settlements: Settlements;
-  trees: TreeBatch[];
-  treeGeometries: ReturnType<typeof treeGeometries>;
-  shadowTreeGeometries: ReturnType<typeof shadowTreeGeometries>;
+  /** Trees, shrubs and what the grass needs to know about the ground (lot 2.6). */
+  vegetation: VegetationData;
   /** CC0 environment map, null when the assets are not downloaded. */
   environment: EnvironmentMap | null;
   /** PBR ground textures (TERRAIN_LAYERS order), null when not downloaded. */
@@ -150,11 +136,34 @@ export async function buildWorldScene(
     settlements.spans,
     groundSampler(t, normals, water, splat),
   );
-  const trees = batchTrees(
-    placeTrees(world, TREES_BY_QUALITY[quality], FOREST_SEED, settlements),
-    t,
-    base,
-  );
+  const profile = renderProfile(quality).vegetation;
+  const roadIndex = new RoadIndex(routes);
+  const vegetation: VegetationData = {
+    trees: batchPlants(
+      placeTrees(world, profile.trees, FOREST_SEED, settlements).map(plantOf),
+      t,
+      base,
+    ),
+    shrubs: batchPlants(
+      placeShrubs(
+        t,
+        roadIndex,
+        forest,
+        water,
+        profile.shrubs,
+        occupancy(world, settlements, 1),
+      ).map((s) => ({ ...s, species: 'bush' as const })),
+      t,
+      base,
+    ),
+    ground: {
+      terrain: t,
+      base,
+      mask: grassMask(splat, t.samples),
+      roads: roadIndex,
+      spans: settlements.spans,
+    },
+  };
   const built: BuiltWorld = {
     base,
     terrainSizeM: t.sizeM,
@@ -162,9 +171,7 @@ export async function buildWorldScene(
     roads,
     roadside: roadsideInstances(layout, world.routes, t, base),
     settlements,
-    trees,
-    treeGeometries: treeGeometries(),
-    shadowTreeGeometries: shadowTreeGeometries(),
+    vegetation,
     environment: await environment,
     terrainTextures: await terrainTextures,
     roadTextures: await roadTextures,
@@ -316,7 +323,12 @@ function Scene({
       {world.manifest.waterLevelM !== null && (
         <Water level={world.manifest.waterLevelM - base} size={world.terrain.sizeM} />
       )}
-      <Trees built={built} quality={quality} />
+      <Vegetation
+        data={built.vegetation}
+        profile={renderProfile(quality).vegetation}
+        terrainSizeM={built.terrainSizeM}
+        shadowRadiusM={shadowRadius(quality)}
+      />
       <Settlements3D
         settlements={built.settlements}
         routes={world.routes}
@@ -601,100 +613,6 @@ function Water({ level, size }: { level: number; size: number }) {
       <planeGeometry args={[size, size]} />
       <meshStandardMaterial color="#3e6f8f" roughness={0.12} metalness={0.15} />
     </mesh>
-  );
-}
-
-/** Most trees in the shadow casting radius, per kind (dense forest included). */
-const SHADOW_TREES_MAX = 4000;
-const TREE_UPDATE_S = 0.4;
-
-function Trees({ built, quality }: { built: BuiltWorld; quality: Quality }) {
-  const refs = useRef<(InstancedMesh | null)[]>([]);
-  const material = useMemo(
-    () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }),
-    [],
-  );
-  // Only seen by the shadow cameras.
-  const shadowMaterial = useMemo(() => new MeshBasicMaterial(), []);
-  const viewDistance = TREE_VIEW_DISTANCE_M[quality];
-  const shadows = renderProfile(quality).shadows;
-  // Updated on the first frame.
-  const timer = useRef(TREE_UPDATE_S);
-  const camera = useThree((s) => s.camera);
-  const clock = useWorldClock();
-  const shadowRefs = useRef<Partial<Record<TreeBatch['kind'], InstancedMesh | null>>>({});
-
-  useLayoutEffect(() => {
-    built.trees.forEach((batch, i) => {
-      const mesh = refs.current[i];
-      if (!mesh) return;
-      mesh.instanceMatrix.array.set(batch.matrices);
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor = new InstancedBufferAttribute(batch.colors, 3);
-      mesh.computeBoundingSphere();
-    });
-  }, [built]);
-
-  // Only the chunks near the camera are drawn; only the trees near the camera
-  // cast shadows (whole chunks would be drawn again in every cascade).
-  useFrame((_, delta) => {
-    timer.current += clock.step(delta);
-    if (timer.current < TREE_UPDATE_S) return;
-    timer.current = 0;
-    const { x, z } = camera.position;
-    built.trees.forEach((batch, i) => {
-      const mesh = refs.current[i];
-      if (!mesh) return;
-      mesh.visible = Math.hypot(batch.center.x - x, batch.center.z - z) < viewDistance + 900;
-    });
-    if (!shadows) return;
-    const chunkM = built.terrainSizeM / CHUNKS_PER_SIDE;
-    for (const kind of ['conifer', 'broadleaf'] as const) {
-      const mesh = shadowRefs.current[kind];
-      if (!mesh) continue;
-      const out = mesh.instanceMatrix.array as Float32Array;
-      const radius = shadows.maxFarM + NEAR_SHADOWS_MARGIN_M;
-      mesh.count = collectNearTrees(built.trees, kind, x, z, radius, chunkM, out);
-      mesh.instanceMatrix.needsUpdate = true;
-    }
-  });
-
-  return (
-    <>
-      {built.trees.map((batch, i) => (
-        <instancedMesh
-          key={`${batch.chunk}-${batch.kind}`}
-          ref={(m) => {
-            refs.current[i] = m;
-          }}
-          args={[
-            batch.kind === 'conifer'
-              ? built.treeGeometries.conifer
-              : built.treeGeometries.broadleaf,
-            material,
-            batch.count,
-          ]}
-          frustumCulled
-          receiveShadow
-        />
-      ))}
-      {shadows &&
-        (['conifer', 'broadleaf'] as const).map((kind) => (
-          <instancedMesh
-            key={`shadow-${kind}`}
-            ref={(m) => {
-              shadowRefs.current[kind] = m;
-              if (m) {
-                m.count = 0;
-                m.layers.set(SHADOW_ONLY_LAYER);
-              }
-            }}
-            args={[built.shadowTreeGeometries[kind], shadowMaterial, SHADOW_TREES_MAX]}
-            frustumCulled={false}
-            castShadow
-          />
-        ))}
-    </>
   );
 }
 

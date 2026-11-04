@@ -191,3 +191,25 @@ Même machine et mêmes conditions. Pire cas sur les 16 points de vue d'origine 
 - **Mémoire estimée** : +38 Mo (les trois textures de la route, ~34 Mo avec leurs mipmaps, et la texture de bruit).
 - **Repli sans assets** (manifeste masqué, qualité basse) : asphalte et gravier procéduraux, muret uni ; rien ne manque.
 - Points de vigilance : la marge en qualité haute reste réduite (54 FPS au pire en WebGPU, 41 en WebGL2) ; le 1 % low en WebGPU sans plafond d'écran reste à juger avec `--vsync` (voir lot 2.1).
+
+### Après la végétation (runs `apres-2.6-webgpu` et `apres-2.6-webgl2`, 2026-11-04)
+
+Même machine et mêmes conditions. Pire cas sur les 16 points de vue d'origine, et FPS moyen médian :
+
+| Qualité | Backend | FPS moyen min. | FPS moyen médian | 1 % low min. | Draw calls max. | Triangles max. | Mémoire GPU estimée |
+|---|---|---|---|---|---|---|---|
+| Basse | WebGPU | 182 | 239 | 119 | 174 | 1,37 M | 273 Mo |
+| Basse | WebGL2 (repli) | 144 | 201 | 94 | 174 | 1,37 M | 273 Mo |
+| Moyenne | WebGPU ¹ | 62 | 77 | 46 | 251 | 1,87 M | 368 Mo |
+| Moyenne | WebGL2 (repli) | 68 | 76 | 38 | 251 | 1,87 M | 368 Mo |
+| Haute | WebGPU ¹ | 47 | 52 | 31 | 255 | 2,53 M | 450 Mo |
+| Haute | WebGL2 (repli) | 49 | 55 | 27 | 255 | 2,53 M | 450 Mo |
+
+¹ **Mesure pessimiste** : le MacBook Air chauffe pendant un run complet (basse, puis moyenne, puis haute), et le run WebGPU tombe à ~75 FPS sur presque tous les points de vue, signe d'un plafond thermique plus que d'un coût propre à chaque vue. Les mêmes points de vue mesurés à froid, en alternance avec le code du lot 2.5 (4 points, qualité moyenne, 6 s) donnent : lot 2.5 ~104 FPS, lot 2.6 80 à 104 FPS selon la température, soit **−5 à −15 %**. Le run WebGPU enchaîné juste après les essais précédents tombait à 24 FPS au pire : toute mesure se fait après 10 min de repos. Le run WebGL2, enchaîné 7 min après, est à 76 FPS en médiane (70 au lot 2.5, lui-même mesuré à chaud).
+
+- **Images** : herbe en touffes avec fleurs sur les prés et en bord de route, herbes hautes le long des accotements, buissons à la lisière des bois, feuillus à houppier épais (cartes de feuilles), conifères à étages de rameaux, imposteurs peints sur les versants lointains.
+- **Draw calls** : au pire 251 contre 259, et de −16 à +14 selon la vue : une instance par espèce et par niveau de détail (au plus 18 meshes de plantes, ceux qui sont vides n'étant pas dessinés) remplace les 128 lots par chunk et par sorte des anciens arbres, plus 5 meshes d'herbe.
+- **Triangles** : au pire 1,87 M en moyenne (1,90 M avant) et 2,53 M en haute (3,29 M avant) : les anciens arbres en cônes et en icosaèdres, dessinés jusqu'à 4 km, pesaient plus que les imposteurs de 8 à 12 triangles.
+- **Coût** : l'herbe est la partie qui coûte (recouvrement de cartes à alpha test éclairées avec les ombres en cascade). Ne pas lui faire recevoir les ombres en cascade (le sol les reçoit déjà) a gagné ~5 %. Les touffes ne sont pas dans les ombres des arbres, ce qui se voit à peine.
+- **Mémoire estimée** : +19 Mo (textures peintes de 1024 × 512 × 3 avec mipmaps, tampons d'instances).
+- **Points de vigilance** : la qualité haute reste à 47 FPS au pire en WebGPU sur ce portable chauffé (budget : ≥ 30 garanti, ≥ 60 visé en moyenne) ; la mise à l'échelle dynamique du lot 2.9 devra baisser le rayon de l'herbe en premier.

@@ -42,4 +42,24 @@ describe('renderProfile', () => {
     expect(terrainProfile('high', 'webgl2')).toEqual({ stochastic: false, triplanar: true });
     expect(terrainProfile('low', 'webgl2')).toEqual({ stochastic: false, triplanar: false });
   });
+
+  it('thins the vegetation out with the quality', () => {
+    const [low, medium, high] = (['low', 'medium', 'high'] as const).map(
+      (q) => renderProfile(q).vegetation,
+    );
+    if (!low || !medium || !high) throw new Error('missing profile');
+    expect(medium.trees).toBeGreaterThan(low.trees);
+    expect(high.trees).toBeGreaterThan(medium.trees);
+    expect(high.treeViewM).toBeGreaterThan(medium.treeViewM);
+    expect(high.shrubs).toBeGreaterThan(medium.shrubs);
+    expect(medium.grass?.density).toBeGreaterThan(low.grass?.density ?? Infinity);
+    expect(high.grass?.radiusM).toBeGreaterThan(medium.grass?.radiusM ?? Infinity);
+    for (const v of [low, medium, high]) {
+      // Tiers end farther and farther away, the imposters going on to the view distance.
+      expect(v.treeTiersM[0]).toBeLessThan(v.treeTiersM[1]);
+      expect(v.treeTiersM[1]).toBeLessThan(v.treeTiersM[2]);
+      expect(v.treeTiersM[2]).toBeLessThan(v.treeViewM);
+      expect(v.shrubFullM).toBeLessThan(v.shrubViewM);
+    }
+  });
 });

@@ -1,4 +1,4 @@
-// Three.js geometry builders for the world (terrain chunks, roads, trees).
+// Three.js geometry builders for the world (terrain chunks, roads).
 // Scene frame: X = east, Y = up (altitude − base), Z = south (= −north).
 
 import {
@@ -6,18 +6,12 @@ import {
   BufferGeometry,
   CanvasTexture,
   Color,
-  ConeGeometry,
-  CylinderGeometry,
-  IcosahedronGeometry,
-  Matrix4,
-  Quaternion,
   RepeatWrapping,
   SRGBColorSpace,
   Vector3,
 } from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LAYER_COUNT } from './terrain-splat';
-import { cellSizeM, mulberry32, type Terrain, type TreeInstance } from './world-data';
+import { cellSizeM, mulberry32, type Terrain } from './world-data';
 
 export const CHUNKS_PER_SIDE = 8;
 export const LOD_STEPS = [1, 2, 4] as const;
@@ -274,137 +268,6 @@ export const toScene = (x: number, y: number, z: number, base: number, out = new
   out.set(x, z - base, -y);
 
 /**
- * Tree models: one merged geometry per kind, with vertex colours (darker
- * towards the bottom, a cheap ambient occlusion) and jittered vertices so the
- * crowns look organic rather than geometric.
- */
-export function treeGeometries(): { conifer: BufferGeometry; broadleaf: BufferGeometry } {
-  const rand = mulberry32(17);
-  const shade = (g: BufferGeometry, hex: string, jitter: number) => {
-    const geometry = g.index ? g.toNonIndexed() : g;
-    const pos = geometry.getAttribute('position');
-    const c = new Color(hex);
-    const colors = new Float32Array(pos.count * 3);
-    geometry.computeBoundingBox();
-    const box = geometry.boundingBox;
-    const minY = box?.min.y ?? 0;
-    const spanY = Math.max(0.01, (box?.max.y ?? 1) - minY);
-    // Same displacement for vertices at the same place, so faces stay closed.
-    const offsets = new Map<string, [number, number, number]>();
-    for (let i = 0; i < pos.count; i++) {
-      const key = `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
-      let o = offsets.get(key);
-      if (!o) {
-        o = [(rand() - 0.5) * jitter, (rand() - 0.5) * jitter, (rand() - 0.5) * jitter];
-        offsets.set(key, o);
-      }
-      const k = 0.6 + 0.4 * ((pos.getY(i) - minY) / spanY);
-      pos.setXYZ(i, pos.getX(i) + o[0], pos.getY(i) + o[1], pos.getZ(i) + o[2]);
-      colors.set([c.r * k, c.g * k, c.b * k], i * 3);
-    }
-    geometry.setAttribute('color', new BufferAttribute(colors, 3));
-    geometry.deleteAttribute('uv');
-    return geometry;
-  };
-  const trunk = () =>
-    shade(new CylinderGeometry(0.14, 0.26, 3.2, 6, 1, true).translate(0, 1.6, 0), '#5a4330', 0);
-  const conifer = mergeGeometries([
-    trunk(),
-    shade(new ConeGeometry(2.3, 3.6, 9, 1, true).translate(0, 3.4, 0), '#ffffff', 0.35),
-    shade(new ConeGeometry(1.9, 3.3, 9, 1, true).translate(0, 5.1, 0), '#ffffff', 0.3),
-    shade(new ConeGeometry(1.45, 3, 8, 1, true).translate(0, 6.7, 0), '#ffffff', 0.25),
-    shade(new ConeGeometry(0.9, 2.4, 7, 1, true).translate(0, 8.2, 0), '#ffffff', 0.15),
-  ]);
-  const broadleaf = mergeGeometries([
-    trunk(),
-    shade(new IcosahedronGeometry(2.2, 0).scale(1.1, 0.85, 1).translate(0, 4.6, 0), '#ffffff', 0.7),
-    shade(new IcosahedronGeometry(1.7, 0).translate(1.2, 5.6, 0.4), '#ffffff', 0.5),
-    shade(new IcosahedronGeometry(1.6, 0).translate(-1.0, 5.4, -0.7), '#ffffff', 0.5),
-    shade(new IcosahedronGeometry(1.5, 0).translate(0.1, 6.6, 0.2), '#ffffff', 0.45),
-  ]);
-  if (!conifer || !broadleaf) throw new Error('Could not build tree geometries');
-  conifer.computeVertexNormals();
-  broadleaf.computeVertexNormals();
-  return { conifer, broadleaf };
-}
-
-/**
- * Low-poly silhouettes of the tree models, only drawn into the shadow maps
- * (about a quarter of the triangles; nobody sees the shape of a shadow's facets).
- */
-export function shadowTreeGeometries(): { conifer: BufferGeometry; broadleaf: BufferGeometry } {
-  // Positions only, non-indexed (the icosahedron has no index).
-  const flat = (g: BufferGeometry) => {
-    const out = new BufferGeometry();
-    out.setAttribute('position', (g.index ? g.toNonIndexed() : g).getAttribute('position'));
-    return out;
-  };
-  const trunk = () => flat(new CylinderGeometry(0.2, 0.2, 3.2, 3, 1, true).translate(0, 1.6, 0));
-  const conifer = mergeGeometries([
-    trunk(),
-    flat(new ConeGeometry(2.2, 4.4, 6, 1, true).translate(0, 3.6, 0)),
-    flat(new ConeGeometry(1.5, 4.2, 6, 1, true).translate(0, 6.6, 0)),
-  ]);
-  const broadleaf = mergeGeometries([
-    trunk(),
-    flat(new IcosahedronGeometry(2.6, 0).scale(1.1, 0.95, 1).translate(0, 5.2, 0)),
-  ]);
-  if (!conifer || !broadleaf) throw new Error('Could not build tree shadow geometries');
-  return { conifer, broadleaf };
-}
-
-export interface TreeBatch {
-  kind: TreeInstance['kind'];
-  chunk: number;
-  center: Vector3;
-  matrices: Float32Array;
-  colors: Float32Array;
-  count: number;
-}
-
-/** Groups trees by terrain chunk and kind, ready for InstancedMesh. */
-export function batchTrees(trees: readonly TreeInstance[], t: Terrain, base: number): TreeBatch[] {
-  const half = t.sizeM / 2;
-  const chunkM = t.sizeM / CHUNKS_PER_SIDE;
-  const groups = new Map<string, TreeInstance[]>();
-  for (const tree of trees) {
-    const col = Math.min(CHUNKS_PER_SIDE - 1, Math.floor((tree.x + half) / chunkM));
-    const row = Math.min(CHUNKS_PER_SIDE - 1, Math.floor((half - tree.y) / chunkM));
-    const key = `${row * CHUNKS_PER_SIDE + col}:${tree.kind}`;
-    const list = groups.get(key) ?? [];
-    list.push(tree);
-    groups.set(key, list);
-  }
-  const m = new Matrix4();
-  const q = new Quaternion();
-  const up = new Vector3(0, 1, 0);
-  const pos = new Vector3();
-  const scale = new Vector3();
-  const color = new Color();
-  const out: TreeBatch[] = [];
-  for (const [key, list] of groups) {
-    const [chunkStr, kind] = key.split(':') as [string, TreeInstance['kind']];
-    const chunk = Number(chunkStr);
-    const matrices = new Float32Array(list.length * 16);
-    const colors = new Float32Array(list.length * 3);
-    list.forEach((tree, i) => {
-      toScene(tree.x, tree.y, tree.z - 0.3, base, pos);
-      q.setFromAxisAngle(up, tree.rotation);
-      scale.set(tree.scale, tree.scale * (0.85 + tree.tint * 0.4), tree.scale);
-      m.compose(pos, q, scale).toArray(matrices, i * 16);
-      if (kind === 'conifer') color.setHSL(0.3 + tree.tint * 0.05, 0.4, 0.16 + tree.tint * 0.07);
-      else color.setHSL(0.22 + tree.tint * 0.08, 0.45, 0.22 + tree.tint * 0.1);
-      colors.set([color.r, color.g, color.b], i * 3);
-    });
-    const row = Math.floor(chunk / CHUNKS_PER_SIDE);
-    const col = chunk % CHUNKS_PER_SIDE;
-    const center = new Vector3(-half + (col + 0.5) * chunkM, 0, -half + (row + 0.5) * chunkM);
-    out.push({ kind, chunk, center, matrices, colors, count: list.length });
-  }
-  return out;
-}
-
-/**
  * Appends to `out` (from instance `start`) the instance matrices of `matrices`
  * whose position is within `radiusM` of (x, z), horizontally; returns the new
  * instance count, at most `out.length / 16`. Feeds the shadow-only copies of
@@ -428,27 +291,6 @@ export function collectNear(
     if (dx * dx + dz * dz > r2) continue;
     out.set(matrices.subarray(i * 16, i * 16 + 16), n * 16);
     n++;
-  }
-  return n;
-}
-
-/** Same as `collectNear`, over the tree batches of one kind. */
-export function collectNearTrees(
-  batches: readonly TreeBatch[],
-  kind: TreeInstance['kind'],
-  x: number,
-  z: number,
-  radiusM: number,
-  chunkSizeM: number,
-  out: Float32Array,
-): number {
-  // A batch covers one chunk: skip those entirely out of reach.
-  const reach = radiusM + chunkSizeM * Math.SQRT1_2;
-  let n = 0;
-  for (const b of batches) {
-    if (b.kind !== kind) continue;
-    if (Math.hypot(b.center.x - x, b.center.z - z) > reach) continue;
-    n = collectNear(b.matrices, b.count, x, z, radiusM, out, n);
   }
   return n;
 }

@@ -179,23 +179,20 @@ export interface TreeInstance {
 }
 
 /**
- * Procedural forest: patches of trees (value noise), none on roads, water,
- * cliffs or above the tree line; conifers higher up.
+ * Where nothing may grow: within `clearanceM` of a road, under a building or
+ * a parked car, on the pavements of a village. Returns a test for a place (x, y).
  */
-export function placeTrees(
-  world: Pick<WorldData, 'terrain' | 'routes' | 'manifest'>,
-  count: number,
-  seed = 7,
-  built?: Pick<Settlements, 'buildings' | 'parkedCars' | 'spans'>,
-): TreeInstance[] {
+export function occupancy(
+  world: Pick<WorldData, 'terrain' | 'routes'>,
+  built: Pick<Settlements, 'buildings' | 'parkedCars' | 'spans'> | undefined,
+  clearanceM: number,
+): (x: number, y: number) => boolean {
   const t = world.terrain;
-  const rand = mulberry32(seed);
   const half = t.sizeM / 2;
   const occCell = 6;
   const occN = Math.ceil(t.sizeM / occCell);
   const blocked = new Uint8Array(occN * occN);
-  const clearance = 10;
-  const reach = Math.ceil(clearance / occCell);
+  const reach = Math.ceil(clearanceM / occCell);
   for (const route of world.routes.values()) {
     for (let i = 0; i < route.pointCount; i++) {
       const gc = Math.floor(((route.x[i] as number) + half) / occCell);
@@ -230,15 +227,34 @@ export function placeTrees(
       block(p.x, p.y, 9);
     }
   }
+  return (x, y) => {
+    const gc = Math.floor((x + half) / occCell);
+    const gr = Math.floor((half - y) / occCell);
+    return gc < 0 || gr < 0 || gc >= occN || gr >= occN || blocked[gr * occN + gc] === 1;
+  };
+}
+
+/**
+ * Procedural forest: patches of trees (value noise), none on roads, water,
+ * cliffs or above the tree line; conifers higher up.
+ */
+export function placeTrees(
+  world: Pick<WorldData, 'terrain' | 'routes' | 'manifest'>,
+  count: number,
+  seed = 7,
+  built?: Pick<Settlements, 'buildings' | 'parkedCars' | 'spans'>,
+): TreeInstance[] {
+  const t = world.terrain;
+  const rand = mulberry32(seed);
+  const half = t.sizeM / 2;
+  const isBlocked = occupancy(world, built, 10);
   const water = world.manifest.waterLevelM;
   const forest = forestCover(seed);
   const out: TreeInstance[] = [];
   for (let attempt = 0; out.length < count && attempt < count * 30; attempt++) {
     const x = (rand() * 2 - 1) * (half - 20);
     const y = (rand() * 2 - 1) * (half - 20);
-    const gc = Math.floor((x + half) / occCell);
-    const gr = Math.floor((half - y) / occCell);
-    if (blocked[gr * occN + gc]) continue;
+    if (isBlocked(x, y)) continue;
     const z = terrainHeightAt(t, x, y);
     if (water !== null && z < water + 1.5) continue;
     if (z > 1750 + rand() * 150) continue;
