@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { garmentOf, MASK_CHANNEL, rasterizeGarmentMask } from './avatar-garments';
+import { garmentOf, hemDistances, MASK_CHANNEL, rasterizeGarmentMask } from './avatar-garments';
 
 describe('garmentOf', () => {
   it('dresses the torso and the upper arms in the jersey, bare below the sleeve', () => {
@@ -32,6 +32,24 @@ describe('garmentOf', () => {
     expect(garmentOf('lowerarm_l', 0.95, 1.4)).toBe('gloves');
     expect(garmentOf('foot_r', 0.5, 0.05)).toBe('shoes');
     expect(garmentOf('ball_r', 0.5, 0.02)).toBe('shoes');
+  });
+});
+
+describe('hemDistances', () => {
+  it('is positive inside the garment and negative past the hem', () => {
+    expect(hemDistances('upperarm_l', 0.1, 1.45).jersey).toBeGreaterThan(0.09);
+    expect(hemDistances('upperarm_l', 0.9, 1.45).jersey).toBeLessThan(0);
+    expect(hemDistances('spine_02', 0.5, 1.2).jersey).toBeCloseTo(0.2, 6);
+    expect(hemDistances('spine_01', 0.5, 0.9).jersey).toBeLessThan(0);
+    expect(hemDistances('spine_03', 0.9, 1.52).jersey).toBeLessThan(0);
+    expect(hemDistances('thigh_r', 0.2, 0.8).shorts).toBeGreaterThan(0.15);
+    expect(hemDistances('thigh_r', 0.9, 0.6).shorts).toBeLessThan(0);
+    expect(hemDistances('calf_r', 0.5, 0.3).shorts).toBeLessThan(0);
+  });
+
+  it('is continuous with the garment edge of garmentOf', () => {
+    expect(hemDistances('upperarm_l', 0.5, 1.45).jersey).toBeCloseTo(0, 6);
+    expect(hemDistances('thigh_l', 0.62, 0.7).shorts).toBeCloseTo(0, 6);
   });
 });
 

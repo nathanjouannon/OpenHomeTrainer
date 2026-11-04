@@ -410,7 +410,7 @@ function riderPose(
 const POV_EYE = new Vector3(0, 1.43, 0.06);
 const POV_PITCH = -0.36;
 /** With the avatar the eyes are the real ones, higher and further forward: looking down more shows the arms and the bars. */
-const POV_PITCH_AVATAR = -0.62;
+const POV_PITCH_AVATAR = -0.48;
 
 function placeCamera(
   mode: CameraMode,

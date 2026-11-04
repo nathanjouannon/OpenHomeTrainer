@@ -7,6 +7,7 @@
 
 import {
   type Bone,
+  BufferAttribute,
   DataTexture,
   Group,
   LinearFilter,
@@ -23,7 +24,7 @@ import {
   Vector3,
 } from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { type Garment, garmentOf, rasterizeGarmentMask } from './avatar-garments';
+import { type Garment, garmentOf, hemDistances, rasterizeGarmentMask } from './avatar-garments';
 import { createAvatarMaterial } from './avatar-material';
 import { HAND_DIR, HIP_Y, HIP_Z, pedalPosition, solveTwoBone, WRIST } from './rider-geometry';
 
@@ -39,6 +40,8 @@ const LEAN_SHARES: readonly [string, number][] = [
 ];
 /** Pitch of the head once the neck has compensated the lean (looking slightly down). */
 const HEAD_PITCH = 0.17;
+/** Roll (rad) of the hands about the forearm: thumbs up and in on the hoods. */
+const HAND_ROLL = 1.0;
 /** Finger flexion (rad) by phalanx, thumb included, for the grip on the hoods. */
 const FINGER_CURL = [0.75, 1.0, 0.7];
 /** Rest height of the eyes above the head bone, and ahead of it. */
@@ -52,6 +55,16 @@ const BALL_ABOVE_PEDAL = 0.03;
 export interface Kit {
   jersey: string;
 }
+
+/** How far (m) each garment stands off the skin. */
+const CLOTH_OFFSET: Record<Garment, number> = {
+  skin: 0,
+  jersey: 0.008,
+  shorts: 0.006,
+  socks: 0.003,
+  shoes: 0.008,
+  gloves: 0.004,
+};
 
 /** Side (px) of the garment mask. */
 const MASK_SIZE = 1024;
@@ -204,9 +217,15 @@ export class AvatarRig {
       this.v4.set(side * 0.5, -0.7, 0),
       new Vector3(),
     );
+    // Road bar: the palm faces inward, not down as on a flat bar. The forearm
+    // takes half of the roll so that the wrist is not wrung.
+    const roll = -side * HAND_ROLL;
+    const forearm = wrist.clone().sub(elbow).normalize();
     this.aim(arm.upper, elbow.clone().sub(shoulder));
-    this.aim(arm.lower, wrist.clone().sub(elbow));
+    this.aim(arm.lower, forearm);
+    this.rotateAboutAxis(arm.lower, forearm, roll / 2);
     this.aim(arm.hand, HAND_DIR);
+    this.rotateAboutAxis(arm.hand, HAND_DIR, roll / 2);
   }
 
   /** Forward lean (rad) putting the shoulders at 93 % of the arms' reach from the hoods. */
@@ -275,7 +294,10 @@ export class AvatarRig {
       if (/eye|brow/i.test(m.name)) this.povHidden.push(m);
     }
 
-    const geometry = body.geometry;
+    // Own copy of the geometry: the cloth is inflated and gets its trim attribute.
+    const geometry = body.geometry.clone();
+    body.geometry = geometry;
+    this.disposables.push(geometry);
     const position = geometry.getAttribute('position');
     const skinIndex = geometry.getAttribute('skinIndex');
     const skinWeight = geometry.getAttribute('skinWeight');
@@ -283,6 +305,7 @@ export class AvatarRig {
     if (!index) throw new Error('Avatar: body without index');
     const bones = body.skeleton.bones;
     const garments: Garment[] = [];
+    const kitAttribute = new Float32Array(position.count * 3);
     for (let i = 0; i < position.count; i++) {
       let best = 0;
       let weight = -1;
@@ -294,14 +317,26 @@ export class AvatarRig {
         }
       }
       const bone = bones[best] as Bone;
-      garments.push(
-        garmentOf(
-          bone.name,
-          this.alongBone(bone, this.v1.fromBufferAttribute(position, i)),
-          position.getY(i),
-        ),
-      );
+      const t = this.alongBone(bone, this.v1.fromBufferAttribute(position, i));
+      garments.push(garmentOf(bone.name, t, position.getY(i)));
+      const hem = hemDistances(bone.name, t, position.getY(i));
+      kitAttribute.set([hem.jersey, hem.shorts, position.getY(i)], i * 3);
     }
+    geometry.setAttribute('kit', new BufferAttribute(kitAttribute, 3));
+    // Cloth stands a little off the skin (vertex by vertex: it fades out at the edges).
+    const normal = geometry.getAttribute('normal');
+    for (let i = 0; i < position.count; i++) {
+      const off = CLOTH_OFFSET[garments[i] as Garment];
+      if (off) {
+        position.setXYZ(
+          i,
+          position.getX(i) + normal.getX(i) * off,
+          position.getY(i) + normal.getY(i) * off,
+          position.getZ(i) + normal.getZ(i) * off,
+        );
+      }
+    }
+    position.needsUpdate = true;
 
     // One body, one material: the garments come from a mask in UV space.
     const mask = new DataTexture(
@@ -317,8 +352,11 @@ export class AvatarRig {
     mask.needsUpdate = true;
     const material = createAvatarMaterial(body.material as MeshStandardMaterial, mask, {
       jersey: kit.jersey,
+      jerseyTrim: '#f4f4f2',
       shorts: '#151518',
+      shortsTrim: '#4a4b50',
       white: '#ececee',
+      sole: '#2a2a2d',
       gloves: '#202124',
     });
     this.disposables.push(mask, material);
@@ -346,10 +384,16 @@ export class AvatarRig {
         FINGER_CURL.forEach((curl, i) => {
           const b = this.bones.get(`${finger}_0${i + 1}_${side}`);
           if (!b) return;
-          const amount = finger === 'thumb' ? curl * 0.45 : curl;
-          const axis = Z.clone()
-            .multiplyScalar(flexion)
-            .applyQuaternion((this.restRider.get(b) as Quaternion).clone().invert());
+          // The thumb closes across the palm (about the vertical at rest), the fingers
+          // curl down towards it.
+          const thumb = finger === 'thumb';
+          const amount = thumb ? curl * 0.7 : curl;
+          const around = thumb
+            ? new Vector3(0, -flexion, flexion * 0.35).normalize()
+            : Z.clone().multiplyScalar(flexion);
+          const axis = around.applyQuaternion(
+            (this.restRider.get(b) as Quaternion).clone().invert(),
+          );
           const q = new Quaternion().setFromAxisAngle(axis, amount);
           b.quaternion.multiply(q);
           this.restQ.set(b, b.quaternion.clone());

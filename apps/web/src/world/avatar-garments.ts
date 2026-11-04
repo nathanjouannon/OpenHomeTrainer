@@ -15,6 +15,10 @@ export const SOCK_T = 0.55;
 /** Share of the forearm where the glove cuff starts. */
 export const CUFF_T = 0.9;
 
+/** Lengths (m) of the upper arm and of the thigh bones, to turn a share of the bone into a distance. */
+const UPPER_ARM_M = 0.251;
+const THIGH_M = 0.429;
+
 const FINGERS = /^(thumb|index|middle|ring|pinky)_/;
 
 /**
@@ -37,6 +41,29 @@ export function garmentOf(bone: string, t: number, y: number): Garment {
   if (part === 'calf') return t > SOCK_T ? 'socks' : 'skin';
   if (part === 'foot' || part === 'ball') return 'shoes';
   return 'skin';
+}
+
+/**
+ * Signed distance (m) to the hem of the jersey and to the one of the shorts,
+ * positive inside the garment and continuing (negative) past the hem, so that
+ * the value can be interpolated across a triangle straddling the edge: the
+ * shader draws the trims (collar, cuffs, hems) where it is small.
+ */
+export function hemDistances(
+  bone: string,
+  t: number,
+  y: number,
+): { jersey: number; shorts: number } {
+  const part = bone.replace(/_[lr]$/, '');
+  const far = -1;
+  let jersey = Math.min(y - WAIST_Y, NECK_Y - y);
+  let shorts = 1;
+  if (part === 'upperarm') jersey = (SLEEVE_T - t) * UPPER_ARM_M;
+  else if (part === 'lowerarm' || part === 'hand' || FINGERS.test(part)) jersey = far;
+  if (part === 'thigh') shorts = (SHORTS_T - t) * THIGH_M;
+  else if (part === 'calf' || part === 'foot' || part === 'ball') shorts = far;
+  if (part === 'thigh' || part === 'calf' || part === 'foot' || part === 'ball') jersey = far;
+  return { jersey, shorts };
 }
 
 /**
