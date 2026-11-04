@@ -26,6 +26,13 @@ import {
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { type Garment, garmentOf, hemDistances, rasterizeGarmentMask } from './avatar-garments';
 import { createAvatarMaterial } from './avatar-material';
+import {
+  type BoneSegment,
+  boneShift,
+  CYCLIST_SHAPE,
+  reshapeVertex,
+  type Shape,
+} from './avatar-shape';
 import { HAND_DIR, HIP_Y, HIP_Z, pedalPosition, solveTwoBone, WRIST } from './rider-geometry';
 
 const X = new Vector3(1, 0, 0);
@@ -103,7 +110,7 @@ export class AvatarRig {
   private readonly v3 = new Vector3();
   private readonly v4 = new Vector3();
 
-  constructor(asset: Object3D, kit: Kit) {
+  constructor(asset: Object3D, kit: Kit, shape: Shape = CYCLIST_SHAPE) {
     const scene = cloneSkinned(asset);
     this.root.add(scene);
     this.root.updateMatrixWorld(true);
@@ -111,6 +118,7 @@ export class AvatarRig {
     scene.traverse((o) => {
       if ((o as Bone).isBone) this.bones.set(o.name, o as Bone);
     });
+    this.reshape(scene, shape);
     for (const bone of this.bones.values()) {
       this.restQ.set(bone, bone.quaternion.clone());
       this.restP.set(bone, bone.position.clone());
@@ -276,16 +284,72 @@ export class AvatarRig {
 
   // --- building ---
 
-  /** Splits the body into one skinned mesh per garment, sharing the vertices and the skeleton. */
-  private dress(scene: Object3D, kit: Kit) {
+  /** The skinned meshes of the model, the body (most vertices) first. */
+  private skinnedMeshes(scene: Object3D): SkinnedMesh[] {
     const skinned: SkinnedMesh[] = [];
     scene.traverse((o) => {
       if ((o as SkinnedMesh).isSkinnedMesh) skinned.push(o as SkinnedMesh);
     });
-    skinned.sort(
+    return skinned.sort(
       (a, b) =>
         b.geometry.getAttribute('position').count - a.geometry.getAttribute('position').count,
     );
+  }
+
+  /**
+   * Changes the measurements of the model (`CYCLIST_SHAPE`): the shoulder and
+   * hip joints move in, the body vertices follow (blended by their skin
+   * weights) and get slimmer, then the inverse bind matrices are recomputed
+   * from the new rest pose. Runs before anything reads the rest pose.
+   */
+  private reshape(scene: Object3D, shape: Shape) {
+    const [body] = this.skinnedMeshes(scene);
+    if (!body) return;
+    const segments = new Map<string, BoneSegment>();
+    for (const [name, bone] of this.bones) {
+      const child = bone.children.find((c) => (c as Bone).isBone) as Bone | undefined;
+      const from = this.riderPos(bone, new Vector3());
+      segments.set(name, { from, to: child ? this.riderPos(child, new Vector3()) : from.clone() });
+    }
+    // Own copy of the geometry (the asset is shared by every rider).
+    const geometry = body.geometry.clone();
+    body.geometry = geometry;
+    this.disposables.push(geometry);
+    const position = geometry.getAttribute('position');
+    const skinIndex = geometry.getAttribute('skinIndex');
+    const skinWeight = geometry.getAttribute('skinWeight');
+    const bones = body.skeleton.bones;
+    const p = new Vector3();
+    const out = new Vector3();
+    const influences = [0, 1, 2, 3].map(() => ({ bone: '', weight: 0 }));
+    for (let i = 0; i < position.count; i++) {
+      for (let k = 0; k < 4; k++) {
+        const influence = influences[k] as { bone: string; weight: number };
+        influence.bone = bones[skinIndex.getComponent(i, k)]?.name ?? '';
+        influence.weight = skinWeight.getComponent(i, k);
+      }
+      reshapeVertex(p.fromBufferAttribute(position, i), influences, segments, shape, out);
+      position.setXYZ(i, out.x, out.y, out.z);
+    }
+    position.needsUpdate = true;
+
+    // Skeleton: the roots of the arms and of the legs move in, their descendants follow.
+    for (const [name, bone] of this.bones) {
+      const side = name.endsWith('_l') ? 1 : name.endsWith('_r') ? -1 : 0;
+      const part = name.replace(/_[lr]$/, '');
+      if (part !== 'upperarm' && part !== 'thigh') continue;
+      const shift = new Vector3(-side * boneShift(name, shape), 0, 0);
+      shift.applyQuaternion(this.riderQuat(bone.parent as Object3D, this.q1).invert());
+      bone.position.add(shift);
+      bone.updateMatrix();
+    }
+    this.root.updateMatrixWorld(true);
+    for (const mesh of this.skinnedMeshes(scene)) mesh.skeleton.calculateInverses();
+  }
+
+  /** Splits the body into one skinned mesh per garment, sharing the vertices and the skeleton. */
+  private dress(scene: Object3D, kit: Kit) {
+    const skinned = this.skinnedMeshes(scene);
     const body = skinned[0];
     if (!body) throw new Error('Avatar: no skinned body');
     for (const m of skinned.slice(1)) {
@@ -294,10 +358,9 @@ export class AvatarRig {
       if (/eye|brow/i.test(m.name)) this.povHidden.push(m);
     }
 
-    // Own copy of the geometry: the cloth is inflated and gets its trim attribute.
-    const geometry = body.geometry.clone();
-    body.geometry = geometry;
-    this.disposables.push(geometry);
+    // The geometry is the body's own copy (see `reshape`): the cloth is inflated
+    // and gets its trim attribute.
+    const geometry = body.geometry;
     const position = geometry.getAttribute('position');
     const skinIndex = geometry.getAttribute('skinIndex');
     const skinWeight = geometry.getAttribute('skinWeight');
