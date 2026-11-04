@@ -39,8 +39,8 @@ const smoothstep = (a: number, b: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-/** Road and gravel shoulders: the ground stops at about this distance from the axis. */
-const SHOULDER_EDGE_M = 4.9;
+/** The verges of the road end at this distance from the axis (VERGE_OUTER_M). */
+const VERGE_EDGE_M = 6.5;
 
 /**
  * Weights of the terrain layers (sum 1) at one sample. Writes into `out`
@@ -60,7 +60,7 @@ export function terrainSplat(i: SplatInput, out = new Float32Array(LAYER_COUNT))
   const snowLine = 1880 + (noiseA - 0.5) * 160;
   const snow = smoothstep(snowLine, snowLine + 120, z) * smoothstep(0.72, 0.88, up);
   // Bare ground: forest floor, worn strip along the shoulders, lake shore.
-  const roadside = smoothstep(SHOULDER_EDGE_M + 2.5, SHOULDER_EDGE_M, i.roadDistM) * 0.55;
+  const roadside = smoothstep(VERGE_EDGE_M + 2.5, VERGE_EDGE_M, i.roadDistM) * 0.4;
   const shore =
     i.waterLevelM === null ? 0 : smoothstep(i.waterLevelM + 3, i.waterLevelM + 0.5, z) * 0.6;
   // Only dense woods bare their floor; sparse trees stand in the grass.

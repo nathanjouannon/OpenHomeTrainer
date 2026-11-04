@@ -64,11 +64,6 @@ describe('settlements on a synthetic world', () => {
     }
   });
 
-  it('places delineator posts outside the village only', () => {
-    expect(s.delineators.length).toBeGreaterThan(100);
-    for (const p of s.delineators) expect(Math.hypot(p.x - c.x, p.y - c.y)).toBeGreaterThan(250);
-  });
-
   it('sinks the ground under the road below the asphalt', () => {
     const p = square.sampleAt(1234);
     expect(terrainHeightAt(terrain, p.x, p.y)).toBeCloseTo(p.z - ROAD_SINK_M, 3);

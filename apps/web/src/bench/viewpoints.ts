@@ -138,4 +138,21 @@ export const BENCH_VIEWPOINTS: readonly BenchViewpoint[] = [
     atM: 24100,
     camera: 'chase',
   },
+  // Roadside furniture (lot 2.5).
+  {
+    id: 'lac-clotures',
+    label: 'Boucle du lac — prés clôturés des deux côtés',
+    kind: 'open-road',
+    routeId: 'boucle-du-lac',
+    atM: 7100,
+    camera: 'pov',
+  },
+  {
+    id: 'col-muret',
+    label: 'Boucle du col — muret de pierre au-dessus du lac',
+    kind: 'lake',
+    routeId: 'boucle-du-col',
+    atM: 22900,
+    camera: 'pov',
+  },
 ];

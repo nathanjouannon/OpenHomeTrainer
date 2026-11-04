@@ -68,7 +68,7 @@ const NORMAL_STRENGTH = 1.0;
 const hash2 = (cell: N): N => fract(sin(vec2(cell.mul(127.1), cell.mul(311.7))).mul(43758.5453));
 
 /** Unpacks the XY of an OpenGL normal map (Z rebuilt). */
-const unpackNormal = (rg: N): N => {
+export const unpackNormal = (rg: N): N => {
   const xy = rg.mul(2).sub(1).mul(NORMAL_STRENGTH);
   return vec3(xy, sqrt(max(float(0), float(1).sub(dot(xy, xy)))));
 };

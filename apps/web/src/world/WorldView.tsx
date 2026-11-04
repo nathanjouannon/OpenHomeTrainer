@@ -11,6 +11,7 @@ import {
   InstancedBufferAttribute,
   type InstancedMesh,
   LOD,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -34,25 +35,26 @@ import {
   type RiderHandle,
   SHADOW_ONLY_LAYER,
 } from './Rider';
+import { RoadFurniture, type RoadsideInstances, roadsideInstances } from './RoadFurniture';
 import { renderProfile, terrainProfile } from './render-profile';
 import { createWorldRenderer, frameInfo, rendererBackend } from './renderer';
 import type { RendererBackend, RendererPreference } from './renderer-options';
 import {
-  asphaltTextures,
-  buildAsphalt,
-  buildShoulders,
-  buildSidewalks,
+  buildRoadSurfaces,
   curbTexture,
-  gravelTexture,
   ROAD_WIDTH_M,
+  type RoadSurfaces,
   sidewalkTexture,
 } from './road-builders';
+import { createAsphaltMaterial, createGravelMaterial } from './road-material';
+import { planRoadside, ROAD_LAYERS } from './roadside';
 import { Settlements3D, Traffic } from './Settlements3D';
 import {
   batchTrees,
   buildChunkGeometry,
   CHUNKS_PER_SIDE,
   collectNearTrees,
+  groundSampler,
   LOD_STEPS,
   shadowTreeGeometries,
   type TreeBatch,
@@ -82,12 +84,9 @@ export interface BuiltWorld {
   base: number;
   terrainSizeM: number;
   chunks: BufferGeometry[][];
-  roads: {
-    asphalt: BufferGeometry[];
-    shoulders: BufferGeometry[];
-    sidewalks: BufferGeometry[];
-    curbs: BufferGeometry[];
-  };
+  roads: RoadSurfaces;
+  /** Guardrails, walls, fences and delineators (lot 2.5). */
+  roadside: RoadsideInstances;
   settlements: Settlements;
   trees: TreeBatch[];
   treeGeometries: ReturnType<typeof treeGeometries>;
@@ -96,6 +95,8 @@ export interface BuiltWorld {
   environment: EnvironmentMap | null;
   /** PBR ground textures (TERRAIN_LAYERS order), null when not downloaded. */
   terrainTextures: TextureArrays | null;
+  /** PBR road textures (ROAD_LAYERS order), null when not downloaded. */
+  roadTextures: TextureArrays | null;
 }
 
 /** Heavy geometry work, done once on the loading screen. */
@@ -108,6 +109,7 @@ export async function buildWorldScene(
   const base = t.minElevationM;
   const environment = loadEnvironmentMap();
   const terrainTextures = loadTextureSlots(TERRAIN_LAYERS);
+  const roadTextures = loadTextureSlots(ROAD_LAYERS);
   const normals = terrainNormals(t);
   const water = world.manifest.waterLevelM;
   const forest = forestCover(FOREST_SEED);
@@ -133,18 +135,21 @@ export async function buildWorldScene(
   }
   const routes = [...world.routes.values()];
   const settlements = generateSettlements(t, routes, world.manifest.villages ?? [], water);
-  const roads: BuiltWorld['roads'] = { asphalt: [], shoulders: [], sidewalks: [], curbs: [] };
-  for (const r of routes) {
-    roads.asphalt.push(buildAsphalt(r, base));
-    roads.shoulders.push(...buildShoulders(r, base));
-  }
-  for (const span of settlements.spans) {
-    const r = world.routes.get(span.routeId);
-    if (!r) continue;
-    const { tops, curbs } = buildSidewalks(r, base, span);
-    roads.sidewalks.push(...tops);
-    roads.curbs.push(...curbs);
-  }
+  const layout = planRoadside({
+    terrain: t,
+    routes,
+    spans: settlements.spans,
+    buildings: [...settlements.buildings, ...settlements.parkedCars],
+    waterLevelM: water,
+    forest,
+  });
+  const roads = buildRoadSurfaces(
+    routes,
+    base,
+    layout,
+    settlements.spans,
+    groundSampler(t, normals, water, splat),
+  );
   const trees = batchTrees(
     placeTrees(world, TREES_BY_QUALITY[quality], FOREST_SEED, settlements),
     t,
@@ -155,12 +160,14 @@ export async function buildWorldScene(
     terrainSizeM: t.sizeM,
     chunks,
     roads,
+    roadside: roadsideInstances(layout, world.routes, t, base),
     settlements,
     trees,
     treeGeometries: treeGeometries(),
     shadowTreeGeometries: shadowTreeGeometries(),
     environment: await environment,
     terrainTextures: await terrainTextures,
+    roadTextures: await roadTextures,
   };
   onProgress(1);
   return built;
@@ -260,6 +267,7 @@ function Scene({
   const fogColor = FOG_COLOR;
   const post = renderProfile(quality).post;
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
+  const terrainMaterial = useTerrainMaterial(built, quality);
 
   useFrame((state, frameDelta) => {
     onFrame?.(frameDelta, frameInfo(state.gl));
@@ -298,8 +306,13 @@ function Scene({
       <WorldSky />
       <Lighting shadows={renderProfile(quality).shadows} environment={built.environment} />
       {post && <PostFX profile={post} />}
-      <Terrain built={built} quality={quality} />
-      <Roads built={built} />
+      <Terrain built={built} material={terrainMaterial} />
+      <Roads built={built} groundMaterial={terrainMaterial} />
+      <RoadFurniture
+        instances={built.roadside}
+        textures={built.roadTextures}
+        shadowRadiusM={shadowRadius(quality)}
+      />
       {world.manifest.waterLevelM !== null && (
         <Water level={world.manifest.waterLevelM - base} size={world.terrain.sizeM} />
       )}
@@ -444,7 +457,8 @@ function placeCamera(
   cam.lookAt(look);
 }
 
-function Terrain({ built, quality }: { built: BuiltWorld; quality: Quality }) {
+/** Material of the terrain, also used by the grass verges of the roads. */
+function useTerrainMaterial(built: BuiltWorld, quality: Quality): Material {
   const backend = rendererBackend(useThree((s) => s.gl));
   const material = useMemo(
     () =>
@@ -459,6 +473,10 @@ function Terrain({ built, quality }: { built: BuiltWorld; quality: Quality }) {
     [built, quality, backend],
   );
   useEffect(() => () => material.dispose(), [material]);
+  return material;
+}
+
+function Terrain({ built, material }: { built: BuiltWorld; material: Material }) {
   const lods = useMemo(
     () =>
       built.chunks.map((levels) => {
@@ -482,45 +500,97 @@ function Terrain({ built, quality }: { built: BuiltWorld; quality: Quality }) {
   );
 }
 
-function Roads({ built }: { built: BuiltWorld }) {
+/**
+ * The roads are drawn before the terrain: the ground under them (sunk 0.6 m)
+ * then fails the depth test and its costly shader never runs there.
+ */
+const ROAD_RENDER_ORDER = -1;
+/** Verge pieces are drawn up to this distance from the camera (m). */
+const VERGE_VIEW_M = 1300;
+const VERGE_UPDATE_S = 0.4;
+
+function Roads({ built, groundMaterial }: { built: BuiltWorld; groundMaterial: Material }) {
+  const camera = useThree((s) => s.camera);
+  const clock = useWorldClock();
   const mats = useMemo(() => {
-    const { map, bump } = asphaltTextures();
-    // Drawn over the terrain and shoulders when they are at the same depth.
     const offset = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
     return {
-      asphalt: new MeshStandardMaterial({
-        map,
-        bumpMap: bump,
-        bumpScale: 0.6,
-        roughness: 0.92,
-        ...offset,
-      }),
-      gravel: new MeshStandardMaterial({
-        map: gravelTexture(),
-        roughness: 1,
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2,
-      }),
+      asphalt: createAsphaltMaterial(built.roadTextures),
+      gravel: createGravelMaterial(built.roadTextures),
       sidewalk: new MeshStandardMaterial({ map: sidewalkTexture(), roughness: 0.9, ...offset }),
       curb: new MeshStandardMaterial({ map: curbTexture(), roughness: 0.8, side: DoubleSide }),
     };
-  }, []);
+  }, [built]);
+  useEffect(
+    () => () => {
+      for (const m of Object.values(mats)) {
+        if (m instanceof MeshStandardMaterial) m.map?.dispose();
+        m.dispose();
+      }
+    },
+    [mats],
+  );
+  // The verges (ditches, gravel) only matter near the camera: far away they
+  // are thinner than a pixel, and drawing them all would cost ~200k triangles.
+  const pieces = useRef<(Mesh | null)[]>([]);
+  // Updated on the first frame.
+  const timer = useRef(VERGE_UPDATE_S);
+  useFrame((_, delta) => {
+    timer.current += clock.step(delta);
+    if (timer.current < VERGE_UPDATE_S) return;
+    timer.current = 0;
+    built.roads.verges.forEach((piece, i) => {
+      const sphere = piece.ground.boundingSphere;
+      const visible =
+        !!sphere && sphere.center.distanceTo(camera.position) - sphere.radius < VERGE_VIEW_M;
+      for (const mesh of [pieces.current[i * 2], pieces.current[i * 2 + 1]]) {
+        if (mesh) mesh.visible = visible;
+      }
+    });
+  });
   const r = built.roads;
   return (
     <>
-      {r.asphalt.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.asphalt} receiveShadow />
+      {r.asphalt && (
+        <mesh
+          geometry={r.asphalt}
+          material={mats.asphalt}
+          renderOrder={ROAD_RENDER_ORDER}
+          receiveShadow
+        />
+      )}
+      {r.verges.map((piece, i) => (
+        <group key={piece.ground.uuid}>
+          <mesh
+            ref={(m) => {
+              pieces.current[i * 2] = m;
+            }}
+            geometry={piece.ground}
+            renderOrder={ROAD_RENDER_ORDER}
+            material={groundMaterial}
+            visible={false}
+            receiveShadow
+          />
+          <mesh
+            ref={(m) => {
+              pieces.current[i * 2 + 1] = m;
+            }}
+            geometry={piece.gravel}
+            material={mats.gravel}
+            visible={false}
+            receiveShadow
+          />
+        </group>
       ))}
-      {r.shoulders.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.gravel} receiveShadow />
-      ))}
-      {r.sidewalks.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.sidewalk} receiveShadow />
-      ))}
-      {r.curbs.map((g) => (
-        <mesh key={g.uuid} geometry={g} material={mats.curb} receiveShadow />
-      ))}
+      {r.sidewalks && (
+        <mesh
+          geometry={r.sidewalks}
+          material={mats.sidewalk}
+          renderOrder={ROAD_RENDER_ORDER}
+          receiveShadow
+        />
+      )}
+      {r.curbs && <mesh geometry={r.curbs} material={mats.curb} receiveShadow />}
     </>
   );
 }
@@ -703,8 +773,15 @@ export function useDisposeOnUnmount(built: BuiltWorld | null) {
       built.environment?.texture.dispose();
       built.terrainTextures?.albedo.dispose();
       built.terrainTextures?.surface.dispose();
+      built.roadTextures?.albedo.dispose();
+      built.roadTextures?.surface.dispose();
       for (const levels of built.chunks) for (const g of levels) g.dispose();
-      for (const list of Object.values(built.roads)) for (const g of list) g.dispose();
+      const { asphalt, verges, sidewalks, curbs } = built.roads;
+      for (const g of [asphalt, sidewalks, curbs]) g?.dispose();
+      for (const piece of verges) {
+        piece.ground.dispose();
+        piece.gravel.dispose();
+      }
     },
     [built],
   );

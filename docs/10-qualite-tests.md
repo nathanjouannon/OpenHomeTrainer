@@ -54,7 +54,7 @@ Sert de référence à tous les lots de la phase 2 : chaque changement du rendu 
 ### Utilisation
 
 ```sh
-pnpm bench -- --label avant-2.1            # build, serveur local, 16 points de vue × 3 qualités (~5 min)
+pnpm bench -- --label avant-2.1            # build, serveur local, 18 points de vue × 3 qualités (~6 min)
 pnpm bench -- --label apres-2.1
 pnpm bench:compare avant-2.1 apres-2.1     # bench-results/compare-avant-2.1-vs-apres-2.1.html
 ```
@@ -65,7 +65,7 @@ La page `#/bench` s'utilise aussi à la main : choix du point de vue et de la qu
 
 ### Points de vue
 
-16 points de vue fixes sur les 3 boucles, définis dans `apps/web/src/bench/viewpoints.ts` : route dégagée, forêt, village, montée, sommet et lac, surtout en vue POV (hauteur de cycliste) avec quelques vues poursuite et drone. **On n'en modifie jamais l'identifiant ni la position** (les comparaisons en dépendent) : on en ajoute.
+18 points de vue fixes sur les 3 boucles, définis dans `apps/web/src/bench/viewpoints.ts` : route dégagée, forêt, village, montée, sommet et lac, surtout en vue POV (hauteur de cycliste) avec quelques vues poursuite et drone. Les 16 premiers datent du lot 2.0 ; `lac-clotures` (prés clôturés) et `col-muret` (muret au-dessus du lac) ont été ajoutés au lot 2.5 pour juger le mobilier de bord de route de près. **On n'en modifie jamais l'identifiant ni la position** (les comparaisons en dépendent) : on en ajoute.
 
 ### Méthode
 
@@ -168,3 +168,26 @@ Même machine et mêmes conditions. Pire cas sur les 16 points de vue, et FPS mo
 - **Mémoire estimée** : +72 Mo, surtout les deux *texture arrays* (6 couches 1024², mipmaps comprises, ~67 Mo) et les poids de la splatmap dans les sommets. L'estimation compte désormais les textures des matières TSL (`userData.textures`).
 - **Mesure** : le MacBook Air chauffe pendant les runs longs enchaînés (jusqu'à −25 % de FPS sur le run suivant). Laisser refroidir la machine quelques minutes entre deux runs complets.
 - Points de vigilance : marge réduite en qualité haute (51 FPS au pire en WebGPU, 41 en WebGL2, toujours ≥ 30) ; à surveiller pour la végétation du lot 2.6.
+
+### Après la route et ses abords (runs `apres-2.5-webgpu` et `apres-2.5-webgl2`, 2026-11-03)
+
+Même machine et mêmes conditions. Pire cas sur les 16 points de vue d'origine (les 2 nouveaux, `lac-clotures` et `col-muret`, ne changent aucun pire cas), et FPS moyen médian :
+
+| Qualité | Backend | FPS moyen min. | FPS moyen médian | 1 % low min. | Draw calls max. | Triangles max. | Mémoire GPU estimée |
+|---|---|---|---|---|---|---|---|
+| Basse | WebGPU | 195 | 286 | 29 | 179 | 1,38 M | 259 Mo |
+| Basse | WebGL2 (repli) | 133 | 197 | 78 | 179 | 1,38 M | 259 Mo |
+| Moyenne | WebGPU | 84 | 104 | 39 | 259 | 1,90 M | 349 Mo |
+| Moyenne | WebGL2 (repli) ¹ | 66 | 75 | 34 | 259 | 1,90 M | 349 Mo |
+| Haute | WebGPU | 54 | 62 | 26 | 275 | 3,29 M | 426 Mo |
+| Haute | WebGL2 (repli) | 41 | 49 | 22 | 275 | 3,29 M | 426 Mo |
+
+¹ Run `check-2.5-webgl2-medium`, refait après 4 min de repos : enchaîné juste après le run WebGPU, le run complet `apres-2.5-webgl2` donnait 53 FPS au pire (`collines-plaine`) et 70 en médiane, la machine ayant chauffé.
+
+- **Images** : asphalte texturé avec ses sections de réfection, ornières, rapiéçages, fissures et marquages usés ; accotements en gravier au bord irrégulier, talus et fossés fondus dans le terrain ; glissières sur les pentes du col et des collines, murets au-dessus du lac (`col-muret`), clôtures de prés dans la plaine (`lac-clotures`), balises tous les 50 m.
+- **Draw calls** : −40 en qualité moyenne et haute (299 → 259 et 315 → 275 sur `collines-montee`), −46 en basse : les rubans de route (asphalte, accotements, trottoirs, bordures) de toutes les boucles et de tous les villages sont fusionnés, ce qui libère de la place sous le budget de 300 pour la végétation du lot 2.6. Le mobilier ajoute un draw call par sorte et par passe (4 sortes, plus leurs copies d'ombre).
+- **Triangles** : stables, voire en baisse (1,95 → 1,90 M au pire en moyenne). Dessiner les accotements à fossés de tout le monde aurait ajouté ~200 000 triangles : ils sont découpés en tronçons de 1 km masqués au-delà de 1,3 km, et le mobilier n'est dessiné qu'à moins de 900 m.
+- **Coût** : FPS médian en qualité moyenne inchangé en WebGPU (105 → 104) par rapport au run `apres-2.4-webgpu`, −9 % en WebGL2 (82 → 75). À conditions thermiques égales (référence 2.4 refaite juste avant sur 6 points de vue), le lot coûte ~12 % en WebGPU : ~5 % pour la texture d'asphalte, ~5 % pour ses détails procéduraux, le reste pour le mobilier et les accotements. La première version du shader d'asphalte (une douzaine de bruits de Perlin par pixel, échantillonnage stochastique) coûtait 30 % ; elle lit maintenant ses bruits fins dans une texture de bruit de 256² et reçoit les bruits lents des sommets.
+- **Mémoire estimée** : +38 Mo (les trois textures de la route, ~34 Mo avec leurs mipmaps, et la texture de bruit).
+- **Repli sans assets** (manifeste masqué, qualité basse) : asphalte et gravier procéduraux, muret uni ; rien ne manque.
+- Points de vigilance : la marge en qualité haute reste réduite (54 FPS au pire en WebGPU, 41 en WebGL2) ; le 1 % low en WebGPU sans plafond d'écran reste à juger avec `--vsync` (voir lot 2.1).

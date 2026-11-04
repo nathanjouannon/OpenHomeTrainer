@@ -31,7 +31,8 @@ export interface TextureAsset {
 
 /**
  * PBR textures, in 1K JPG, by slot. The terrain slots are the layers of
- * apps/web/src/world/terrain-splat.ts (lot 2.4).
+ * apps/web/src/world/terrain-splat.ts (lot 2.4), the road slots those of
+ * ROAD_LAYERS in apps/web/src/world/roadside.ts (lot 2.5).
  */
 export const TEXTURES: Record<string, TextureAsset> = {
   grass: { source: 'ambientcg', id: 'Grass004', author: 'ambientCG (Lennart Demes)' },
@@ -40,4 +41,11 @@ export const TEXTURES: Record<string, TextureAsset> = {
   rock: { source: 'ambientcg', id: 'Rock030', author: 'ambientCG (Lennart Demes)' },
   scree: { source: 'polyhaven', id: 'gray_rocks', author: 'Dimitrios Savva' },
   snow: { source: 'polyhaven', id: 'snow_02', author: 'Rob Tuytel' },
+  asphalt: { source: 'ambientcg', id: 'Asphalt015', author: 'ambientCG (Lennart Demes)' },
+  gravel: {
+    source: 'polyhaven',
+    id: 'gravel_floor_02',
+    author: 'Jenelle van Heerden, Dimitrios Savva',
+  },
+  masonry: { source: 'polyhaven', id: 'old_stone_wall', author: 'Charlotte Baglioni' },
 };

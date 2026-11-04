@@ -76,7 +76,6 @@ export interface Settlements {
   signs: VillageSign[];
   parkedCars: ParkedCar[];
   pedestrians: Pedestrian[];
-  delineators: Prop[];
 }
 
 /** Coarse occupancy grid of the world (4 m cells). */
@@ -140,7 +139,7 @@ class Grid {
 }
 
 /** Point at a lateral offset (positive = right of the direction of travel). */
-function lateral(route: Route, d: number, offset: number) {
+export function lateral(route: Route, d: number, offset: number) {
   const p = route.sampleAt(d);
   return {
     x: p.x + Math.cos(p.heading) * offset,
@@ -185,7 +184,8 @@ export function villageSpans(
   return out;
 }
 
-const inSpan = (spans: readonly VillageSpan[], routeId: string, d: number, L: number) =>
+/** True if distance `d` of a route lies inside one of the village spans. */
+export const inSpan = (spans: readonly VillageSpan[], routeId: string, d: number, L: number) =>
   spans.some(
     (s) =>
       s.routeId === routeId &&
@@ -214,7 +214,6 @@ export function generateSettlements(
   const signs: VillageSign[] = [];
   const parkedCars: ParkedCar[] = [];
   const pedestrians: Pedestrian[] = [];
-  const delineators: Prop[] = [];
   const dry = (x: number, y: number) =>
     waterLevelM === null || terrainHeightAt(terrain, x, y) > waterLevelM + 1;
 
@@ -386,34 +385,5 @@ export function generateSettlements(
     }
   }
 
-  // White delineator posts outside the villages, both sides, every 50 m.
-  const postGrid = new Grid(terrain.sizeM);
-  for (const route of routes) {
-    for (let d = 0; d < route.lengthM; d += 50) {
-      if (inSpan(spans, route.id, d, route.lengthM)) continue;
-      for (const side of [1, -1] as const) {
-        const p = lateral(route, d, side * (ROAD_HALF_WIDTH_M + 1.7));
-        // Shared roads: one post per place; none on a crossing road.
-        if (postGrid.get(p.x, p.y) !== 0) continue;
-        if (!dry(p.x, p.y)) continue;
-        if (routes.some((r) => r !== route && nearRoute(r, p.x, p.y, ROAD_HALF_WIDTH_M + 1)))
-          continue;
-        postGrid.mark(p.x, p.y, 12);
-        delineators.push({ x: p.x, y: p.y, z: p.z - 0.3, yaw: p.heading });
-      }
-    }
-  }
-
-  return { buildings, spans, lamps, signs, parkedCars, pedestrians, delineators };
-}
-
-/** True if (x, y) is within `radius` of the route axis (coarse check every 5 m). */
-function nearRoute(route: Route, x: number, y: number, radius: number): boolean {
-  const r2 = radius * radius;
-  for (let i = 0; i < route.pointCount; i++) {
-    const dx = (route.x[i] as number) - x;
-    const dy = (route.y[i] as number) - y;
-    if (dx * dx + dy * dy < r2) return true;
-  }
-  return false;
+  return { buildings, spans, lamps, signs, parkedCars, pedestrians };
 }

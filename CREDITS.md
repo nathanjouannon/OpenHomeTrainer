@@ -17,6 +17,9 @@ Tous en [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.fr) : aucun
 | « Rock030 » (1K JPG) | Roche des pentes raides (lot 2.4) | [ambientCG](https://ambientcg.com/view?id=Rock030), Lennart Demes |
 | « Gray Rocks » (1k) | Éboulis en altitude (lot 2.4) | [Poly Haven](https://polyhaven.com/a/gray_rocks), Dimitrios Savva |
 | « Snow 02 » (1k) | Neige au-dessus de ~1 900 m (lot 2.4) | [Poly Haven](https://polyhaven.com/a/snow_02), Rob Tuytel |
+| « Asphalt015 » (1K JPG) | Asphalte des routes (lot 2.5) | [ambientCG](https://ambientcg.com/view?id=Asphalt015), Lennart Demes |
+| « Gravel Floor 02 » (1k) | Gravier des accotements (lot 2.5) | [Poly Haven](https://polyhaven.com/a/gravel_floor_02), Jenelle van Heerden, Dimitrios Savva |
+| « Old Stone Wall » (1k) | Murets maçonnés (lot 2.5) | [Poly Haven](https://polyhaven.com/a/old_stone_wall), Charlotte Baglioni |
 
 ## Outils de test
 

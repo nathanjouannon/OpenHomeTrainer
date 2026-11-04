@@ -179,6 +179,62 @@ export function buildChunkGeometry(
   return g;
 }
 
+/**
+ * Terrain attributes at any point (x east, y north): splat weights
+ * interpolated between the heightmap samples, fallback colour and detail
+ * texture coordinates as on the chunks. Used by the verges of the roads.
+ */
+export function groundSampler(
+  t: Terrain,
+  normals: Float32Array,
+  waterLevel: number | null,
+  splat: Uint8Array | null,
+): (
+  x: number,
+  y: number,
+) => {
+  splat: number[];
+  color: [number, number, number];
+  uv: [number, number];
+} {
+  const s = t.samples;
+  const cell = cellSizeM(t);
+  const half = t.sizeM / 2;
+  const color = new Color();
+  return (x, y) => {
+    const gc = Math.min(s - 1, Math.max(0, (x + half) / cell));
+    const gr = Math.min(s - 1, Math.max(0, (half - y) / cell));
+    const c0 = Math.min(s - 2, Math.floor(gc));
+    const r0 = Math.min(s - 2, Math.floor(gr));
+    const fc = gc - c0;
+    const fr = gr - r0;
+    const weights = new Array<number>(LAYER_COUNT).fill(0);
+    if (splat) {
+      const corners: [number, number, number][] = [
+        [r0, c0, (1 - fr) * (1 - fc)],
+        [r0, c0 + 1, (1 - fr) * fc],
+        [r0 + 1, c0, fr * (1 - fc)],
+        [r0 + 1, c0 + 1, fr * fc],
+      ];
+      for (const [r, c, w] of corners) {
+        for (let k = 0; k < LAYER_COUNT; k++) {
+          weights[k] =
+            (weights[k] as number) + ((splat[(r * s + c) * LAYER_COUNT + k] as number) / 255) * w;
+        }
+      }
+    } else {
+      weights[0] = 1;
+    }
+    const i = Math.round(gr) * s + Math.round(gc);
+    terrainColor(t.heights[i] as number, normals[i * 3 + 1] as number, i, waterLevel, color);
+    return {
+      splat: weights,
+      color: [color.r, color.g, color.b],
+      uv: [(x + half) / 4, (half - y) / 4],
+    };
+  };
+}
+
 /** Grainy detail texture multiplied over the vertex colours. */
 export function terrainDetailTexture(): CanvasTexture {
   // One tile = 4 × 4 m of meadow: short blades of varying brightness and hue,

@@ -21,7 +21,6 @@ import {
   CAR_COLORS,
   CLOTHES_COLORS,
   carGeometry,
-  delineatorGeometry,
   facadeTexture,
   lampGeometry,
   pedestrianGeometries,
@@ -76,7 +75,7 @@ export function Settlements3D({
   settlements: Settlements;
   routes: Map<string, Route>;
   base: number;
-  /** Lamps, posts and parked cars cast shadows within this distance of the camera. */
+  /** Lamps and parked cars cast shadows within this distance of the camera. */
   shadowRadiusM: number | null;
 }) {
   const s = settlements;
@@ -106,16 +105,11 @@ export function Settlements3D({
     }),
     [],
   );
-  const geo = useMemo(
-    () => ({ car: carGeometry(), lamp: lampGeometry(), post: delineatorGeometry() }),
-    [],
-  );
+  const geo = useMemo(() => ({ car: carGeometry(), lamp: lampGeometry() }), []);
   const lamps = useRef<InstancedMesh>(null);
-  const posts = useRef<InstancedMesh>(null);
   const cars = useRef<InstancedMesh>(null);
   const carColor = useMemo(() => (i: number) => s.parkedCars[i]?.color ?? 0, [s]);
   useInstances(lamps, s.lamps, base);
-  useInstances(posts, s.delineators, base);
   useInstances(cars, s.parkedCars, base, CAR_COLORS, carColor);
 
   return (
@@ -126,16 +120,12 @@ export function Settlements3D({
       {s.lamps.length > 0 && (
         <instancedMesh ref={lamps} args={[geo.lamp, mats.painted, s.lamps.length]} />
       )}
-      {s.delineators.length > 0 && (
-        <instancedMesh ref={posts} args={[geo.post, mats.painted, s.delineators.length]} />
-      )}
       {s.parkedCars.length > 0 && (
         <instancedMesh ref={cars} args={[geo.car, mats.car, s.parkedCars.length]} receiveShadow />
       )}
       {shadowRadiusM !== null && (
         <>
           <NearShadows source={lamps} geometry={geo.lamp} radiusM={shadowRadiusM} max={256} />
-          <NearShadows source={posts} geometry={geo.post} radiusM={shadowRadiusM} max={256} />
           <NearShadows source={cars} geometry={geo.car} radiusM={shadowRadiusM} max={256} />
         </>
       )}
