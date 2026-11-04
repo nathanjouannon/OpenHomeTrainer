@@ -23,6 +23,7 @@ import {
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import type { CameraMode, Quality } from '../store/settings';
 import { type EnvironmentMap, loadEnvironmentMap, loadTextureSlots } from './assets';
+import { FreeCamera, type FreeCameraProps } from './FreeCamera';
 import { FOG_COLOR, Lighting, SUN_POSITION } from './Lighting';
 import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
 import { PostFX } from './PostFX';
@@ -182,6 +183,8 @@ interface Props {
   /** Interpolation factor between the last two simulation steps. */
   alpha: () => number;
   camera: CameraMode;
+  /** Dev mode: when set, the free camera replaces `camera`. */
+  freeCamera?: Omit<FreeCameraProps, 'base'>;
   quality: Quality;
   /** Read once, when the canvas is created. */
   renderer?: RendererPreference;
@@ -232,6 +235,7 @@ function Scene({
   view,
   alpha,
   camera,
+  freeCamera,
   quality,
   reduceMotion,
   onFrame,
@@ -273,6 +277,7 @@ function Scene({
       g.lookAt(tmp.target);
     }
     rider.current?.animate(Math.min(delta, 0.1), v.cadenceRpm, v.speedMs, v.powerW);
+    if (freeCamera) return;
     placeCamera(
       camera,
       state.camera as PerspectiveCamera,
@@ -313,6 +318,7 @@ function Scene({
       />
       <StartArch route={route} base={base} />
       <Rider ref={rider} />
+      {freeCamera && <FreeCamera {...freeCamera} base={base} />}
     </>
   );
 }

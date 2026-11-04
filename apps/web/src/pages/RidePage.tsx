@@ -1,6 +1,7 @@
 import type { Route } from '@hrt/route-engine';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDelta, formatDuration } from '../format';
+import { DevCameraPanel } from '../hud/DevCameraPanel';
 import { Hud, useLiveState } from '../hud/Hud';
 import { useT } from '../i18n';
 import type { RideAction } from '../ride/actions';
@@ -9,6 +10,7 @@ import { navigate } from '../router';
 import { useDevices } from '../store/devices';
 import { CAMERA_MODES, getSettings, updateSettings, useSettings } from '../store/settings';
 import { FrameStats } from '../world/frame-stats';
+import { type CameraPose, parsePoseParam } from '../world/free-camera';
 import type { RendererBackend } from '../world/renderer-options';
 import {
   type BuiltWorld,
@@ -31,6 +33,8 @@ function parseGoal(raw: string | null): RideGoal | null {
 export interface DevView {
   atM: number;
   camera: string | null;
+  /** Free camera pose, `x,y,z,yaw,pitch` (see `poseToParam`). */
+  cam?: string | null;
 }
 
 export default function RidePage({
@@ -89,6 +93,8 @@ export default function RidePage({
       built={world.built}
       route={route}
       goal={parsedGoal}
+      worldId={worldId}
+      routeId={routeId}
       devView={devView ?? { atM: 0, camera: null }}
     />
   );
@@ -99,12 +105,16 @@ function RideRunning({
   built,
   route,
   goal,
+  worldId,
+  routeId,
   devView,
 }: {
   world: WorldData;
   built: BuiltWorld;
   route: Route;
   goal: RideGoal | null;
+  worldId: string;
+  routeId: string;
   devView: DevView;
 }) {
   const t = useT();
@@ -119,6 +129,10 @@ function RideRunning({
   const stats = useMemo(() => new FrameStats(), []);
   const slots = useDevices();
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Dev mode: free camera, from the `G` key or `?camera=free`.
+  const urlPose = useMemo(() => parsePoseParam(devView.cam ?? null), [devView.cam]);
+  const [free, setFree] = useState(devView.camera === 'free' || urlPose !== null);
+  const [freePose, setFreePose] = useState<{ pose: CameraPose; speedMs: number } | null>(null);
 
   onEvent.current = (e) => {
     if (e.type === 'lap') {
@@ -143,6 +157,7 @@ function RideRunning({
         setCamera((CAMERA_MODES.indexOf(getSettings().camera) + 1) % CAMERA_MODES.length),
       ),
       dispatcher.on('toggleHud', () => setHudVisible((v) => !v)),
+      dispatcher.on('cameraFree', () => setFree((v) => !v)),
     ];
     const onFocus = () => setFocused(true);
     const onBlur = () => setFocused(false);
@@ -189,13 +204,30 @@ function RideRunning({
         view={view}
         alpha={alpha}
         camera={camera}
+        freeCamera={
+          free
+            ? { start: urlPose, onPose: (pose, speedMs) => setFreePose({ pose, speedMs }) }
+            : undefined
+        }
         quality={settings.quality}
         renderer={settings.renderer}
         onRenderer={setBackend}
         reduceMotion={settings.reduceMotion}
         onFrame={(d, info) => stats.record(d, info)}
       />
-      {hudVisible && (
+      {hudVisible && free && (
+        <DevCameraPanel
+          pose={freePose?.pose ?? null}
+          speedMs={freePose?.speedMs ?? 0}
+          context={{
+            worldId,
+            routeId,
+            quality: settings.quality,
+            backend: backend === null ? null : backend === 'webgpu' ? 'WebGPU' : 'WebGL2',
+          }}
+        />
+      )}
+      {hudVisible && !free && (
         <Hud state={session.state} route={route} weightKg={settings.profile.weightKg} />
       )}
       <div className="warnings">

@@ -13,6 +13,7 @@ export type RideAction =
   | 'camera3'
   | 'camera4'
   | 'cameraNext'
+  | 'cameraFree'
   | 'toggleHud'
   | 'lap'
   | 'fullscreen'
@@ -34,6 +35,7 @@ export const DEFAULT_KEYMAP: Readonly<Record<string, RideAction>> = {
   '3': 'camera3',
   '4': 'camera4',
   c: 'cameraNext',
+  g: 'cameraFree',
   h: 'toggleHud',
   l: 'lap',
   f: 'fullscreen',

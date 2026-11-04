@@ -159,6 +159,11 @@ const fr = {
   'camera.pov': 'POV (guidon)',
   'camera.side': 'Latérale',
   'camera.drone': 'Drone',
+  'dev.free.title': 'Caméra libre (dev)',
+  'dev.free.copy': 'Copier (P)',
+  'dev.free.copied': 'Copié',
+  'dev.free.help':
+    'Glisser : orienter · ZQSD / flèches : avancer · Espace / Maj : monter / descendre · molette : vitesse · G : quitter · H : masquer',
 } as const;
 
 export type MessageKey = keyof typeof fr;
@@ -319,6 +324,11 @@ const en: Record<MessageKey, string> = {
   'camera.pov': 'POV (handlebars)',
   'camera.side': 'Side',
   'camera.drone': 'Drone',
+  'dev.free.title': 'Free camera (dev)',
+  'dev.free.copy': 'Copy (P)',
+  'dev.free.copied': 'Copied',
+  'dev.free.help':
+    'Drag: look · WASD / arrows: move · Space / Shift: up / down · wheel: speed · G: exit · H: hide',
 };
 
 const DICTS: Record<Language, Record<MessageKey, string>> = { fr, en };

@@ -882,3 +882,36 @@ input[type="range"] {
     flex-direction: column;
   }
 }
+
+.dev-camera {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  width: 15rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: rgb(10 14 20 / 0.72);
+  font-size: 0.85rem;
+}
+
+.dev-camera-title {
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.dev-camera dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.8rem;
+  margin: 0 0 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-camera dt {
+  color: #c4ccda;
+}
+
+.dev-camera dd {
+  margin: 0;
+  text-align: right;
+}
