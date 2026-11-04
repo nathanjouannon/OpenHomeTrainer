@@ -276,7 +276,7 @@ function Scene({
   const profile = renderProfile(quality);
   const post = profile.post;
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
-  const terrainMaterial = useTerrainMaterial(built, quality);
+  const terrainMaterials = useTerrainMaterials(built, quality);
 
   useFrame((state, frameDelta) => {
     onFrame?.(frameDelta, frameInfo(state.gl));
@@ -315,8 +315,8 @@ function Scene({
       <WorldSky clouds={profile.atmosphere.clouds} />
       <Lighting shadows={renderProfile(quality).shadows} environment={built.environment} />
       {post && <PostFX profile={post} />}
-      <Terrain built={built} material={terrainMaterial} />
-      <Roads built={built} groundMaterial={terrainMaterial} />
+      <Terrain built={built} material={terrainMaterials.terrain} />
+      <Roads built={built} groundMaterial={terrainMaterials.verges} />
       <RoadFurniture
         instances={built.roadside}
         textures={built.roadTextures}
@@ -452,23 +452,44 @@ function placeCamera(
   cam.lookAt(look);
 }
 
-/** Material of the terrain, also used by the grass verges of the roads. */
-function useTerrainMaterial(built: BuiltWorld, quality: Quality): Material {
+/**
+ * Materials of the ground: the terrain (with the micro-relief of lot 2.8) and
+ * the grass verges of the roads (without: the verges stay as approved in 2.5).
+ */
+function useTerrainMaterials(
+  built: BuiltWorld,
+  quality: Quality,
+): { terrain: Material; verges: Material } {
   const backend = rendererBackend(useThree((s) => s.gl));
-  const material = useMemo(
-    () =>
-      built.terrainTextures
-        ? createTerrainMaterial(built.terrainTextures, terrainProfile(quality, backend))
-        : // Without the CC0 textures: vertex colours and a procedural detail texture.
-          new MeshStandardMaterial({
-            vertexColors: true,
-            roughness: 0.95,
-            map: terrainDetailTexture(),
-          }),
-    [built, quality, backend],
+  const materials = useMemo(() => {
+    const { terrainTextures } = built;
+    if (terrainTextures) {
+      const profile = terrainProfile(quality, backend);
+      return {
+        terrain: createTerrainMaterial(terrainTextures, profile),
+        verges: profile.microRelief
+          ? createTerrainMaterial(terrainTextures, { ...profile, microRelief: false })
+          : null,
+      };
+    }
+    // Without the CC0 textures: vertex colours and a procedural detail texture.
+    return {
+      terrain: new MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.95,
+        map: terrainDetailTexture(),
+      }),
+      verges: null,
+    };
+  }, [built, quality, backend]);
+  useEffect(
+    () => () => {
+      materials.terrain.dispose();
+      materials.verges?.dispose();
+    },
+    [materials],
   );
-  useEffect(() => () => material.dispose(), [material]);
-  return material;
+  return { terrain: materials.terrain, verges: materials.verges ?? materials.terrain };
 }
 
 function Terrain({ built, material }: { built: BuiltWorld; material: Material }) {

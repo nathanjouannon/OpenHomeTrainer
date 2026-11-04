@@ -11,6 +11,7 @@
 import {
   abs,
   attribute,
+  cameraPosition,
   cross,
   dFdx,
   dFdy,
@@ -49,6 +50,8 @@ export interface TerrainMaterialOptions {
   stochastic: boolean;
   /** Triplanar projection of the rock and scree layers (no stretching on cliffs). */
   triplanar: boolean;
+  /** Procedural micro-relief near the camera (lot 2.8). Off for the road verges. */
+  microRelief?: boolean;
 }
 
 // TSL nodes change type with every operation; their typings cannot follow a
@@ -63,6 +66,19 @@ const HEIGHT_BLEND_SHARPNESS = 8;
 /** Layers lighter than this at a pixel are not sampled at all. */
 const MIN_WEIGHT = 0.02;
 const NORMAL_STRENGTH = 1.0;
+/**
+ * Micro-relief (lot 2.8): bumps of the 10 m grid's missing scales, as noise
+ * slopes: [wavelength (m), slope amplitude]. It fades out with the distance
+ * to the camera (no shimmer far away, where the texture detail is lost).
+ */
+const MICRO_RELIEF_SCALES: readonly (readonly [number, number])[] = [
+  [26, 0.2],
+  [7, 0.28],
+  [1.9, 0.22],
+];
+const MICRO_RELIEF_FADE_M: readonly [number, number] = [90, 420];
+/** Darkening in the hollows (0 = none), after the bumps' height. */
+const MICRO_RELIEF_CAVITY = 0.16;
 
 /** Pseudo-random offset in [0, 1)² for an integer cell. */
 const hash2 = (cell: N): N => fract(sin(vec2(cell.mul(127.1), cell.mul(311.7))).mul(43758.5453));
@@ -86,7 +102,7 @@ const TerrainSurface = struct({ albedo: 'vec3', normal: 'vec3', roughness: 'floa
 
 export function createTerrainMaterial(
   arrays: TextureArrays,
-  { stochastic, triplanar }: TerrainMaterialOptions,
+  { stochastic, triplanar, microRelief = false }: TerrainMaterialOptions,
 ): MeshStandardNodeMaterial {
   const material = new MeshStandardNodeMaterial({ metalness: 0 });
   const pos = positionWorld;
@@ -218,10 +234,40 @@ export function createTerrainMaterial(
     detail.mul(0.16).add(0.92),
   );
 
+  let finalNormal: N = surface.get('normal');
+  let cavity: N = float(1);
+  if (microRelief) {
+    // Finite differences of a 2D noise per scale give the slope of the bumps.
+    const fade = float(1).sub(
+      smoothstep(MICRO_RELIEF_FADE_M[0], MICRO_RELIEF_FADE_M[1], pos.sub(cameraPosition).length()),
+    );
+    // Flat ground bumps more visibly than a slope already shaped by the rock.
+    const calm = smoothstep(0.35, 0.9, nGeo.y);
+    let slope: N = vec2(0);
+    let height: N = float(0);
+    for (const [wavelength, amplitude] of MICRO_RELIEF_SCALES) {
+      const f = 1 / wavelength;
+      const e = 0.35 * wavelength;
+      const at = (dx: number, dz: number) =>
+        mx_noise_float(
+          pos.xz
+            .add(vec2(dx * e, dz * e))
+            .mul(f)
+            .add(wavelength * 0.37),
+        );
+      const h0 = at(0, 0);
+      slope = slope.add(vec2(at(1, 0).sub(h0), at(0, 1).sub(h0)).mul(amplitude * 2.5));
+      height = height.add(h0.mul(amplitude));
+    }
+    const k = fade.mul(calm.mul(0.6).add(0.4));
+    finalNormal = normalize(surface.get('normal').sub(vec3(slope.x, 0, slope.y).mul(k)));
+    cavity = float(1).add(height.mul(k).mul(MICRO_RELIEF_CAVITY * 2));
+  }
+
   // For the GPU memory estimate (gpu-memory.ts).
   material.userData.textures = [arrays.albedo, arrays.surface];
-  material.colorNode = vec4(surface.get('albedo').mul(tint), 1);
-  material.normalNode = transformNormalToView(surface.get('normal'));
+  material.colorNode = vec4(surface.get('albedo').mul(tint).mul(cavity), 1);
+  material.normalNode = transformNormalToView(finalNormal);
   material.roughnessNode = surface.get('roughness').mul(1.05).min(1);
   return material;
 }

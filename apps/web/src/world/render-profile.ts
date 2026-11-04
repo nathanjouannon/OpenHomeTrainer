@@ -29,6 +29,8 @@ export interface TerrainProfile {
   stochastic: boolean;
   /** Triplanar projection of the rock and scree on steep slopes. */
   triplanar: boolean;
+  /** Procedural micro-relief of the ground near the camera (lot 2.8). */
+  microRelief: boolean;
 }
 
 export interface VegetationProfile {
@@ -74,7 +76,7 @@ const PROFILES: Record<Quality, RenderProfile> = {
   low: {
     shadows: null,
     post: { ao: null, bloom: false, grading: true, smaa: false },
-    terrain: { stochastic: false, triplanar: false },
+    terrain: { stochastic: false, triplanar: false, microRelief: false },
     vegetation: {
       trees: 25_000,
       treeTiersM: [20, 100, 380],
@@ -90,7 +92,7 @@ const PROFILES: Record<Quality, RenderProfile> = {
   medium: {
     shadows: { cascades: 3, mapSize: 1024, maxFarM: 160 },
     post: { ao: { resolutionScale: 0.5, samples: 8 }, bloom: true, grading: true, smaa: true },
-    terrain: { stochastic: true, triplanar: true },
+    terrain: { stochastic: true, triplanar: true, microRelief: true },
     vegetation: {
       trees: 60_000,
       treeTiersM: [40, 170, 650],
@@ -106,7 +108,7 @@ const PROFILES: Record<Quality, RenderProfile> = {
   high: {
     shadows: { cascades: 3, mapSize: 2048, maxFarM: 200 },
     post: { ao: { resolutionScale: 0.75, samples: 12 }, bloom: true, grading: true, smaa: true },
-    terrain: { stochastic: true, triplanar: true },
+    terrain: { stochastic: true, triplanar: true, microRelief: true },
     vegetation: {
       trees: 110_000,
       treeTiersM: [65, 250, 950],

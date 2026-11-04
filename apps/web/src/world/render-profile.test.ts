@@ -32,15 +32,39 @@ describe('renderProfile', () => {
   });
 
   it('keeps the costly terrain sampling for medium and high quality', () => {
-    expect(renderProfile('low').terrain).toEqual({ stochastic: false, triplanar: false });
-    expect(renderProfile('medium').terrain).toEqual({ stochastic: true, triplanar: true });
-    expect(renderProfile('high').terrain).toEqual({ stochastic: true, triplanar: true });
+    expect(renderProfile('low').terrain).toEqual({
+      stochastic: false,
+      triplanar: false,
+      microRelief: false,
+    });
+    expect(renderProfile('medium').terrain).toEqual({
+      stochastic: true,
+      triplanar: true,
+      microRelief: true,
+    });
+    expect(renderProfile('high').terrain).toEqual({
+      stochastic: true,
+      triplanar: true,
+      microRelief: true,
+    });
   });
 
   it('drops the stochastic terrain sampling on the WebGL2 fallback', () => {
-    expect(terrainProfile('high', 'webgpu')).toEqual({ stochastic: true, triplanar: true });
-    expect(terrainProfile('high', 'webgl2')).toEqual({ stochastic: false, triplanar: true });
-    expect(terrainProfile('low', 'webgl2')).toEqual({ stochastic: false, triplanar: false });
+    expect(terrainProfile('high', 'webgpu')).toEqual({
+      stochastic: true,
+      triplanar: true,
+      microRelief: true,
+    });
+    expect(terrainProfile('high', 'webgl2')).toEqual({
+      stochastic: false,
+      triplanar: true,
+      microRelief: true,
+    });
+    expect(terrainProfile('low', 'webgl2')).toEqual({
+      stochastic: false,
+      triplanar: false,
+      microRelief: false,
+    });
   });
 
   it('thins the vegetation out with the quality', () => {
