@@ -195,7 +195,7 @@ export class AvatarRig {
     const hip = this.riderPos(leg.thigh, this.v3);
     const l1 = leg.calf.position.length();
     const l2 = leg.foot.position.length();
-    const knee = solveTwoBone(hip, ankle, l1, l2, this.v4.set(side * 0.15, 0, 1), new Vector3());
+    const knee = solveTwoBone(hip, ankle, l1, l2, this.v4.set(-side * 0.12, 0, 1), new Vector3());
     this.aim(leg.thigh, knee.clone().sub(hip));
     this.aim(leg.calf, ankle.clone().sub(knee));
     this.setRiderQuat(
