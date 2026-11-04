@@ -27,7 +27,7 @@ Les versions exactes seront figées au moment de l'initialisation du dépôt (ph
 | Besoin | Choix |
 |---|---|
 | Bluetooth | **Web Bluetooth API** native, sans bibliothèque (parsers maison, testés) |
-| ANT+ (phase 6) | WebUSB + clé ANT+ USB |
+| ANT+ (phase 7) | WebUSB + clé ANT+ USB |
 | Export FIT | **@garmin/fitsdk** (SDK officiel JavaScript) |
 | Parsing GPX/TCX | `@tmcw/togeojson` ou parser maison sur `DOMParser` |
 | Parsing FIT | @garmin/fitsdk (décodeur) |
@@ -47,7 +47,7 @@ Les versions exactes seront figées au moment de l'initialisation du dépôt (ph
 | Fichiers | Disque local, ou **MinIO** (compatible S3, open source) en Docker | FIT, GPX, médias ; même API que S3 si un hébergement arrive un jour |
 | Environnement serveur | **Docker Compose** local | Postgres/PostGIS, Redis, MinIO, API lancés d'une commande |
 | Cache / pub-sub | Redis (ou Valkey) | Sessions, présence multijoueur |
-| Temps réel (phase 5) | **Colyseus** ou `uWebSockets.js` maison | Colyseus fournit rooms, synchronisation d'état et matchmaking ; voir [08](08-multijoueur.md) |
+| Temps réel (phase 6) | **Colyseus** ou `uWebSockets.js` maison | Colyseus fournit rooms, synchronisation d'état et matchmaking ; voir [08](08-multijoueur.md) |
 | Jobs | BullMQ | Upload Strava, pré-calcul des parcours du mode B |
 
 ## 4. Outils hors ligne (construction du monde)

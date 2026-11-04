@@ -7,7 +7,7 @@ HomeRealTrainer/
 ├── apps/
 │   ├── web/                 # Application React (Vite)
 │   ├── api/                 # API Fastify (phase 3)
-│   └── realtime/            # Serveur multijoueur (phase 5)
+│   └── realtime/            # Serveur multijoueur (phase 6)
 ├── packages/
 │   ├── shared/              # Types, constantes, unités, schémas Zod
 │   ├── devices/             # Web Bluetooth : FTMS, CPS, HRS, CSC, contrôleurs ; trainer simulé

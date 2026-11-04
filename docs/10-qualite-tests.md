@@ -23,7 +23,7 @@
 |---|---|---|---|---|---|---|---|---|
 | (ton trainer) | | | | | | | | |
 | Ceinture cardio | | — | — | — | — | — | | |
-| Zwift Click / Play (phase 5) | | — | — | — | — | | | |
+| Zwift Click / Play (phase 6) | | — | — | — | — | | | |
 
 ## 4. Budgets automatisés (CI)
 

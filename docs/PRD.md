@@ -36,7 +36,7 @@ L'application est accessible depuis un simple navigateur, et le relief est fidè
 - Copier un monde, des parcours, des noms ou des visuels de Zwift, MyWhoosh ou d'autres jeux existants. Le monde, la marque et les assets sont **originaux**.
 - Courses e-sport officielles avec contrôle anti-triche avancé.
 - Course à pied (tapis connecté).
-- Matériel propriétaire (direction, freinage, ventilateur intelligent) avant la phase 6.
+- Matériel propriétaire (direction, freinage, ventilateur intelligent) avant la phase 7.
 
 ## 4. Personas
 
@@ -128,9 +128,9 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 
 | ID | Story | Prio | Critères d'acceptation |
 |---|---|---|---|
-| US-30 | Je veux importer un fichier GPX et rouler dessus | M (phase 4) | Parcours affiché sur une carte avec profil ; départ possible |
-| US-31 | Je veux que la pente soit réaliste même si mon GPX est bruité | M (phase 4) | Pente lissée, pas de pics aberrants > 25 % sur une route normale |
-| US-32 | Je veux voir de vraies images de la route pendant que je roule | M (phase 4) | Images affichées en avançant au rythme de la vitesse simulée ; transitions fluides |
+| US-30 | Je veux importer un fichier GPX et rouler dessus | M (phase 5) | Parcours affiché sur une carte avec profil ; départ possible |
+| US-31 | Je veux que la pente soit réaliste même si mon GPX est bruité | M (phase 5) | Pente lissée, pas de pics aberrants > 25 % sur une route normale |
+| US-32 | Je veux voir de vraies images de la route pendant que je roule | M (phase 5) | Images affichées en avançant au rythme de la vitesse simulée ; transitions fluides |
 | US-33 | Je veux tracer un parcours sur une carte | S | Tracé point par point avec routage cyclable automatique |
 | US-34 | Je veux une solution de repli quand aucune image n'existe | S | Bascule sur carte 3D/satellite + profil, sans planter |
 | US-35 | Je veux rouler sur des parcours célèbres préparés | C | Catalogue de cols et de classiques |
@@ -172,9 +172,9 @@ Priorités : **M** = Must (MVP), **S** = Should, **C** = Could, **W** = Won't (p
 | ID | Story | Prio | Critères d'acceptation |
 |---|---|---|---|
 | US-60 | Je veux un compte pour retrouver mes données sur plusieurs appareils | S | Inscription, connexion, synchronisation |
-| US-61 | Je veux voir d'autres cyclistes rouler en même temps que moi | C (phase 5) | Avatars des autres joueurs visibles en temps réel |
-| US-62 | Je veux profiter de l'aspiration derrière d'autres coureurs | C (phase 5) | Gain de vitesse à puissance égale dans le sillage |
-| US-63 | Je veux organiser une sortie de groupe | C (phase 5) | Événement à heure fixe avec point de départ commun |
+| US-61 | Je veux voir d'autres cyclistes rouler en même temps que moi | C (phase 6) | Avatars des autres joueurs visibles en temps réel |
+| US-62 | Je veux profiter de l'aspiration derrière d'autres coureurs | C (phase 6) | Gain de vitesse à puissance égale dans le sillage |
+| US-63 | Je veux organiser une sortie de groupe | C (phase 6) | Événement à heure fixe avec point de départ commun |
 
 ## 7. Exigences fonctionnelles
 

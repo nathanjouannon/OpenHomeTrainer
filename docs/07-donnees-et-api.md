@@ -67,8 +67,8 @@ lap_records (route_id, user_id, best_lap_s, ride_id)          -- meilleur tour p
 segment_efforts (id, segment_id, ride_id, user_id, lap_index, elapsed_s, avg_power, created_at)
 workouts (id, owner_id NULL, name, description, structure_json, source_format)
 integrations (user_id, provider, access_token_enc, refresh_token_enc, expires_at, scopes)
-follows (follower_id, followee_id, created_at)                -- phase 5
-events (id, world_id, route_id, starts_at, title, ...)        -- phase 5
+follows (follower_id, followee_id, created_at)                -- phase 6
+events (id, world_id, route_id, starts_at, title, ...)        -- phase 6
 ```
 
 Les **séries temporelles** ne vont pas dans des lignes SQL (14 400 lignes par sortie de 4 h). Elles sont stockées en fichier (FIT + JSON/binaire compressé) sur le stockage local (disque ou MinIO), avec seulement les agrégats en base.

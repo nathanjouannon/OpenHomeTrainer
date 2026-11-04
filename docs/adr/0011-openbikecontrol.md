@@ -10,10 +10,10 @@ On veut un outil « type BikeControl » : des contrôleurs physiques (Zwift Clic
 ## Décision
 - HomeRealTrainer **implémente OpenBikeControl** côté application, dans `@hrt/controls` :
   - Bluetooth (phase 3) : Web Bluetooth, service `d273f680-d548-419d-b9d1-fa0472345229`, notifications Button State, écriture App Information et Haptic Feedback ;
-  - réseau (phase 4) : relais local Node (mDNS + TCP → WebSocket), puisque le navigateur ne peut pas faire de mDNS ni de TCP brut.
+  - réseau (phase 5) : relais local Node (mDNS + TCP → WebSocket), puisque le navigateur ne peut pas faire de mDNS ni de TCP brut.
 - Les contrôleurs propriétaires sont gérés **par BikeControl côté utilisateur** (passerelle optionnelle vers OpenBikeControl). Le projet n'en dépend pas et ne l'achète pas (budget zéro).
 - **Aucun code de BikeControl** n'est copié ni adapté. Seule la spécification MIT sert de référence.
-- L'implémentation directe d'un protocole propriétaire reste un repli éventuel (phase 6).
+- L'implémentation directe d'un protocole propriétaire reste un repli éventuel (phase 7).
 
 ## Conséquences
 - (+) Un seul protocole simple et documenté couvre le matériel compatible OpenBikeControl et, via BikeControl, la plupart des contrôleurs du marché.

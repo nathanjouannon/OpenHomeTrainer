@@ -11,9 +11,10 @@ Phase 0  Fondations & spikes techniques        ██                 1–2 sem.
 Phase 1  MVP solo — Monde virtuel              █████████          7–9 sem.   ✅ jalon M1 : MVP (clôturée le 2026-11-03)
 Phase 2  Rendu réaliste                        ███████            5–7 sem.   ← jalon M2 : monde crédible
 Phase 3  Entraînement, vitesses virt., comptes █████████          6–9 sem.   ← jalon M3 : bêta privée
-Phase 4  Mode monde réel (bêta)                █████████          6–9 sem.   ← jalon M4 : mode B
-Phase 5  Multijoueur & social                  ████████           6–8 sem.   ← jalon M5 : bêta publique
-Phase 6  Contenu, polish, plateformes          continu
+Phase 4  Mondes réels (cols alpins)            ████████████       8–12 sem.  ← jalon M4 : monde fidèle
+Phase 5  Mode monde réel (bêta)                █████████          6–9 sem.   ← jalon M5 : mode B
+Phase 6  Multijoueur & social                  ████████           6–8 sem.   ← jalon M6 : bêta publique
+Phase 7  Contenu, polish, plateformes          continu
 ```
 
 Principe directeur : **chaque phase se termine par quelque chose de jouable sur un vrai home trainer.**
@@ -141,45 +142,118 @@ Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de d�
 
 ---
 
-## Phase 4 — Mode monde réel, bêta (6–9 sem.) → **Jalon M4**
+## Phase 4 — Mondes réels reconstitués (8–12 sem.) → **Jalon M4 : un col alpin fidèle**
+
+**Objectif** : ajouter au monde fictif « Val de Vérane » des **mondes fidèles à la réalité**, reconstruits à partir de données ouvertes (satellite, LiDAR, topographie, occupation du sol, OpenStreetMap…), en commençant par les **grands cols des Alpes**. Le coureur choisit d'abord **son monde**, puis **son parcours dans ce monde**. Un col se roule en **aller-retour enchaîné** : la séance ne s'arrête jamais en haut. Budget 0 € : uniquement des données ouvertes, traitées et stockées en local ([ADR 0010](adr/0010-budget-zero-execution-locale.md)).
+
+**Différence avec la phase 5 (mode monde réel)** : ici le monde est **modélisé en 3D** à partir de données géographiques (on peut le parcourir aussi longtemps qu'on veut, avec ombres, végétation et météo cohérentes) ; en phase 5 on roule sur n'importe quel GPX avec des **images réelles** (Mapillary, etc.). Le pipeline de données de la phase 4 sert de base au repli 3D de la phase 5.
+
+### Sources de données visées
+
+À valider au spike 4.0 (licences exactes, formats, volumes). Tout est gratuit ; les volumes (LiDAR en particulier) restent en cache local, hors dépôt git.
+
+| Besoin | Sources candidates |
+|---|---|
+| Relief fin (route et abords) | **IGN LiDAR HD** (MNT/MNS 0,5 à 1 m, France), RGE ALTI ; **swisstopo swissALTI3D** et swissSURFACE3D (Suisse) ; LiDAR régionaux italiens quand ils sont ouverts, sinon MNT 10 m |
+| Relief lointain et horizon | **Copernicus GLO-30** (30 m) pour les sommets visibles jusqu'à ~100 km |
+| Couleurs du sol | **Orthophotos** IGN BD ORTHO (20 cm), swisstopo SWISSIMAGE (10 cm) ; **Sentinel-2** (10 m, repli et séries par saison) |
+| Occupation du sol | IGN OCS GE et BD Forêt, CORINE Land Cover, ESA WorldCover 10 m : forêt, prairie, rocher, éboulis, névé, eau, bâti |
+| Routes et abords | **OpenStreetMap** (tracé, largeur, revêtement, lacets, ponts, tunnels, galeries, murs, glissières, bâtiments, cours d'eau) ; IGN BD TOPO (bâtiments avec hauteur, hydrographie) |
+| Végétation | Modèle de hauteur de canopée dérivé du LiDAR (MNS − MNT) : arbres placés à leur vraie position et à leur vraie hauteur ; essence selon l'altitude et l'occupation du sol (mélèzes, épicéas, alpages) |
+| Signalétique et ambiance | Mapillary (CC-BY-SA, référence de panneaux, bornes et couleur de l'asphalte) ; position du soleil calculée selon la date, l'heure et les coordonnées |
+
+### Choix du monde, puis du parcours
+
+```
+Écran 1 : choix du monde         Écran 2 : choix du parcours dans le monde
+┌──────────┐ ┌──────────┐        Alpe d'Huez
+│ Val de   │ │ Alpe     │  ──▶     ├─ Montée (aller-retour)   13,8 km · 8,1 % · +1 130 m
+│ Vérane   │ │ d'Huez   │          ├─ Variante …
+│ (fictif) │ │ (réel)   │          └─ …
+└──────────┘ └──────────┘
+```
+
+Les mondes se distinguent par une vignette, une description, la nature des données (« fictif » ou « reconstitué : LiDAR IGN + orthophoto 2023 ») et leurs attributions. L'historique, le `.fit`, les records et plus tard les fantômes et le multijoueur retiennent `worldId` **et** `routeId`.
+
+### Parcours en col : aller-retour enchaîné
+
+Les mondes de montagne proposent des parcours de type **« col »** (aller-retour). La séance ne s'arrête pas en haut : on repart du début, comme sur une boucle.
+
+1. **Montée** : le coureur pédale normalement jusqu'au sommet (physique et pente réelles du profil).
+2. **Demi-tour au sommet** : l'avatar fait demi-tour (animation courte, caméra qui pivote) ; la pente envoyée au trainer glisse en douceur vers la descente.
+3. **Descente** : le coureur redescend le col **par la route dans l'autre sens**, sur l'autre voie, **en accéléré**. Pour la résistance et le temps, **c'est comme si on pédalait dans une descente d'environ 6 %** : pente envoyée au trainer et calcul du temps de descente à partir de ce taux fixe (réglable), et non de la vraie pente des lacets. Les règles d'atténuation de la descente du lot 1.2 s'appliquent.
+4. **Demi-tour en bas** : nouveau demi-tour, la pente remonte progressivement vers celle du bas du col.
+5. **On recommence** : nouvelle montée, comptée comme un tour ; aucun arrêt ni écran intermédiaire. Le raccord est invisible pour la physique (distance totale continue) ; seul le moteur de route change de phase.
+
+Cela étend la règle « uniquement des boucles » de l'[ADR 0009](adr/0009-boucles-uniquement.md) : un col est une **boucle dans le temps** (montée → demi-tour → descente → demi-tour). Un nouvel ADR 0012 documentera la décision.
+
+Points à trancher avant le lot 4.8 (voir [13](13-questions-ouvertes.md), Q18 à Q20) : durée et vitesse affichée de la descente, ce que l'on enregistre dans le `.fit` pendant la descente, ce que mesure un « tour ».
+
+### Lots
+
+| Lot | Contenu |
+|---|---|
+| 4.0 **Spike fidélité** (1 à 2 sem.) | Reconstruire **un seul tronçon de ~3 km** d'un col (candidats : Alpe d'Huez, Galibier, Stelvio, Izoard, Madeleine) avec LiDAR + orthophoto + OSM, et le comparer à des photos et à Mapillary. Mesurer volumes de données, temps de construction, FPS, taille sur disque. Vérifier licences et attributions de chaque source. **Décision : ADR 0012** (mondes reconstitués, parcours en col, extension de l'ADR 0009). |
+| 4.1 **Catalogue de mondes** | Manifeste de monde (`content/worlds/index.json` : id, nom, vignette, données, attributions, parcours) ; chargement d'un seul monde à la fois (mémoire, streaming) ; écran « choix du monde » puis « choix du parcours » ; `worldId` partout (historique, `.fit`, records, réglages). « Val de Vérane » devient le premier monde du catalogue, sans régression. |
+| 4.2 **Pipeline de données v2** (`tools/world-builder`) | Téléchargement avec cache local des sources, reprojection et découpe (GDAL), génération des tuiles ; commande reproductible `pnpm build-world <id>` ; fichier de provenance (source, date, licence) par monde ; attributions affichées dans l'application et dans [CREDITS.md](../CREDITS.md). **Monde en couloir** : les cols font 15 à 25 km de long pour 1 000 à 2 000 m de dénivelé, pas 10 × 10 km ; streaming des tuiles le long du parcours, au lieu d'un carré. |
+| 4.3 **Relief LiDAR** | Heightmap multi-résolution (0,5 à 1 m près de la route, 5 à 10 m ensuite, 30 m pour l'horizon) ; **la route réelle est déjà dans le MNT** : on ne l'aplanit plus (`flattenAlongRoutes`), on la suit, ce qui supprime à la source les routes qui flottent ou qui ne suivent pas le terrain ([16](16-retours-phase-2.md)). Raccord entre résolutions sans fissure. |
+| 4.4 **Route réelle** | Tracé issu d'OSM ou d'un GPX, recalé sur la surface LiDAR (altitude, largeur, cap) ; lacets, épingles, ponts, tunnels et galeries paravalanches ; profil recalculé et lissé pour la physique ; revêtement et largeur selon les tags ; accotements et glissières d'après OSM et le relief. |
+| 4.5 **Sol d'après les images satellite** | Orthophoto comme couleur de base du terrain, mélangée aux matières PBR du lot 2.4 (le satellite à distance, le PBR de près) ; masques d'occupation du sol pour choisir les matières (herbe, rocher, éboulis, névé, forêt, eau) ; correction des ombres cuites dans l'orthophoto (elles contredisent le soleil dynamique). |
+| 4.6 **Végétation et bâti réels** | Arbres placés d'après la canopée LiDAR (position, hauteur, essence selon l'altitude) ; bâtiments depuis BD TOPO/OSM (emprise, hauteur, couleur de toit tirée de l'orthophoto) ; chalets, refuges, hameaux, murets, bornes kilométriques avec pente (« 8,5 % »), panneaux de lacets numérotés. |
+| 4.7 **Lumière, saison et horizon fidèles** | Position du soleil selon la date, l'heure et les coordonnées ; **vrai horizon** (sommets lointains depuis le MNT de 30 m) ; ligne de neige et névés selon la saison choisie ; teintes de l'orthophoto cohérentes avec la lumière. Météo réelle (Open-Meteo, gratuit) laissée à la phase 7. |
+| 4.8 **Parcours en col** | Type de parcours `outAndBack` dans le moteur de route (machine à états : montée, demi-tour haut, descente, demi-tour bas) ; descente virtuelle à pente fixe réglable (~6 %) avec transitions de pente lissées ; descente sur la voie opposée avec circulation dans le bon sens ; animation de demi-tour de l'avatar et de la caméra ; HUD (profil de la montée seule, phase en cours, **temps de montée**, meilleure montée) ; `.fit` avec un lap par montée et un lap pour la descente. |
+| 4.9 **Fidélité vérifiée** | Test automatique par parcours : distance, dénivelé positif et pente moyenne par kilomètre comparés à une référence publiée (col, segment Strava ou tracé officiel) ; comparaison visuelle sur une vingtaine de points de vue fixes (banc du lot 2.0) face à des photos ; budgets de [05 §4](05-monde-virtuel.md) tenus sur un monde réel complet. |
+| 4.10 **Premiers mondes** | 2 à 3 cols alpins complets (choix à faire : voir Q18, par exemple Alpe d'Huez, Galibier avec le Télégraphe, Stelvio), chacun avec sa montée et, si le relief s'y prête, une variante ; vignettes, descriptions, attributions. |
+
+**Critères de sortie**
+
+- L'écran de sélection propose le monde puis le parcours ; « Val de Vérane » fonctionne comme avant.
+- Sur chaque col livré, distance à ±1 %, dénivelé à ±2 %, pente moyenne de chaque kilomètre à ±0,5 point de la référence.
+- Ressemblance validée à l'œil sur au moins 20 points de vue comparés à des photos : lacets, tunnels, ponts, villages, lisière de forêt, crêtes à l'horizon.
+- Séance de 2 h en **montées et descentes enchaînées**, sans à-coup visible ni de résistance aux deux demi-tours, sans chute de FPS sous 30 ; ≥ 60 FPS en qualité moyenne sur la config de référence.
+- Chaque monde se reconstruit en une commande à partir de sources ouvertes, avec licences et attributions visibles ; **0 € dépensé** ; taille sur disque d'un monde raisonnable (cible < 2 Go, à confirmer au spike 4.0).
+
+---
+
+## Phase 5 — Mode monde réel, bêta (6–9 sem.) → **Jalon M5**
 
 **Objectif** : rouler sur n'importe quel parcours réel, avec des images réelles et le vrai relief. Voir [06](06-monde-reel.md).
 
 | Lot | Contenu |
 |---|---|
-| 4.0 **Spike imagerie** (1 sem.) | Prototype comparatif Mapillary (gratuit), Google Street View (seulement si un quota plafonné garantit 0 €) et vidéo GPX sur 3 parcours tests ; couverture, fluidité, licences, risque de facturation. **Décision finale de l'[ADR 0007](adr/0007-imagerie-monde-reel.md).** |
-| 4.1 Import | GPX, TCX, FIT ; nettoyage (doublons, sauts GPS). |
-| 4.2 Altimétrie | Correction de l'altitude par MNT, lissage, calcul de pente robuste, détection des montées. |
-| 4.3 Tracé | Tracé sur carte avec routage vélo (BRouter / GraphHopper / OSRM). |
-| 4.4 Lecteur d'images | Pré-chargement, synchronisation avec la vitesse, transitions (fondu, léger zoom), choix de l'image selon le cap. |
-| 4.5 Repli | Vue carte 3D ou satellite lorsque la couverture en images manque. |
-| 4.6 Parcours préparés | 5 à 10 montées célèbres pré-calculées et vérifiées. |
-| 4.7 OpenBikeControl réseau | Relais local dans `apps/api` : découverte mDNS `_openbikecontrol._tcp`, connexion TCP, retransmission en WebSocket vers le navigateur. |
+| 5.0 **Spike imagerie** (1 sem.) | Prototype comparatif Mapillary (gratuit), Google Street View (seulement si un quota plafonné garantit 0 €) et vidéo GPX sur 3 parcours tests ; couverture, fluidité, licences, risque de facturation. **Décision finale de l'[ADR 0007](adr/0007-imagerie-monde-reel.md).** |
+| 5.1 Import | GPX, TCX, FIT ; nettoyage (doublons, sauts GPS). |
+| 5.2 Altimétrie | Correction de l'altitude par MNT, lissage, calcul de pente robuste, détection des montées. |
+| 5.3 Tracé | Tracé sur carte avec routage vélo (BRouter / GraphHopper / OSRM). |
+| 5.4 Lecteur d'images | Pré-chargement, synchronisation avec la vitesse, transitions (fondu, léger zoom), choix de l'image selon le cap. |
+| 5.5 Repli | Vue carte 3D ou satellite lorsque la couverture en images manque. |
+| 5.6 Parcours préparés | 5 à 10 montées célèbres pré-calculées et vérifiées. |
+| 5.7 OpenBikeControl réseau | Relais local dans `apps/api` : découverte mDNS `_openbikecontrol._tcp`, connexion TCP, retransmission en WebSocket vers le navigateur. |
 
 **Critères de sortie** : un GPX quelconque d'Europe de l'Ouest est jouable en moins de 60 s, avec une pente plausible et au moins 80 % du parcours couvert en images, ou un repli propre.
 
 ---
 
-## Phase 5 — Multijoueur et social (6–8 sem.) → **Jalon M5 : bêta publique**
+## Phase 6 — Multijoueur et social (6–8 sem.) → **Jalon M6 : bêta publique**
 
 Voir [08](08-multijoueur.md).
 
 | Lot | Contenu |
 |---|---|
-| 5.1 Serveur temps réel | Rooms par monde, diffusion des positions à 2–4 Hz, interpolation côté client. Testé en local et sur le réseau local (plusieurs navigateurs ou machines) ; le multijoueur en ligne suppose un hébergement public, à décider plus tard. |
-| 5.2 Drafting | Réduction de la traînée derrière les autres coureurs. |
-| 5.3 Présence | Liste des coureurs proches, abonnements, « ride ons ». |
-| 5.4 Événements | Sorties de groupe planifiées, départ groupé. |
-| 5.5 Bots | Bots « pacers » à puissance fixe pour animer le monde quand il y a peu de monde. |
-| 5.6 Anti-triche de base | Contrôles de plausibilité (W/kg, sauts de position). |
-| 5.7 Exploitation | Logs locaux, sauvegardes de la base locale ; CGU et politique de confidentialité **seulement si** un hébergement public est décidé. |
-| 5.8 Vitesses virtuelles v2 | Choix final de la stratégie de vitesses par défaut ([ADR 0008](adr/0008-vitesses-virtuelles.md)) ; direction proportionnelle OpenBikeControl (`0x1B`) pour changer de boucle aux jonctions. |
+| 6.1 Serveur temps réel | Rooms par monde, diffusion des positions à 2–4 Hz, interpolation côté client. Testé en local et sur le réseau local (plusieurs navigateurs ou machines) ; le multijoueur en ligne suppose un hébergement public, à décider plus tard. |
+| 6.2 Drafting | Réduction de la traînée derrière les autres coureurs. |
+| 6.3 Présence | Liste des coureurs proches, abonnements, « ride ons ». |
+| 6.4 Événements | Sorties de groupe planifiées, départ groupé. |
+| 6.5 Bots | Bots « pacers » à puissance fixe pour animer le monde quand il y a peu de monde. |
+| 6.6 Anti-triche de base | Contrôles de plausibilité (W/kg, sauts de position). |
+| 6.7 Exploitation | Logs locaux, sauvegardes de la base locale ; CGU et politique de confidentialité **seulement si** un hébergement public est décidé. |
+| 6.8 Vitesses virtuelles v2 | Choix final de la stratégie de vitesses par défaut ([ADR 0008](adr/0008-vitesses-virtuelles.md)) ; direction proportionnelle OpenBikeControl (`0x1B`) pour changer de boucle aux jonctions. |
 
 ---
 
-## Phase 6 — Contenu, polish et plateformes (continu)
+## Phase 7 — Contenu, polish et plateformes (continu)
 
-- Deuxième monde (autre biome : montagne, côte, désert…).
+- Mondes supplémentaires hors Alpes (Pyrénées, côte, désert…) avec le pipeline de la phase 4 ; météo réelle (Open-Meteo) dans les mondes reconstitués.
 - Météo et cycle jour/nuit, saisons.
 - Vidéos réelles géolocalisées dans le mode B.
 - ANT+ via WebUSB, support des trainers « legacy ».
@@ -198,8 +272,9 @@ Voir [08](08-multijoueur.md).
 | **M1** | **MVP monde virtuel jouable et exportable, avec vitesses virtuelles au clavier** | S+11 ✅ (2026-11-03) |
 | M2 | Rendu réaliste : lumière, ombres, matières PBR, végétation, WebGPU | S+18 |
 | M3 | Bêta privée avec ERG, commandes (smartphone, OpenBikeControl, Zwift Click si possible), comptes, Strava | S+27 |
-| M4 | Mode monde réel en bêta | S+36 |
-| M5 | Multijoueur (réseau local tant qu'il n'y a pas d'hébergement) | S+44 |
+| **M4** | **Premiers mondes reconstitués (cols alpins) : choix monde → parcours, aller-retour enchaîné** | S+39 |
+| M5 | Mode monde réel en bêta | S+48 |
+| M6 | Multijoueur (réseau local tant qu'il n'y a pas d'hébergement) | S+56 |
 
 ## Ce qu'on prépare tôt pour ne pas le payer plus tard
 
@@ -210,3 +285,4 @@ Voir [08](08-multijoueur.md).
 - **Toutes les actions de sortie passent par un dispatcher d'actions** dès la phase 1 (même pour le clavier), pour que le hub de commandes et les vitesses virtuelles de la phase 3 s'y branchent sans refonte.
 - **`TrainerController` qui compose plusieurs couches** (pente ressentie → difficulté → vitesses virtuelles → bornes du trainer), pour ajouter les vitesses virtuelles sans toucher à la physique.
 - **Shaders et post-traitement en TSL** (phase 2), pour qu'un même code tourne en WebGPU et en repli WebGL2.
+- **`worldId` et `routeId` dans tous les modèles** (historique, `.fit`, records, fantômes, multijoueur) dès la phase 3, pour qu'ajouter des mondes en phase 4 ne demande aucune migration.

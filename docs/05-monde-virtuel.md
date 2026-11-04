@@ -142,7 +142,7 @@ Ajustement automatique de qualité (lot 2.9, `auto-quality.ts`, réglage « Auto
 
 ## 8. Ambiance
 
-- Heure du jour réglable ; cycle jour/nuit et météo en phase 6.
+- Heure du jour réglable ; cycle jour/nuit et météo en phase 7.
 - Sons : vent proportionnel à la vitesse, roue libre, chaîne, ambiance (oiseaux, ruisseau), foule sur les sommets plus tard.
 - Éléments vivants (phase 3+) : autres cyclistes (bots), animaux, voitures garées, banderoles de segments.
 

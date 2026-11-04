@@ -30,9 +30,9 @@ Le budget du projet est de **0 €**, en dehors de l'outil d'IA de développemen
 
 ## Conséquences
 - (+) Aucun risque financier ; l'architecture local-first ([ADR 0005](0005-local-first-mvp.md)) s'y prête naturellement.
-- (−) Le **multijoueur en ligne** est impossible sans hébergement : la phase 5 est développée et testée en réseau local. L'ouverture en ligne demandera une nouvelle décision (offres gratuites à évaluer).
+- (−) Le **multijoueur en ligne** est impossible sans hébergement : la phase 6 est développée et testée en réseau local. L'ouverture en ligne demandera une nouvelle décision (offres gratuites à évaluer).
 - (−) Pas de monitoring SaaS ni de déploiement : diagnostics via journaux locaux.
 - (−) Le rendu du monde dépend des assets gratuits : on vise un rendu « réaliste stylisé » cohérent plutôt que photoréaliste.
 - (−) Le mode B repose surtout sur Mapillary, dont la couverture est inégale ; Street View n'est qu'un complément plafonné, ou n'est pas utilisé.
-- (−) Les applications mobiles natives (phase 6) impliquent des frais de compte développeur (Apple, Google) : hors budget tant que cette ADR s'applique.
+- (−) Les applications mobiles natives (phase 7) impliquent des frais de compte développeur (Apple, Google) : hors budget tant que cette ADR s'applique.
 - Toute nouvelle dépendance externe est ajoutée à l'inventaire ci-dessus avec son coût.

@@ -104,7 +104,7 @@ P_cible     = clamp(lissé(P_cible), P_min_trainer, P_max_trainer)
 
 Si la cadence tombe à 0, la consigne descend progressivement : jamais de saut brutal.
 
-**S4 — vitesses virtuelles natives du trainer** (Zwift Hub, trainers « Zwift Cog » et firmwares compatibles) : le trainer gère lui-même le rapport, ce qui donne le meilleur ressenti. Le protocole est propriétaire et non documenté publiquement : **étude seulement en phase 6**, sous réserve des aspects juridiques ([11](11-legal-licences.md)).
+**S4 — vitesses virtuelles natives du trainer** (Zwift Hub, trainers « Zwift Cog » et firmwares compatibles) : le trainer gère lui-même le rapport, ce qui donne le meilleur ressenti. Le protocole est propriétaire et non documenté publiquement : **étude seulement en phase 7**, sous réserve des aspects juridiques ([11](11-legal-licences.md)).
 
 Le choix final de la stratégie par défaut se fera après des essais sur au moins deux trainers ([ADR 0008](adr/0008-vitesses-virtuelles.md)).
 
@@ -121,7 +121,7 @@ Le choix final de la stratégie par défaut se fera après des essais sur au moi
 
 - HUD : indicateur de rapport (ex. `50 × 17` ou `14 / 24`), barre de position dans la cassette, cadence conseillée optionnelle.
 - Son discret de « clic » à chaque passage, désactivable.
-- Animation du dérailleur sur l'avatar (phase 6, cosmétique).
+- Animation du dérailleur sur l'avatar (phase 7, cosmétique).
 - Enregistrement du rapport dans la sortie (champ développeur FIT ou champ `gear` interne) pour l'analyse.
 
 ## 4. Hub de commandes (équivalent BikeControl intégré)
@@ -155,7 +155,7 @@ Le choix final de la stratégie par défaut se fera après des essais sur au moi
 | Navigation | Gauche / tout droit / droite à la prochaine intersection, demi-tour, direction analogique (Sterzo, joystick) |
 | Caméra | Vue suivante / précédente, zoom |
 | Sortie | Pause, reprise, tour manuel (lap), fin de sortie |
-| Social (phase 5) | Ride on, emote, power-up |
+| Social (phase 6) | Ride on, emote, power-up |
 | Interface | Masquer/afficher le HUD, muet, plein écran |
 
 ### 4.3 Sources d'entrée supportées
@@ -215,7 +215,7 @@ Le choix final de la stratégie par défaut se fera après des essais sur au moi
 | `0x3B` | Changer de route | Changement de boucle |
 | `0x3C` | Régulateur (cruise control) | Option : ERG à la puissance courante |
 | `0x10`–`0x17` | Navigation dans les menus | Navigation de l'interface sans souris |
-| `0x20`, `0x24` | Emote, capture d'écran | Social (phase 5), capture |
+| `0x20`, `0x24` | Emote, capture d'écran | Social (phase 6), capture |
 
 Les boutons non standard restent réassignables dans l'écran de mapping. Les spécificités (vues `0x40`–`0x4F`, appuis répétés sur `0x30`/`0x31`) sont reprises de la spécification au moment de l'implémentation.
 

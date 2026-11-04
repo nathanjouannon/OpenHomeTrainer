@@ -32,7 +32,7 @@ Toutes les attributions sont affichées dans l'application (écran « Crédits �
 ## 4. Protocoles matériels
 
 - FTMS, CPS, HRS et CSCS sont des **spécifications publiques** du Bluetooth SIG : leur implémentation côté application ne pose pas de difficulté. Une qualification Bluetooth concerne les produits matériels, pas une application web utilisant le Bluetooth de l'OS.
-- ANT+ : profils accessibles après inscription gratuite comme « ANT+ Adopter » ; conditions à relire avant la phase 6.
+- ANT+ : profils accessibles après inscription gratuite comme « ANT+ Adopter » ; conditions à relire avant la phase 7.
 - **Protocoles propriétaires** (Zwift Click/Play/Ride, Elite Sterzo, Wahoo, Shimano Di2, vitesses virtuelles natives des trainers) : leur rétro-ingénierie à des fins d'**interopérabilité** est encadrée en droit européen (directive 2009/24/CE, art. 6), mais certains protocoles incluent un chiffrement ou une authentification dont le contournement peut poser problème, et les CGU des fabricants peuvent l'interdire. ⚠️ Avant de publier ces intégrations :
   - vérifier les CGU des fabricants et l'existence d'un programme partenaire ou SDK officiel ;
   - **BikeControl** (vérifié le 2026-11-02) : code public mais **non open source**. Licence non commerciale propriétaire pour les versions récentes (usage personnel, révocable, usage commercial interdit) ; GPL-3.0 pour les versions antérieures au tag `gpl3`. **Aucune copie de son code** dans HomeRealTrainer ;

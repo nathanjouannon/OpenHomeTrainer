@@ -21,3 +21,4 @@ Demande produit : pouvoir faire des **séances longues sans relancer de sortie**
 - (−) Conception des boucles plus contraignante (D+ = D−, raccord propre, une montée implique une descente dans le même tour).
 - (−) Il faut un lissage circulaire du profil et des tests de continuité au raccord.
 - Évolution prévue (US-16) : jonctions entre boucles pour changer de boucle sans s'arrêter.
+- Évolution prévue (phase 4) : les **parcours en col** des mondes reconstitués sont des boucles *dans le temps* (montée, demi-tour, descente virtuelle à ~6 %, demi-tour), sans arrêt ni écran intermédiaire. Voir la [roadmap](../ROADMAP.md).

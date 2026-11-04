@@ -16,7 +16,7 @@
 │                            │  recorder    │ ──▶ IndexedDB ──▶ export .fit                                     │
 │                            └──────────────┘                                                                  │
 └────────────────────────────────────│─────────────────────────────────────────────────────────────────────────┘
-                                     │ HTTPS (phase 3+)              WebSocket (phase 5)
+                                     │ HTTPS (phase 3+)              WebSocket (phase 6)
                               ┌──────▼──────┐                     ┌──────────────────┐
                               │  API REST   │                     │ Serveur temps    │
                               │  (Fastify)  │                     │ réel (rooms)     │
@@ -50,7 +50,7 @@
 | `@hrt/imagery` | Mode B : interface `ImageryProvider` et implémentations | shared | Partiellement |
 | `apps/web` | Application React : écrans, HUD, orchestration | tous | — |
 | `apps/api` (phase 3) | API REST, auth, stockage | shared | Oui |
-| `apps/realtime` (phase 5) | Serveur WebSocket multijoueur | shared | Oui |
+| `apps/realtime` (phase 6) | Serveur WebSocket multijoueur | shared | Oui |
 | `tools/world-builder` | Scripts hors ligne : MNT → heightmap, OSM → routes et végétation, compression des assets | — | Oui |
 
 Règle de dépendance : `physics`, `route-engine`, `workouts` et `recorder` sont du **TypeScript pur**, sans DOM, sans Three.js et sans React. Ils sont testés en isolation et réutilisables côté serveur (validation, anti-triche).

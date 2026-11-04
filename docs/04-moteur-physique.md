@@ -54,7 +54,7 @@ Régime stabilisé, `m = 83 kg`, `CdA = 0,32`, `Crr = 0,004`, `η = 0,97`, `ρ =
 
 Ces valeurs doivent être recalculées précisément par un solveur de référence (bisection sur l'équation stationnaire) dans les tests. La tolérance de l'intégrateur en régime établi est de ±1 %.
 
-## 5. Aspiration (drafting) — phase 5
+## 5. Aspiration (drafting) — phase 6
 
 Modèle simplifié, à calibrer :
 
