@@ -14,7 +14,7 @@ export const HIP_Z = -0.27;
 /** Hip joints of the avatar, seated: higher and further forward than `HIP_*` (the pelvis rests on the saddle, not in it). */
 export const SEAT = { y: 1.02, z: -0.22 } as const;
 /** Where the wrists rest on the hoods (per side, multiplied by ±1 on X). */
-export const WRIST = new Vector3(0.2, 0.955, 0.53);
+export const WRIST = new Vector3(0.22, 0.995, 0.51);
 /** Direction of the hands (wrist → knuckles) on the hoods. */
 export const HAND_DIR = new Vector3(0, -0.28, 1).normalize();
 
