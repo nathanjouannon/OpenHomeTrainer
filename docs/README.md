@@ -34,6 +34,7 @@ Cette documentation regroupe tout ce qu'il faut décider et savoir **avant** de 
 | [13-questions-ouvertes.md](13-questions-ouvertes.md) | Décisions en attente et hypothèses par défaut |
 | [14-conventions-dev.md](14-conventions-dev.md) | Structure du dépôt, conventions de code, CI, Definition of Done |
 | [15-vitesses-virtuelles-et-commandes.md](15-vitesses-virtuelles-et-commandes.md) | Vitesses virtuelles et hub de commandes physiques (équivalent BikeControl intégré) |
+| [16-retours-phase-2.md](16-retours-phase-2.md) | Retours faits en roulant pendant la phase 2 (coordonnées, causes trouvées, pistes) : lot 2.13 |
 | [glossaire.md](glossaire.md) | Vocabulaire vélo et technique |
 | [adr/](adr/) | Architecture Decision Records : une décision structurante par fichier |
 

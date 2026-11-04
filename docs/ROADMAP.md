@@ -71,19 +71,19 @@ La phase est clôturée : tous les lots sont livrés. Les critères qui ne peuve
 
 | Lot | État | Reporté |
 |---|---|---|
-| 1.1 Appareils | ✅ Trainer FTMS, ceinture cardio, capteur de puissance, reconnexion automatique, mémorisation, appareils simulés | Validation sur le vrai trainer → lot 2.11 |
+| 1.1 Appareils | ✅ Trainer FTMS, ceinture cardio, capteur de puissance, reconnexion automatique, mémorisation, appareils simulés | Validation sur le vrai trainer → lot 3.13 |
 | 1.2 Physique | ✅ Difficulté réglable, descente atténuée, lissage de la pente envoyée, envoi ≥ 1×/s | — |
 | 1.3 Route engine | ✅ Format de route, boucles, raccord continu, comptage des tours | — |
 | 1.4 Monde v1 | ✅ « Val de Vérane » 10 × 10 km, 3 boucles, terrain par tuiles avec LOD, lac, forêts, ciel ; 5 villages (maisons, trottoirs, lampadaires, panneaux, piétons, voitures garées), fermes, balises, voitures en sens inverse, accotements | Textures PBR, ombres, herbe 3D, eau réfléchissante, glissières en montagne → phase 2 |
 | 1.5 Avatar | ✅ Cycliste procédural (pédalage par IK à la cadence, danseuse), cintre route avec cocottes ; 4 caméras dont POV (par défaut, avec ses propres bras) | Modèle glTF (MakeHuman) → lot 2.10 ; tenues → phase 3 |
 | 1.6 HUD | ✅ Tuiles, profil du tour, mini-carte, tours, rapport, alertes | Tuiles configurables, modes daltoniens → lot 3.12 |
-| 1.7 Enregistrement | ✅ 1 Hz, sauvegarde toutes les 10 s, reprise après plantage, `.fit` relu par le SDK Garmin | Import réel sur Strava et Garmin Connect → lot 2.11 |
+| 1.7 Enregistrement | ✅ 1 Hz, sauvegarde toutes les 10 s, reprise après plantage, `.fit` relu par le SDK Garmin | Import réel sur Strava et Garmin Connect → lot 3.13 |
 | 1.8 Profil et réglages | ✅ Profil, unités, difficulté, qualité, transmission, FR/EN | — |
 | 1.9 Historique | ✅ Liste, récapitulatif, tableau des tours, export, suppression | — |
 | 1.10 Exécution locale | ✅ `pnpm start` | — |
-| 1.11 Vitesses virtuelles | ✅ Plateaux 50/34 et cassette de 10 à 13 vitesses au choix ; `A`/`Z` un pignon, `Q`/`S` le plateau, changement de plateau automatique en bout de cassette ; stratégie S1 ; rapport « 50×21 » dans le HUD | Réglage du gain S1 sur le vrai trainer → lot 2.11 |
+| 1.11 Vitesses virtuelles | ✅ Plateaux 50/34 et cassette de 10 à 13 vitesses au choix ; `A`/`Z` un pignon, `Q`/`S` le plateau, changement de plateau automatique en bout de cassette ; stratégie S1 ; rapport « 50×21 » dans le HUD | Réglage du gain S1 sur le vrai trainer → lot 3.13 |
 
-Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de dérive). Restent reportés au lot 2.11 : sortie de 3 h sur la boucle du col (FPS ≥ 30 sur la config de référence), `.fit` accepté par Strava et Garmin Connect, test sur 2 trainers, tests E2E Playwright.
+Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de dérive). Restent reportés au lot 3.13 : sortie de 3 h sur la boucle du col (FPS ≥ 30 sur la config de référence), `.fit` accepté par Strava et Garmin Connect, test sur 2 trainers, tests E2E Playwright.
 
 ---
 
@@ -106,15 +106,16 @@ Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de d�
 | 2.8 Relief proche ✅ | Micro-relief procédural ajouté près de la route pour casser l'aspect lisse de la grille de 10 m. **Livré le 2026-11-04** : dans le shader du terrain (géométrie, physique et route inchangées), bosses à trois échelles en perturbation de normale et creux assombris, fondus avec la distance ; qualité moyenne et haute ; accotements de route volontairement exclus (approuvés au lot 2.5). Banc : 85 à 87 FPS sur 3 vues en moyenne, sans draw call ni triangle de plus. |
 | 2.9 Qualité graphique ✅ | Préréglages bas / moyen / haut / **auto** ; scaling dynamique de la résolution et de la densité de végétation si le FPS moyen reste sous 45 pendant 10 s (voir [05 §4](05-monde-virtuel.md)). **Livré le 2026-11-04** : réglage « Auto » (par défaut) qui démarre en qualité moyenne puis descend d'un niveau (résolution 100 → 85 → 70 → 60 %, herbe 100 → 70 → 45 → 0 %) à chaque fenêtre de 10 s sous 45 FPS de moyenne ; ne remonte pas pendant la sortie ; sans reconstruction du monde. Les ombres ne sont pas ajustées en direct (non retenu : recréer le soleil et ses cartes d'ombre ferait un à-coup). |
 | 2.10 Avatar ✅ | Modèle glTF riggé (CC0) à la place du cycliste procédural, avec matières PBR (peau, tissu, gants), surtout visible en vue POV. **Livré le 2026-11-04** : « Universal Base Characters » de Quaternius (CC0) à la place de MakeHuman (même licence, déjà riggé, 12,5 k triangles ; archive à télécharger à la main, `pnpm import-avatar`) ; IK à deux os sur son squelette (jambes sur les pédales, bras sur les cocottes, torse penché selon la portée des bras, doigts refermés, danseuse), vêtements par masque UV, casque, caméra POV aux vrais yeux ; repli sur le cycliste procédural sans l'asset. Banc (qualité moyenne) : 82 à 95 FPS sur 3 vues, −17 draw calls et +37 k triangles par vue. |
-| 2.11 Validation matérielle et tests (reliquats phase 1) | Dès la livraison du trainer : sortie de 3 h sur la boucle du col **avec le nouveau rendu**, import `.fit` sur Strava et Garmin Connect, test sur 2 trainers, réglage du gain S1 ; tests E2E Playwright des parcours principaux. |
 | 2.12 Vélo à refaire | Refaire le vélo, aujourd'hui fait de tubes et de cylindres dans `Rider.tsx` (cadre, guidon, roues, pédales) : proportions, détails (cocottes, câbles, dérailleur, jantes, pneus) et matières PBR. Le cycliste glTF du lot 2.10 (mains sur les cocottes, bassin sur la selle, pieds sur les pédales) est réglé sur la géométrie actuelle du vélo (`rider-geometry.ts`) : à reprendre avec lui. La méthode reste à choisir au moment venu ; **piste notée : partir d'une image de vélo de profil** (calque ou référence pour modéliser le cadre et les roues aux bonnes proportions, ou conversion en géométrie), à comparer à un modèle libre de droits (CC0) ou à une modélisation sous Blender. |
+| 2.13 Retours de la phase 2 | Traiter **tous** les retours faits en roulant, recensés avec leurs coordonnées, leurs causes trouvées et leurs pistes dans [16](16-retours-phase-2.md) : (1) **niveaux route et sol** : routes volantes, routes doubles, croisements sans intersection ni pont, altitudes de route qui ne suivent pas le terrain, couloirs partagés par plusieurs boucles (cause : données du monde dans `tools/world-builder` et `flattenAlongRoutes`) ; (2) **voitures flottantes ou dans les maisons, maisons aux fenêtres coupées ou flottantes**, piétons et voitures trop simples ; (3) **scintillement** des clôtures, poteaux et ombres (`ref` en ligne qui remettent les instances à zéro à chaque rendu React) ; (4) **roues du cycliste enfoncées** de 4 à 6 cm dans l'asphalte ; (5) **végétation qui apparaît d'un coup** : distances plus grandes devant le cycliste, avec fondu ; (6) **le modèle de cycliste**, jugé pas assez convaincant. L'asphalte et les accotements du lot 2.5 ne changent pas (validés). |
 
 **Critères de sortie**
 
 - Captures avant/après du banc de comparaison validées : plus aucun aplat de couleur ni motif répété visible sur la route et le terrain à hauteur de cycliste.
 - Sur la config de référence (MacBook Air M1, 1080p) : ≥ 60 FPS en qualité moyenne, ≥ 30 FPS garantis en qualité haute ; budgets de [05 §4](05-monde-virtuel.md) respectés (< 300 draw calls, < 2 M triangles, < 1,5 Go de mémoire GPU).
 - Repli WebGL2 fonctionnel (même scène, effets réduits) quand WebGPU n'est pas disponible.
-- Critères de sortie reportés de la phase 1 validés (lot 2.11).
+- Retours de la phase 2 traités ([16](16-retours-phase-2.md), lot 2.13).
+- Les critères de sortie de la phase 1 qui demandent le vrai trainer ne bloquent plus cette phase : ils sont reportés au lot 3.13.
 
 ---
 
@@ -134,6 +135,7 @@ Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de d�
 | 3.10 **Télécommande smartphone** | Page compagnon via QR code (gros boutons vitesse +/−, pause, caméra), WebSocket vers le serveur local. Contrôleur gratuit et fiable posé sur le guidon. |
 | 3.11 Spike **Zwift Click v2** | Connexion directe en Web Bluetooth au Zwift Click du développeur (protocole documenté par la communauté) ; conservé seulement si fiable, sinon BikeControl ou smartphone. |
 | 3.12 HUD v1.1 (reliquat 1.6) | Tuiles configurables, modes daltoniens ; tenues de l'avatar (reliquat 1.5). |
+| 3.13 Validation matérielle et tests (reliquats phase 1, ex-lot 2.11) | Dès la livraison du trainer (déplacé de la phase 2 le 2026-11-04 : pas de trainer pour le moment) : sortie de 3 h sur la boucle du col **avec le nouveau rendu**, import `.fit` sur Strava et Garmin Connect, test sur 2 trainers, réglage du gain S1 ; tests E2E Playwright des parcours principaux. |
 
 **Critères de sortie** : 5 à 10 testeurs bêta roulent chaque semaine ; aucun bug bloquant ouvert.
 

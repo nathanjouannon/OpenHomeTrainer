@@ -1,0 +1,78 @@
+# Retours de la phase 2 (lot 2.13)
+
+Tous les retours faits en roulant dans l'application pendant la phase 2, à traiter dans le [lot 2.13](ROADMAP.md). Chaque retour garde sa date, ses coordonnées quand il y en a et, quand elle a été trouvée, sa cause. Rien de ce qui suit n'est corrigé, sauf mention contraire.
+
+Pour revenir à un point précis du monde : `#/ride/world-1/boucle-du-lac?camera=free&cam=x,y,z,cap,pitch` (x est, y nord, z altitude en mètres ; cap et pitch en degrés).
+
+**À ne pas changer en traitant ces retours** : l'asphalte et les accotements du lot 2.5 (gravier, talus herbeux, fossés) ont été jugés « parfaits » le 2026-11-03. Si une correction ailleurs (matière du terrain près de la route, aplanissement, lumière) risque de les modifier, comparer les captures du banc avant/après et demander avant.
+
+## 1. Niveaux route et sol, routes volantes, croisements (le plus gros chantier)
+
+Retours des 2026-11-03 et 2026-11-04, dont celui de 16 h 39 (« refaire les niveaux route / sol, il y a un gros problème »). Une capture à `cam=-2216.1,-2377.5,485.9,322.2,-1.2` montre un long ruban de route gris suspendu au-dessus de la pente, le cycliste et des voitures loin en dessous, et des touffes de végétation suspendues en l'air (cause de ces touffes non cherchée).
+
+| # | Capture | `cam=` (x, y, z, cap, pitch) | Problème nommé |
+|---|---|---|---|
+| 2 | route et maison volante | -514.6,3283.3,699.1,276.2,-20.1 | Route et maison flottantes (flanc de colline au-dessus du lac) |
+| 4 | Il manque un pont | 1304.3,-2738.8,671.5,348.6,-15.3 | Un pont manque (une route en croise une autre) |
+| 5 | Route volante 2 | 1817.4,383.7,1015.6,13.6,-2.3 | Route flottante (flanc de montagne, ~1000 m) |
+| 7 | Route volante | 787.2,3375.5,1051.2,151.2,-28.7 | Route flottante (flanc de montagne) |
+| 8 | Croisement peu réaliste | -2242.9,-2309.9,510.5,220.0,-19.7 | Intersection en T irréaliste, route latérale qui chevauche la principale |
+| 10 | Double route incohérente | 1805.4,-3283.9,644.8,135.8,-32.3 | Deux routes parallèles ou superposées |
+| 12 | Routes incohérentes | -858.1,3051.0,573.1,151.4,-36.7 | Deux routes côte à côte avec des maisons au milieu |
+| 13 | Route incohérente | 1783.3,-3333.0,577.8,204.6,-29.7 | Route coupée, plateau |
+| 14 | Croisement peu réel | 292.9,-1975.7,526.5,204.6,-29.7 | Routes qui se croisent à plat l'une sur l'autre |
+| 15 | Route incohérente | 1866.1,-2990.3,680.6,82.2,-32.5 | Route cassée, segments décalés |
+
+**Cause trouvée (2026-11-04) : un problème de données du monde, pas de l'asphalte.**
+- **L'altitude des routes ne suit pas le terrain sur deux boucles sur trois.** Écart route moins sol naturel : boucle du lac +4,0 / −2,1 m (0 % des points au-delà de 10 m) ; boucle des collines +37,5 / −37,4 m (23 % au-delà de 10 m) ; boucle du col +76,8 / −76,9 m (53 % au-delà de 10 m). `flattenAlongRoutes` (`world-data.ts`) ne ramène le terrain au sol naturel que sur 30 m (`falloffM`) : une route à 30 à 77 m du sol obtient une crête ou une tranchée de quelques mètres au lieu d'un vrai talus, d'où les routes qui flottent sur le versant (5, 7 : boucle du col à d≈9150 m, +31 m, et d≈14090 m, +64 m ; 2 : d≈18360 m, +20 m).
+- **Les trois boucles partagent des couloirs à des altitudes différentes.** Paires de routes à moins de 20 m en horizontal : collines et col sur 2860 points de route (collines d≈8200-8240, 12110-12590, 12820-13010, 13510-14570, 15540-15630 m), écart d'altitude jusqu'à 26,9 m ; lac et collines vers d≈980-1055 (écart 3 m) et ≈6010-6050 ; lac et col vers d≈4485-4520 et 5935-6010. `flattenAlongRoutes` ne garde que l'altitude de la route **la plus proche** par échantillon de terrain : l'autre route flotte ou est enterrée. D'où les doubles routes (10, 12, 13) et les segments décalés (15).
+- **Croisements :** les routes sont des rubans indépendants (`buildRoadSurfaces`), sans géométrie d'intersection : un croisement, ce sont deux rubans qui se chevauchent (8, 14 : lac et collines vers d≈980-1055 près de x≈-2436 y≈-2540, écart 3 m, z-fighting et ligne centrale coupée). À des altitudes très différentes, une route passe au-dessus d'une autre sans pont (4 : collines d≈10020 près de x≈1245 y≈-2445).
+- **Pistes de correction, à décider ensemble :** (a) refaire les routes dans `tools/world-builder` pour que leur profil suive le terrain, ou remodeler le terrain autour sur une bien plus longue distance, avec de vrais talus (déblai, remblai) ; (b) fusionner les couloirs partagés en une seule route avec une seule altitude (les boucles des collines et du col partagent la même polyligne sur leurs parties communes) ; (c) générer des intersections pour les vrais croisements et des ponts quand l'écart dépasse un seuil.
+- Non étudié : le plateau et la route coupée de 13 (probablement le même aplanissement).
+
+## 2. Voitures, maisons, piétons
+
+Cause trouvée le 2026-11-04 ; retours du 2026-11-03 (voiture flottante près d'une maison au départ de la boucle du lac) et du 2026-11-04.
+
+| # | Capture | `cam=` | Problème nommé |
+|---|---|---|---|
+| 1 | Voiture volante 3 | -1688.8,-571.7,451.7,228.8,1.1 | Voiture flottante (village, mur et maisons le long de la route) |
+| 3 | Voiture volante | -1707.0,-586.9,451.7,215.4,1.1 | Voiture flottante (même endroit que 1) |
+| 6 | voiture volante 2 | -192.3,-2684.3,482.0,235.8,-1.6 | Voiture flottante, dans la façade d'une maison |
+| 9 | Voiture volante + maison incohérente | -1675.8,-2945.2,484.5,149.8,-0.9 | Voiture flottante et maison incohérente (fenêtres coupées au pied de la façade) |
+| 11 | Fenêtre incohérente + piétons + voiture | -2052.1,-819.9,460.6,42.6,-21.3 | Fenêtres incohérentes, piétons et voiture peu réalistes (rue de village) |
+
+- **Voitures flottantes ou dans une maison (1, 3, 6, 9, 11), cause dans `settlements.ts` :** les voitures garées du village ne sont jamais inscrites dans la grille d'occupation (seul le test « pas une route » est fait) : les maisons posées ensuite peuvent les recouvrir (6, 9). Leur hauteur vient de la route (`c.z + SIDEWALK_HEIGHT_M`) et non du sol : à côté de la route le sol est le terrain remodelé ou l'accotement, plus bas ou plus haut en pente. Les voitures de ferme utilisent `terrainHeightAt` et ne sont pas touchées. Pistes : inscrire chaque voiture dans la grille, prendre la hauteur du sol, ne garder la voiture que si l'écart est inférieur à 0,3 m.
+- **Maisons : fenêtres coupées, maison flottante (2, 9, 11), cause dans `prop-builders.ts` et `settlements.ts` :** les rangées de fenêtres de la texture font 3 m (`FLOOR_H = 3`) pour des murs de 5 à 8,5 m, donc la dernière rangée est coupée par l'avant-toit. Les façades descendent de 3 m sous la base de la maison (`foot = -3`, « fondations ») : du côté bas d'une pente, jusqu'à 3 à 4 m de façade apparaissent, avec des rangées de fenêtres sous le niveau du sol. `tryBuilding` pose la maison à `max(hi, roadZ + SIDEWALK_HEIGHT_M)` sans jamais l'abaisser : sur une pente ou près d'un talus, elle flotte (2).
+- **Voitures et piétons « peu réalistes » (11) :** ce sont des boîtes très simples (`carGeometry`, `pedestrianGeometries` dans `prop-builders.ts`). C'est le style des modèles, pas un bogue : à refaire si l'on veut mieux.
+
+## 3. Scintillement des barrières, poteaux et ombres
+
+Retours du 2026-11-03 (poteaux et clôtures qui clignotent) et du 2026-11-04 (vidéo à `cam=-1754.4,-2864.4,484.5,134.4,-15.9`, caméra immobile : toutes les clôtures en bois et leurs ombres disparaissent et réapparaissent en bloc toutes les 0,15 à 0,3 s).
+
+**Cause trouvée : des `ref` en ligne sur des maillages instanciés remettent le lot à zéro à chaque rendu React.** `RoadFurniture.tsx` (`NearInstances`) fait `ref={(m) => { …; m.count = 0; m.visible = false; }}` (et de même pour la copie d'ombre). Une flèche en ligne est une nouvelle fonction à chaque rendu : React rappelle l'ancienne avec `null` puis la nouvelle avec le maillage, ce qui refait `count = 0` et `visible = false`. Le lot n'est rempli à nouveau que par le minuteur de `useFrame` toutes les 0,4 s (`NEAR_SHADOWS_UPDATE_S`), donc il reste vide jusqu'à 0,4 s après chaque rendu.
+- **Ce qui re-rend :** `RidePage` à 4 Hz (`useLiveState`), à 1 Hz (`setFps`), à 5 Hz en caméra libre (`setFreePose`) ; `WorldView`, `Scene` et `RoadFurniture` ne sont pas mémoïsés (`onFrame` et `freeCamera` sont de nouveaux objets à chaque rendu).
+- **Même défaut ailleurs (même clignotement attendu) :** `NearShadows.tsx` (ombres des lampadaires, voitures garées, piétons) et `Trees` dans `WorldView.tsx` (ombres des arbres). Vérifier aussi `Settlements3D.tsx`.
+- **Piste :** ne plus initialiser dans un `ref` en ligne ; fixer `count`, `visible` et `layers` une fois dans un `useLayoutEffect` (ou un `ref` stable), remplir le lot dans le même effet pour qu'il ne soit jamais vide, et/ou mémoïser `WorldView` et `Scene` avec des props stables. Ajouter un test (deux rendus : `count` ne doit pas retomber à 0).
+
+## 4. Roues du cycliste dans la route
+
+Retour du 2026-11-04 (vue de côté) : les deux pneus sont coupés de quelques centimètres par l'asphalte.
+
+**Cause trouvée :** le cycliste est posé à l'altitude de la route (`riderPose` dans `WorldView.tsx`) avec le bas des roues à y = 0, mais l'asphalte est dessiné **au-dessus** de l'altitude de la route : `ASPHALT_Z = 0.04` plus `ri * ROUTE_LIFT_M` (0,01 par indice de route) dans `road-builders.ts`, soit 4 à 6 cm. Les roues s'enfoncent de 4 à 6 cm (plus sur la route d'indice 2). **Piste :** remonter le groupe du cycliste de la hauteur d'asphalte de la route courante (exporter les constantes ou une fonction depuis `road-builders.ts`) plutôt que de changer l'asphalte. Vérifier aussi l'ombre, les voitures en circulation (`Traffic`) et la hauteur des yeux en POV, qui bougent des mêmes quelques centimètres.
+
+## 5. Végétation qui apparaît d'un coup
+
+Retour du 2026-11-04 : la végétation plaît, mais les arbres changent de modèle (niveau de détail) et l'herbe apparaît quand on avance. Le retour demande d'augmenter ces distances, **surtout devant le cycliste**, idéalement sans apparition visible.
+
+- **Où sont les limites** (`render-profile.ts`, `VegetationProfile`, basse / moyenne / haute) : herbe `radiusM` 28 / 45 / 60 m autour de la caméra (dalles de `GRASS_TILE_M` = 12 m, rafraîchies toutes les `GRASS_UPDATE_S` = 0,2 s dans `Plants3D.tsx`) ; paliers d'arbres `treeTiersM` [20,100,380] / [40,170,650] / [65,250,950] m puis imposteurs jusqu'à `treeViewM` 1800 / 2800 / 4000 m ; buissons `shrubFullM` 35 / 55 / 75 et `shrubViewM` 200 / 330 / 450 m.
+- **Sauts probablement visibles :** le passage modèle complet vers niveau 1 des arbres (20 à 65 m), le bord du rayon d'herbe, et les buissons qui disparaissent à 200-450 m. Pas de fondu entre paliers.
+- **Piste :** augmenter les rayons (l'herbe d'abord, puis les paliers d'arbres et les buissons) de façon **anisotrope** : plus loin dans l'axe de la caméra que derrière ou sur les côtés (ellipse étirée ou cône devant le cycliste), pour que le coût reste proche d'aujourd'hui ; ajouter un fondu (dissolution sur les derniers mètres du rayon d'herbe, fondu entre paliers d'arbres) ; vérifier le coût au banc (`frame-stats`, mémoire GPU) en moyenne et en haute, et garder la basse proche des valeurs actuelles.
+
+## 6. Cycliste et vélo (retours du 2026-11-04)
+
+Déjà traités dans le lot 2.10 : regard en POV remonté, champ de vision élargi à 96° en POV, mains tournées pour un guidon de route, maillot « nu » (tissu, finitions, bandeau), jambes moins ouvertes (genoux), mensurations de cycliste (le corps était trop massif), casque de route à la place du « champignon », mains sur les cocottes (vous avez fixé vous-même les valeurs de `WRIST` dans `rider-geometry.ts`).
+
+Reste à faire :
+- **Le modèle de cycliste ne vous convainc pas à 100 %.** Points faibles : corps encore un peu « super-héros » (crâne, mains, pieds non modifiés), vêtements en simple masque de couleur sur la peau (pas de vraie géométrie de tissu), gants et chaussures qui sont des zones du maillage et non des objets, bassin large. Pistes : proportions « Regular » du pack Quaternius payant, un cycliste modélisé sous Blender et MakeHuman avec une vraie tenue, ou un corps plus fin. Le code d'animation n'a besoin que des noms d'os de type Unreal (`pelvis`, `spine_01` à `03`, `thigh`, `calf`, `foot`, `ball`, `upperarm`, `lowerarm`, `hand`, doigts, `Head`, `neck_01`) : un autre modèle avec ce squelette s'importe par `pnpm import-avatar`.
+- **Le vélo est à refaire** : voir le [lot 2.12](ROADMAP.md). La pose du cycliste (`WRIST`, `SEAT`, `HAND_DIR` dans `rider-geometry.ts`) suit la géométrie actuelle du vélo et sera à reprendre avec lui. Ces valeurs ne sont volontairement pas documentées.

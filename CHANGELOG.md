@@ -34,7 +34,7 @@ Phase 2 « Rendu réaliste » en cours : voir la [roadmap](docs/ROADMAP.md).
 
 ## [0.1.0] — 2026-11-03 — Jalon M1 : MVP en monde virtuel
 
-Clôture des phases 0 et 1. Les vérifications qui demandent le vrai trainer (sortie de 3 h, import du `.fit` sur Strava et Garmin Connect, test sur 2 trainers) sont reportées au lot 2.11.
+Clôture des phases 0 et 1. Les vérifications qui demandent le vrai trainer (sortie de 3 h, import du `.fit` sur Strava et Garmin Connect, test sur 2 trainers) sont reportées au lot 3.13 (ex-lot 2.11, déplacé en phase 3 faute de trainer).
 
 ### Ajouté
 
