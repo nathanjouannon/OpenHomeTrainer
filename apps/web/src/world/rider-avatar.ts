@@ -19,7 +19,6 @@ import {
   Quaternion,
   RGBAFormat,
   type SkinnedMesh,
-  SphereGeometry,
   UnsignedByteType,
   Vector3,
 } from 'three';
@@ -33,6 +32,7 @@ import {
   reshapeVertex,
   type Shape,
 } from './avatar-shape';
+import { buildHelmetGeometry } from './helmet';
 import { HAND_DIR, HIP_Y, HIP_Z, pedalPosition, solveTwoBone, WRIST } from './rider-geometry';
 
 const X = new Vector3(1, 0, 0);
@@ -72,6 +72,9 @@ const CLOTH_OFFSET: Record<Garment, number> = {
   shoes: 0.008,
   gloves: 0.004,
 };
+
+/** Middle of the head above the head bone (rider frame at rest), origin of the helmet. */
+const HELMET_ORIGIN = new Vector3(0, 0.075, 0.02);
 
 /** Side (px) of the garment mask. */
 const MASK_SIZE = 1024;
@@ -471,12 +474,10 @@ export class AvatarRig {
     const helmet = new Group();
     const q = (this.restRider.get(head) as Quaternion).clone().invert();
     helmet.quaternion.copy(q);
-    helmet.position.copy(new Vector3(0, 0.085, 0.03).applyQuaternion(q));
-    const geometry = new SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2 + 0.25);
-    const material = new MeshStandardMaterial({ color: '#f2f2f2', roughness: 0.4 });
-    const shell = new Mesh(geometry, material);
-    shell.scale.set(0.125, 0.125, 0.155);
-    helmet.add(shell);
+    helmet.position.copy(HELMET_ORIGIN.clone().applyQuaternion(q));
+    const geometry = buildHelmetGeometry();
+    const material = new MeshStandardMaterial({ vertexColors: true, roughness: 0.35 });
+    helmet.add(new Mesh(geometry, material));
     head.add(helmet);
     this.disposables.push(geometry, material);
     this.povHidden.push(helmet);
