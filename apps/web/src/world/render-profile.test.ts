@@ -62,4 +62,15 @@ describe('renderProfile', () => {
       expect(v.shrubFullM).toBeLessThan(v.shrubViewM);
     }
   });
+
+  it('turns on the clouds, the mist and the reflections as the quality rises', () => {
+    expect(renderProfile('low').atmosphere).toEqual({ clouds: false, heightFog: false });
+    expect(renderProfile('medium').atmosphere).toEqual({ clouds: true, heightFog: true });
+    expect(renderProfile('high').atmosphere).toEqual({ clouds: true, heightFog: true });
+    expect(['low', 'medium', 'high'].map((q) => renderProfile(q as 'low').water)).toEqual([
+      'flat',
+      'environment',
+      'planar',
+    ]);
+  });
 });

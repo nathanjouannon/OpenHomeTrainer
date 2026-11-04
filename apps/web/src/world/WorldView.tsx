@@ -18,11 +18,11 @@ import {
   SRGBColorSpace,
   Vector3,
 } from 'three';
-import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import type { CameraMode, Quality } from '../store/settings';
+import { AerialPerspective, WorldSky } from './Atmosphere';
 import { type EnvironmentMap, loadEnvironmentMap, loadTextureSlots } from './assets';
 import { FreeCamera, type FreeCameraProps } from './FreeCamera';
-import { FOG_COLOR, Lighting, SUN_POSITION } from './Lighting';
+import { FOG_COLOR, Lighting } from './Lighting';
 import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
 import { Vegetation, type VegetationData } from './Plants3D';
 import { PostFX } from './PostFX';
@@ -56,6 +56,7 @@ import { createTerrainMaterial } from './terrain-material';
 import { computeSplatMap, TERRAIN_LAYERS } from './terrain-splat';
 import type { TextureArrays } from './texture-arrays';
 import { batchPlants, plantOf } from './vegetation-builders';
+import { REFLECTED_LAYER, Water } from './Water';
 import { realClock, useWorldClock, type WorldClock, WorldClockContext } from './world-clock';
 import { forestCover, occupancy, placeTrees, valueNoise2d, type WorldData } from './world-data';
 
@@ -272,7 +273,8 @@ function Scene({
   );
   const base = built.base;
   const fogColor = FOG_COLOR;
-  const post = renderProfile(quality).post;
+  const profile = renderProfile(quality);
+  const post = profile.post;
   const riderDistance = useMemo(() => () => view().distanceM, [view]);
   const terrainMaterial = useTerrainMaterial(built, quality);
 
@@ -309,8 +311,8 @@ function Scene({
   return (
     <>
       <color attach="background" args={[fogColor]} />
-      <fog attach="fog" args={[fogColor, 600, 7500]} />
-      <WorldSky />
+      <AerialPerspective profile={profile.atmosphere} />
+      <WorldSky clouds={profile.atmosphere.clouds} />
       <Lighting shadows={renderProfile(quality).shadows} environment={built.environment} />
       {post && <PostFX profile={post} />}
       <Terrain built={built} material={terrainMaterial} />
@@ -321,7 +323,12 @@ function Scene({
         shadowRadiusM={shadowRadius(quality)}
       />
       {world.manifest.waterLevelM !== null && (
-        <Water level={world.manifest.waterLevelM - base} size={world.terrain.sizeM} />
+        <Water
+          terrain={world.terrain}
+          levelM={world.manifest.waterLevelM}
+          base={base}
+          mode={profile.water}
+        />
       )}
       <Vegetation
         data={built.vegetation}
@@ -353,30 +360,6 @@ const shadowRadius = (quality: Quality) => {
   const s = renderProfile(quality).shadows;
   return s ? s.maxFarM + NEAR_SHADOWS_MARGIN_M : null;
 };
-
-/** Physical sky (TSL shader, works on WebGPU and WebGL2). */
-function WorldSky() {
-  const sky = useMemo(() => {
-    const s = new SkyMesh();
-    s.scale.setScalar(8000);
-    s.turbidity.value = 5;
-    s.rayleigh.value = 1.1;
-    s.mieCoefficient.value = 0.004;
-    s.mieDirectionalG.value = 0.8;
-    s.sunPosition.value.copy(SUN_POSITION);
-    // Clouds come with lot 2.7.
-    s.cloudCoverage.value = 0;
-    return s;
-  }, []);
-  useEffect(
-    () => () => {
-      sky.geometry.dispose();
-      sky.material.dispose();
-    },
-    [sky],
-  );
-  return <primitive object={sky} />;
-}
 
 /** Rider position (right lane) and direction of travel, in the scene frame. */
 function riderPose(
@@ -497,6 +480,8 @@ function Terrain({ built, material }: { built: BuiltWorld; material: Material })
           const mesh = new Mesh(geometry, material);
           // The terrain receives shadows but casts none (cascades only reach ~200 m).
           mesh.receiveShadow = true;
+          // The planar reflection of the lake shows the terrain.
+          mesh.layers.enable(REFLECTED_LAYER);
           lod.addLevel(mesh, LOD_DISTANCES_M[i] ?? 0);
         });
         return lod;
@@ -604,15 +589,6 @@ function Roads({ built, groundMaterial }: { built: BuiltWorld; groundMaterial: M
       )}
       {r.curbs && <mesh geometry={r.curbs} material={mats.curb} receiveShadow />}
     </>
-  );
-}
-
-function Water({ level, size }: { level: number; size: number }) {
-  return (
-    <mesh position={[0, level, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={[size, size]} />
-      <meshStandardMaterial color="#3e6f8f" roughness={0.12} metalness={0.15} />
-    </mesh>
   );
 }
 

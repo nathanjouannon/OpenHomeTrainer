@@ -45,6 +45,16 @@ export interface VegetationProfile {
   grass: { radiusM: number; density: number; tall: number; flowers: number } | null;
 }
 
+export interface AtmosphereProfile {
+  /** Clouds in the sky shader (fractal noise per sky pixel). */
+  clouds: boolean;
+  /** Mist that thickens towards the valley floor and tints with the sun, on top of the distance haze. */
+  heightFog: boolean;
+}
+
+/** How the lake shows the sky: a flat colour, the environment map, or the scene itself (planar reflection). */
+export type WaterMode = 'flat' | 'environment' | 'planar';
+
 export interface RenderProfile {
   /** Cast shadows of the sun, null when off. */
   shadows: ShadowProfile | null;
@@ -54,6 +64,10 @@ export interface RenderProfile {
   terrain: TerrainProfile;
   /** Trees, shrubs and grass (lot 2.6). */
   vegetation: VegetationProfile;
+  /** Sky and haze (lot 2.7). */
+  atmosphere: AtmosphereProfile;
+  /** Lake (lot 2.7). */
+  water: WaterMode;
 }
 
 const PROFILES: Record<Quality, RenderProfile> = {
@@ -70,6 +84,8 @@ const PROFILES: Record<Quality, RenderProfile> = {
       shrubViewM: 200,
       grass: { radiusM: 28, density: 1.4, tall: 0.5, flowers: 0.25 },
     },
+    atmosphere: { clouds: false, heightFog: false },
+    water: 'flat',
   },
   medium: {
     shadows: { cascades: 3, mapSize: 1024, maxFarM: 160 },
@@ -84,6 +100,8 @@ const PROFILES: Record<Quality, RenderProfile> = {
       shrubViewM: 330,
       grass: { radiusM: 45, density: 2.6, tall: 0.9, flowers: 0.5 },
     },
+    atmosphere: { clouds: true, heightFog: true },
+    water: 'environment',
   },
   high: {
     shadows: { cascades: 3, mapSize: 2048, maxFarM: 200 },
@@ -98,6 +116,8 @@ const PROFILES: Record<Quality, RenderProfile> = {
       shrubViewM: 450,
       grass: { radiusM: 60, density: 3.6, tall: 1.2, flowers: 0.7 },
     },
+    atmosphere: { clouds: true, heightFog: true },
+    water: 'planar',
   },
 };
 

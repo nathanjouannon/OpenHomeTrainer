@@ -213,3 +213,23 @@ Même machine et mêmes conditions. Pire cas sur les 16 points de vue d'origine,
 - **Coût** : l'herbe est la partie qui coûte (recouvrement de cartes à alpha test éclairées avec les ombres en cascade). Ne pas lui faire recevoir les ombres en cascade (le sol les reçoit déjà) a gagné ~5 %. Les touffes ne sont pas dans les ombres des arbres, ce qui se voit à peine.
 - **Mémoire estimée** : +19 Mo (textures peintes de 1024 × 512 × 3 avec mipmaps, tampons d'instances).
 - **Points de vigilance** : la qualité haute reste à 47 FPS au pire en WebGPU sur ce portable chauffé (budget : ≥ 30 garanti, ≥ 60 visé en moyenne) ; la mise à l'échelle dynamique du lot 2.9 devra baisser le rayon de l'herbe en premier.
+
+### Après le ciel, l'eau et l'atmosphère (runs `apres-2.7-webgpu` et `apres-2.7-webgl2`, 2026-11-04)
+
+Même machine et mêmes conditions (7 à 8 min de repos avant chaque run). Pire cas sur les 16 points de vue d'origine, et FPS moyen médian :
+
+| Qualité | Backend | FPS moyen min. | FPS moyen médian | 1 % low min. | Draw calls max. | Triangles max. | Mémoire GPU estimée |
+|---|---|---|---|---|---|---|---|
+| Basse | WebGPU | 176 | 240 | 120 | 174 | 1,37 M | 273 Mo |
+| Basse | WebGL2 (repli) | 147 | 201 | 99 | 174 | 1,37 M | 273 Mo |
+| Moyenne | WebGPU | 52 | 67 | 38 | 251 | 1,87 M | 369 Mo |
+| Moyenne | WebGL2 (repli) | 63 | 72 | 33 | 251 | 1,87 M | 369 Mo |
+| Haute | WebGPU | 32 | 42 | 20 | 302 | 3,61 M | 450 Mo |
+| Haute | WebGL2 (repli) | 46 | 51 | 30 | 302 | 3,61 M | 450 Mo |
+
+- **Images** : nuages en cumulus épars, montagnes bleutées au loin et fonds de vallée dans la brume, halo chaud vers le soleil, lac aux rides animées avec le reflet des versants en qualité haute.
+- **Basse** : identique au lot 2.6 (240 FPS en médiane des deux côtés) : le fog TSL ne coûte rien mesurable (essai avec et sans, 4 passes alternées en WebGL2 basse : mêmes FPS à 3 % près).
+- **Moyenne** : −13 % en médiane en WebGPU et −5 % en WebGL2 sur le run complet. Je n'ai pas réussi à isoler la cause : des essais à froid de 4 points, avec les nuages, le fog TSL ou rien tour à tour (un build par essai), donnent 85 à 104 FPS dans tous les cas, l'écart entre deux essais identiques (jusqu'à −25 % en fin de série) dépassant celui entre variantes. Le coût attendu est le bruit fractal des nuages sur les pixels du ciel ; à confirmer sur une machine qui ne chauffe pas.
+- **Haute** : −19 % en médiane en WebGPU, −7 % en WebGL2. Le coût est celui de la **réflexion plane**, qui redessine le terrain et le ciel (un tiers de résolution) tant que le lac est dans le champ : +25 à +35 draw calls et jusqu'à +1,1 M de triangles sur les vues du lac (`col-rive-lac` : 222 → 255 draw calls, 48 → 36 FPS ; `lac-rive` : 47 → 38 FPS). Hors vue du lac, rien (`collines-foret` : 164 → 163 draw calls). **Deux budgets sont dépassés en haute sur les vues du lac** : 302 draw calls (budget 300) et 3,6 M de triangles (le budget de 2 M l'était déjà au lot 2.5 avec 3,3 M). À reprendre au lot 2.9 : réflexion à plus faible résolution ou terrain en LOD plus grossier dans le miroir.
+- **Mémoire estimée** : +1 Mo (la carte de normales de l'eau) ; la cible de la réflexion plane n'est pas comptée.
+- **Mesure** : mêmes précautions qu'aux lots précédents (repos de 10 min entre deux runs, la machine ralentit de 15 à 25 % en chauffant ; un run enchaîné sur des essais précédents donnait 24 FPS au pire en moyenne).
