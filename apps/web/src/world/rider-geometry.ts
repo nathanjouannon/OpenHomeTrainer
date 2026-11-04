@@ -12,7 +12,7 @@ export const BB = new Vector3(0, 0.29, -0.06);
 export const HIP_Y = 0.98;
 export const HIP_Z = -0.27;
 /** Where the wrists rest on the hoods (per side, multiplied by ±1 on X). */
-export const WRIST = new Vector3(0.2, 1.04, 0.51);
+export const WRIST = new Vector3(0.2, 1.01, 0.5);
 /** Direction of the hands (wrist → knuckles) on the hoods. */
 export const HAND_DIR = new Vector3(0, -0.28, 1).normalize();
 

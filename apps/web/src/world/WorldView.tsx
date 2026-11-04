@@ -411,6 +411,8 @@ const POV_EYE = new Vector3(0, 1.43, 0.06);
 const POV_PITCH = -0.36;
 /** With the avatar the eyes are the real ones, higher and further forward: looking down more shows the arms and the bars. */
 const POV_PITCH_AVATAR = -0.48;
+/** Wider than the procedural POV (80°): the real eyes are higher and further forward, the bars and the arms would leave the frame. */
+const POV_FOV_AVATAR = 96;
 
 function placeCamera(
   mode: CameraMode,
@@ -442,7 +444,7 @@ function placeCamera(
     cam.layers.enable(POV_HIDDEN_LAYER);
     cam.layers.disable(POV_ONLY_LAYER);
   }
-  const fov = mode === 'pov' ? 80 : 62;
+  const fov = mode === 'pov' ? (riderEye ? POV_FOV_AVATAR : 80) : 62;
   if (cam.fov !== fov) {
     cam.fov = fov;
     cam.updateProjectionMatrix();
