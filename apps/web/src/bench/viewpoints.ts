@@ -155,4 +155,21 @@ export const BENCH_VIEWPOINTS: readonly BenchViewpoint[] = [
     atM: 22900,
     camera: 'pov',
   },
+  // Rider close-ups (lot 2.10).
+  {
+    id: 'lac-cycliste-poursuite',
+    label: 'Boucle du lac — le cycliste vu de derrière',
+    kind: 'open-road',
+    routeId: 'boucle-du-lac',
+    atM: 600,
+    camera: 'chase',
+  },
+  {
+    id: 'lac-cycliste-cote',
+    label: 'Boucle du lac — le cycliste vu de côté',
+    kind: 'open-road',
+    routeId: 'boucle-du-lac',
+    atM: 600,
+    camera: 'side',
+  },
 ];

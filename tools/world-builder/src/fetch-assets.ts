@@ -177,6 +177,8 @@ async function main() {
     generatedAt: new Date().toISOString(),
     hdri: await fetchHdri(previous.hdri),
     textures: await fetchTextures(previous.textures),
+    // Imported by hand (`pnpm import-avatar`), not downloaded here: kept as is.
+    ...(previous.avatar ? { avatar: previous.avatar } : {}),
   };
   await save(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`Assets → ${outDir}`);

@@ -20,6 +20,14 @@ export interface AssetManifest {
   };
   /** PBR texture sets by slot (terrain layers from lot 2.4). */
   textures?: Record<string, TextureSet>;
+  /** Rigged rider (lot 2.10), imported by `pnpm import-avatar`. */
+  avatar?: {
+    /** glTF of the rider, relative to the assets folder. */
+    file: string;
+    source: string;
+    license: 'CC0';
+    author: string;
+  };
 }
 
 /** Files of one PBR texture set (paths relative to the assets folder). */

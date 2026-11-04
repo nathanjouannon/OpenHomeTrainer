@@ -2,7 +2,8 @@
 // Every loader resolves to null when an asset is missing (`pnpm fetch-assets`
 // not run yet), and the world falls back to its procedural look.
 
-import { type DataTexture, EquirectangularReflectionMapping } from 'three';
+import { type DataTexture, EquirectangularReflectionMapping, type Object3D } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { ASSETS_BASE_URL, type AssetManifest, isAssetManifest } from './asset-manifest';
 import { loadTextureArrays, type TextureArrays } from './texture-arrays';
@@ -46,4 +47,16 @@ export async function loadTextureSlots(slots: readonly string[]): Promise<Textur
   const sets = slots.map((slot) => textures[slot]);
   if (sets.some((s) => !s)) return null;
   return loadTextureArrays(sets as NonNullable<(typeof sets)[number]>[]);
+}
+
+/** Scene of the rigged rider (lot 2.10), null when `pnpm import-avatar` was not run. */
+export async function loadAvatar(): Promise<Object3D | null> {
+  const avatar = (await assetManifest())?.avatar;
+  if (!avatar) return null;
+  try {
+    const gltf = await new GLTFLoader().loadAsync(`${ASSETS_BASE_URL}/${avatar.file}`);
+    return gltf.scene;
+  } catch {
+    return null;
+  }
 }

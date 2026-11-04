@@ -20,7 +20,7 @@ import {
 } from 'three';
 import type { CameraMode, Quality } from '../store/settings';
 import { AerialPerspective, WorldSky } from './Atmosphere';
-import { type EnvironmentMap, loadEnvironmentMap, loadTextureSlots } from './assets';
+import { type EnvironmentMap, loadAvatar, loadEnvironmentMap, loadTextureSlots } from './assets';
 import { AutoQuality, adaptProfile, autoLevel } from './auto-quality';
 import { FreeCamera, type FreeCameraProps } from './FreeCamera';
 import { FOG_COLOR, Lighting } from './Lighting';
@@ -85,6 +85,8 @@ export interface BuiltWorld {
   terrainTextures: TextureArrays | null;
   /** PBR road textures (ROAD_LAYERS order), null when not downloaded. */
   roadTextures: TextureArrays | null;
+  /** Scene of the rigged rider (lot 2.10), null when not imported. */
+  avatar: Object3D | null;
 }
 
 /** Heavy geometry work, done once on the loading screen. */
@@ -98,6 +100,7 @@ export async function buildWorldScene(
   const environment = loadEnvironmentMap();
   const terrainTextures = loadTextureSlots(TERRAIN_LAYERS);
   const roadTextures = loadTextureSlots(ROAD_LAYERS);
+  const avatar = loadAvatar();
   const normals = terrainNormals(t);
   const water = world.manifest.waterLevelM;
   const forest = forestCover(FOREST_SEED);
@@ -177,6 +180,7 @@ export async function buildWorldScene(
     environment: await environment,
     terrainTextures: await terrainTextures,
     roadTextures: await roadTextures,
+    avatar: await avatar,
   };
   onProgress(1);
   return built;
@@ -331,6 +335,7 @@ function Scene({
       d,
       base,
       g ?? null,
+      rider.current?.eye ?? null,
     );
   });
 
@@ -375,7 +380,7 @@ function Scene({
         riderDistance={riderDistance}
       />
       <StartArch route={route} base={base} />
-      <Rider ref={rider} />
+      <Rider ref={rider} avatar={built.avatar} />
       {freeCamera && <FreeCamera {...freeCamera} base={base} />}
     </>
   );
@@ -404,6 +409,8 @@ function riderPose(
 /** POV: eyes of the rider (bike frame), looking down enough to see the hoods. */
 const POV_EYE = new Vector3(0, 1.43, 0.06);
 const POV_PITCH = -0.36;
+/** With the avatar the eyes are the real ones, higher and further forward: looking down more shows the arms and the bars. */
+const POV_PITCH_AVATAR = -0.62;
 
 function placeCamera(
   mode: CameraMode,
@@ -423,9 +430,11 @@ function placeCamera(
   d: number,
   base: number,
   riderGroup: Object3D | null,
+  riderEye: Vector3 | null,
 ) {
   const { pos, dir, right, desired, look } = tmp;
-  // The rider's head, torso and arms are hidden in the POV view, which has its own arms.
+  // The head of the rider is hidden in the POV view; the procedural rider also hides its
+  // torso and arms there (it has POV-only arms), the avatar shows its own arms.
   if (mode === 'pov') {
     cam.layers.disable(POV_HIDDEN_LAYER);
     cam.layers.enable(POV_ONLY_LAYER);
@@ -439,14 +448,16 @@ function placeCamera(
     cam.updateProjectionMatrix();
   }
   if (mode === 'pov' && riderGroup) {
+    const eye = riderEye ?? POV_EYE;
+    const pitch = riderEye ? POV_PITCH_AVATAR : POV_PITCH;
     // Rigidly attached to the bike: no lag between the bars and the view.
     const bob = reduceMotion ? 0 : Math.sin(tmp.t * 8.5) * 0.006;
     riderGroup.updateMatrixWorld();
     cam.position
-      .copy(POV_EYE)
-      .setY(POV_EYE.y + bob)
+      .copy(eye)
+      .setY(eye.y + bob)
       .applyMatrix4(riderGroup.matrixWorld);
-    look.set(0, POV_EYE.y + Math.tan(POV_PITCH) * 10, 10).applyMatrix4(riderGroup.matrixWorld);
+    look.set(0, eye.y + Math.tan(pitch) * 10, 10).applyMatrix4(riderGroup.matrixWorld);
     cam.lookAt(look);
     return;
   }

@@ -20,6 +20,7 @@ Tous en [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.fr) : aucun
 | « Asphalt015 » (1K JPG) | Asphalte des routes (lot 2.5) | [ambientCG](https://ambientcg.com/view?id=Asphalt015), Lennart Demes |
 | « Gravel Floor 02 » (1k) | Gravier des accotements (lot 2.5) | [Poly Haven](https://polyhaven.com/a/gravel_floor_02), Jenelle van Heerden, Dimitrios Savva |
 | « Old Stone Wall » (1k) | Murets maçonnés (lot 2.5) | [Poly Haven](https://polyhaven.com/a/old_stone_wall), Charlotte Baglioni |
+| « Universal Base Characters » (Standard, homme « Superhero », textures réduites à 1 024 px) | Cycliste riggé (lot 2.10), importé par `pnpm import-avatar` depuis une archive téléchargée à la main | [Quaternius](https://quaternius.com/packs/universalbasecharacters.html) ([itch.io](https://quaternius.itch.io/universal-base-characters)), CC0 |
 
 ## Outils de test
 

@@ -18,6 +18,7 @@
     "prepare": "lefthook install",
     "build-world": "pnpm --filter @hrt/world-builder build-world",
     "fetch-assets": "pnpm --filter @hrt/world-builder fetch-assets",
+    "import-avatar": "pnpm --filter @hrt/world-builder import-avatar",
     "start": "pnpm --filter @hrt/web build && pnpm --filter @hrt/web preview",
     "bench": "pnpm --filter @hrt/bench bench",
     "bench:compare": "pnpm --filter @hrt/bench compare"

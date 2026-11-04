@@ -10,8 +10,11 @@ Prérequis : Node.js ≥ 20.19 (LTS 24 recommandé), pnpm 10, Chrome ou Edge.
 pnpm install
 pnpm build-world    # télécharge le relief réel et construit le monde v1 (une fois, ~10 s)
 pnpm fetch-assets   # télécharge les textures et l'environment map CC0 (une fois)
+pnpm import-avatar  # optionnel : le cycliste glTF (archive à télécharger à la main, voir ci-dessous)
 pnpm dev            # http://localhost:5173
 ```
+
+**Cycliste glTF (facultatif).** Sans lui, l'application garde le cycliste procédural. Pour l'avoir : télécharger l'archive gratuite « Standard » (CC0) de [Universal Base Characters](https://quaternius.itch.io/universal-base-characters) (itch.io la sert derrière un contrôle anti-robot, donc à la main), la laisser dans `~/Downloads`, puis `pnpm import-avatar` (ou `pnpm import-avatar chemin/de/l-archive.zip`).
 
 Pour rouler sans environnement de dev : `pnpm start` (build de production servi sur http://localhost:4173).
 
@@ -25,6 +28,7 @@ Aide au développement : `#/ride/world-1/boucle-du-lac?at=3000&camera=chase` aff
 | `pnpm start`                | Build de production + serveur local                     |
 | `pnpm build-world`          | Construit le monde (`--preview fichier.png` : carte)    |
 | `pnpm fetch-assets`         | Assets CC0 du monde (`--force` : tout retélécharger)    |
+| `pnpm import-avatar`        | Cycliste glTF riggé (CC0), depuis l'archive Quaternius  |
 | `pnpm fetch-dem`            | Relief du spike 3D (`#/3d`)                             |
 | `pnpm test`                 | Tests unitaires (Vitest) de tous les packages           |
 | `pnpm typecheck`            | Vérification TypeScript                                 |

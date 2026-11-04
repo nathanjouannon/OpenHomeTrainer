@@ -1,5 +1,7 @@
-// Procedural cyclist and bike (lot 1.5): cranks driven by the cadence, legs
-// by two-bone IK on the pedals, wheels turning at the virtual speed.
+// Cyclist and bike: cranks driven by the cadence, legs by two-bone IK on the
+// pedals, wheels turning at the virtual speed. The rider is procedural (lot
+// 1.5) unless the rigged avatar is available (lot 2.10, `rider-avatar.ts`),
+// which replaces the legs, torso, head and arms and is posed on its skeleton.
 // Local frame: +Z forward, +Y up, +X to the rider's left.
 
 import { useFrame } from '@react-three/fiber';
@@ -16,22 +18,22 @@ import {
   MeshStandardMaterial,
   type Object3D,
   PlaneGeometry,
+  type SkinnedMesh,
   SphereGeometry,
   TorusGeometry,
   Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { AvatarRig } from './rider-avatar';
+import { BB, CRANK_L, HIP_Y, HIP_Z, pedalPosition, WHEEL_R } from './rider-geometry';
 
-const WHEEL_R = 0.34;
-const CRANK_L = 0.17;
 const THIGH_L = 0.44;
 const SHIN_L = 0.45;
-const BB = new Vector3(0, 0.29, -0.06);
-const HIP_Y = 0.98;
-const HIP_Z = -0.27;
 
 export interface RiderHandle {
   group: Group | null;
+  /** Eyes of the rider in the bike frame (POV camera), null for the procedural rider. */
+  eye: Vector3 | null;
   /** Advances the animation; call once per frame. */
   animate(dtS: number, cadenceRpm: number, speedMs: number, powerW: number): void;
 }
@@ -62,10 +64,15 @@ function solveKnee(hip: Vector3, foot: Vector3, out: Vector3): Vector3 {
   return out.copy(hip).addScaledVector(dirN, a).addScaledVector(perp, h);
 }
 
-export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }>(function Rider(
-  { jersey = '#e4572e', frame = '#1f6feb' },
-  ref,
-) {
+export const Rider = forwardRef<
+  RiderHandle,
+  {
+    jersey?: string;
+    frame?: string;
+    /** Scene of the rigged avatar (lot 2.10); the procedural rider without it. */
+    avatar?: Object3D | null;
+  }
+>(function Rider({ jersey = '#e4572e', frame = '#1f6feb', avatar = null }, ref) {
   const group = useRef<Group>(null);
   const rearWheel = useRef<Group>(null);
   const frontWheel = useRef<Group>(null);
@@ -77,6 +84,9 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
     rShin: useRef<Mesh>(null),
   };
   const torso = useRef<Group>(null);
+  const pedals = { l: useRef<Mesh>(null), r: useRef<Mesh>(null) };
+  const rig = useMemo(() => (avatar ? new AvatarRig(avatar, { jersey }) : null), [avatar, jersey]);
+  useLayoutEffect(() => () => rig?.dispose(), [rig]);
   const state = useRef({ crankAngle: 0, wheelAngle: 0, standing: 0 });
 
   // Shadows: the ~80 parts of the bike and the upper body are merged into one
@@ -87,9 +97,24 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
     const g = group.current;
     if (!g) return;
     const legMeshes = new Set(Object.values(legs).map((r) => r.current));
-    const proxy = buildShadowProxy(g, (m) => !legMeshes.has(m));
+    const animated = new Set([...legMeshes, ...Object.values(pedals).map((r) => r.current)]);
+    const inRig = (o: Object3D) => {
+      for (let p: Object3D | null = o; p; p = p.parent) if (p === rig?.root) return true;
+      return false;
+    };
+    if (rig) {
+      for (const o of rig.povHidden) o.traverse(hideInPov);
+    }
+    const proxy = buildShadowProxy(g, (m) => !animated.has(m) && !inRig(m));
     g.traverse((o) => {
       if (!(o as Mesh).isMesh) return;
+      if (inRig(o)) {
+        // The avatar casts its own shadow (animated by its skeleton) and does
+        // not receive any: its parts would shadow each other.
+        o.castShadow = true;
+        o.receiveShadow = false;
+        return;
+      }
       o.castShadow = legMeshes.has(o as Mesh);
       // The POV arms sit inside the silhouette of the hidden upper body: they
       // would shadow themselves.
@@ -97,7 +122,7 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
     });
     // Fewer draw calls: the parts that never move relative to their group
     // (frame, bars, wheel parts…) are merged per material.
-    const merged = mergeStaticParts(g, legMeshes);
+    const merged = mergeStaticParts(g, animated);
     if (proxy) g.add(proxy);
     return () => {
       if (proxy) {
@@ -106,7 +131,7 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
       }
       for (const m of merged) m.geometry.dispose();
     };
-  }, []);
+  }, [rig]);
 
   const mats = useMemo(
     () => ({
@@ -148,6 +173,7 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
     get group() {
       return group.current;
     },
+    eye: rig?.eye ?? null,
     animate(dtS, cadenceRpm, speedMs, powerW) {
       const s = state.current;
       s.crankAngle += (cadenceRpm / 60) * Math.PI * 2 * dtS;
@@ -160,6 +186,15 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
       if (crank.current) crank.current.rotation.x = s.crankAngle;
       const lift = s.standing * 0.12;
       const forward = s.standing * 0.12;
+      for (const side of [1, -1] as const) {
+        pedals[side === 1 ? 'l' : 'r'].current?.position.copy(
+          pedalPosition(side, s.crankAngle, new Vector3()),
+        );
+      }
+      if (rig) {
+        rig.pose(s.crankAngle, s.standing);
+        return;
+      }
       for (const side of [1, -1] as const) {
         const angle = s.crankAngle + (side === 1 ? 0 : Math.PI);
         const foot = new Vector3(
@@ -241,8 +276,23 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
         position={[0, HIP_Y - 0.04, HIP_Z - 0.04]}
         geometry={new BoxGeometry(0.12, 0.04, 0.26)}
       />
-      <DropBar tape={mats.dark} hood={mats.hood} glove={mats.glove} metal={mats.metal} />
-      <PovArms skin={mats.skin} jersey={mats.jersey} glove={mats.glove} />
+      <DropBar
+        tape={mats.dark}
+        hood={mats.hood}
+        glove={mats.glove}
+        metal={mats.metal}
+        hands={!rig}
+      />
+      {!rig && <PovArms skin={mats.skin} jersey={mats.jersey} glove={mats.glove} />}
+      {rig && <primitive object={rig.root} />}
+      {([1, -1] as const).map((side) => (
+        <mesh
+          key={side}
+          ref={pedals[side === 1 ? 'l' : 'r']}
+          material={mats.dark}
+          geometry={pedalGeometry}
+        />
+      ))}
       {/* Cranks */}
       <group ref={crank} position={BB.toArray()}>
         <mesh
@@ -262,62 +312,70 @@ export const Rider = forwardRef<RiderHandle, { jersey?: string; frame?: string }
         ))}
       </group>
       {/* Legs */}
-      <mesh ref={legs.lThigh} material={mats.shorts} geometry={unitCylinder} />
-      <mesh ref={legs.rThigh} material={mats.shorts} geometry={unitCylinder} />
-      <mesh ref={legs.lShin} material={mats.skin} geometry={unitCylinder} />
-      <mesh ref={legs.rShin} material={mats.skin} geometry={unitCylinder} />
+      {!rig && (
+        <>
+          <mesh ref={legs.lThigh} material={mats.shorts} geometry={unitCylinder} />
+          <mesh ref={legs.rThigh} material={mats.shorts} geometry={unitCylinder} />
+          <mesh ref={legs.lShin} material={mats.skin} geometry={unitCylinder} />
+          <mesh ref={legs.rShin} material={mats.skin} geometry={unitCylinder} />
+        </>
+      )}
       {/* Upper body */}
-      <group ref={torso}>
-        <mesh
-          material={mats.jersey}
-          geometry={unitCylinder}
-          ref={(m) => {
-            limb(
-              m,
-              new Vector3(0, HIP_Y + 0.02, HIP_Z),
-              new Vector3(0, shoulderY, shoulderZ),
-              0.15,
-            );
-            hideInPov(m);
-          }}
-        />
-        <mesh
-          ref={hideInPov}
-          material={mats.skin}
-          position={[0, shoulderY + 0.12, shoulderZ + 0.12]}
-          geometry={new SphereGeometry(0.1, 16, 12)}
-        />
-        <mesh
-          ref={hideInPov}
-          material={mats.helmet}
-          position={[0, shoulderY + 0.17, shoulderZ + 0.1]}
-          scale={[1, 0.75, 1.25]}
-          geometry={new SphereGeometry(0.12, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)}
-        />
-        {arms.map(({ shoulder, elbow, hand }) => (
-          <group key={shoulder.x}>
-            <mesh
-              material={mats.jersey}
-              geometry={unitCylinder}
-              ref={(m) => {
-                limb(m, shoulder, elbow, 0.045);
-                hideInPov(m);
-              }}
-            />
-            <mesh
-              material={mats.skin}
-              geometry={unitCylinder}
-              ref={(m) => {
-                limb(m, elbow, hand, 0.035);
-                hideInPov(m);
-              }}
-            />
-          </group>
-        ))}
-      </group>
+      {!rig && (
+        <group ref={torso}>
+          <mesh
+            material={mats.jersey}
+            geometry={unitCylinder}
+            ref={(m) => {
+              limb(
+                m,
+                new Vector3(0, HIP_Y + 0.02, HIP_Z),
+                new Vector3(0, shoulderY, shoulderZ),
+                0.15,
+              );
+              hideInPov(m);
+            }}
+          />
+          <mesh
+            ref={hideInPov}
+            material={mats.skin}
+            position={[0, shoulderY + 0.12, shoulderZ + 0.12]}
+            geometry={new SphereGeometry(0.1, 16, 12)}
+          />
+          <mesh
+            ref={hideInPov}
+            material={mats.helmet}
+            position={[0, shoulderY + 0.17, shoulderZ + 0.1]}
+            scale={[1, 0.75, 1.25]}
+            geometry={new SphereGeometry(0.12, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)}
+          />
+          {arms.map(({ shoulder, elbow, hand }) => (
+            <group key={shoulder.x}>
+              <mesh
+                material={mats.jersey}
+                geometry={unitCylinder}
+                ref={(m) => {
+                  limb(m, shoulder, elbow, 0.045);
+                  hideInPov(m);
+                }}
+              />
+              <mesh
+                material={mats.skin}
+                geometry={unitCylinder}
+                ref={(m) => {
+                  limb(m, elbow, hand, 0.035);
+                  hideInPov(m);
+                }}
+              />
+            </group>
+          ))}
+        </group>
+      )}
     </group>
   );
 });
+
+const pedalGeometry = new BoxGeometry(0.09, 0.02, 0.1);
 
 /** Layer 1 is not rendered by the POV camera (the head would fill the view). */
 export const POV_HIDDEN_LAYER = 1;
@@ -341,6 +399,7 @@ export function mergeStaticParts(root: Object3D, animated: ReadonlySet<Object3D 
     for (const child of group.children) {
       const m = child as Mesh;
       if (!m.isMesh || animated.has(m) || Array.isArray(m.material)) continue;
+      if ((m as SkinnedMesh).isSkinnedMesh) continue;
       const key = `${m.material.uuid}|${m.layers.mask}|${m.castShadow}|${m.receiveShadow}`;
       const list = buckets.get(key) ?? [];
       list.push(m);
@@ -495,11 +554,14 @@ function DropBar({
   hood,
   glove,
   metal,
+  hands,
 }: {
   tape: MeshStandardMaterial;
   hood: MeshStandardMaterial;
   glove: MeshStandardMaterial;
   metal: MeshStandardMaterial;
+  /** Procedural gloved hands (the avatar has its own). */
+  hands: boolean;
 }) {
   const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
   const curve = (side: number) => [
@@ -555,26 +617,32 @@ function DropBar({
             ref={(m) => limb(m, v(side * 0.2, 0.96, 0.61), v(side * 0.2, 0.85, 0.625), 0.006)}
           />,
           // Gloved hand wrapped around the hood: palm on top, fingers around the lever.
-          <mesh
-            key={`hand${side}`}
-            material={glove}
-            position={[side * 0.207, 0.99, 0.56]}
-            rotation={[-0.5, 0, 0]}
-            scale={[0.036, 0.026, 0.055]}
-            geometry={new SphereGeometry(1, 14, 10)}
-          />,
-          <mesh
-            key={`fingers${side}`}
-            material={glove}
-            geometry={unitCylinder}
-            ref={(m) => limb(m, v(side * 0.2, 0.985, 0.6), v(side * 0.208, 0.945, 0.625), 0.016)}
-          />,
-          <mesh
-            key={`thumb${side}`}
-            material={glove}
-            geometry={unitCylinder}
-            ref={(m) => limb(m, v(side * 0.185, 0.975, 0.53), v(side * 0.19, 0.99, 0.585), 0.012)}
-          />,
+          hands && (
+            <mesh
+              key={`hand${side}`}
+              material={glove}
+              position={[side * 0.207, 0.99, 0.56]}
+              rotation={[-0.5, 0, 0]}
+              scale={[0.036, 0.026, 0.055]}
+              geometry={new SphereGeometry(1, 14, 10)}
+            />
+          ),
+          hands && (
+            <mesh
+              key={`fingers${side}`}
+              material={glove}
+              geometry={unitCylinder}
+              ref={(m) => limb(m, v(side * 0.2, 0.985, 0.6), v(side * 0.208, 0.945, 0.625), 0.016)}
+            />
+          ),
+          hands && (
+            <mesh
+              key={`thumb${side}`}
+              material={glove}
+              geometry={unitCylinder}
+              ref={(m) => limb(m, v(side * 0.185, 0.975, 0.53), v(side * 0.19, 0.99, 0.585), 0.012)}
+            />
+          ),
         ];
       })}
       {/* Stem and bike computer. */}

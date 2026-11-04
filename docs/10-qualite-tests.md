@@ -54,7 +54,7 @@ Sert de référence à tous les lots de la phase 2 : chaque changement du rendu 
 ### Utilisation
 
 ```sh
-pnpm bench -- --label avant-2.1            # build, serveur local, 18 points de vue × 3 qualités (~6 min)
+pnpm bench -- --label avant-2.1            # build, serveur local, 20 points de vue × 3 qualités (~7 min)
 pnpm bench -- --label apres-2.1
 pnpm bench:compare avant-2.1 apres-2.1     # bench-results/compare-avant-2.1-vs-apres-2.1.html
 ```
@@ -65,7 +65,7 @@ La page `#/bench` s'utilise aussi à la main : choix du point de vue et de la qu
 
 ### Points de vue
 
-18 points de vue fixes sur les 3 boucles, définis dans `apps/web/src/bench/viewpoints.ts` : route dégagée, forêt, village, montée, sommet et lac, surtout en vue POV (hauteur de cycliste) avec quelques vues poursuite et drone. Les 16 premiers datent du lot 2.0 ; `lac-clotures` (prés clôturés) et `col-muret` (muret au-dessus du lac) ont été ajoutés au lot 2.5 pour juger le mobilier de bord de route de près. **On n'en modifie jamais l'identifiant ni la position** (les comparaisons en dépendent) : on en ajoute.
+20 points de vue fixes sur les 3 boucles, définis dans `apps/web/src/bench/viewpoints.ts` : route dégagée, forêt, village, montée, sommet et lac, surtout en vue POV (hauteur de cycliste) avec quelques vues poursuite et drone. Les 16 premiers datent du lot 2.0 ; `lac-clotures` (prés clôturés) et `col-muret` (muret au-dessus du lac) ont été ajoutés au lot 2.5 pour juger le mobilier de bord de route de près ; `lac-cycliste-poursuite` et `lac-cycliste-cote` (le cycliste de derrière et de côté, sur la route dégagée) au lot 2.10 pour juger l'avatar. **On n'en modifie jamais l'identifiant ni la position** (les comparaisons en dépendent) : on en ajoute.
 
 ### Méthode
 
