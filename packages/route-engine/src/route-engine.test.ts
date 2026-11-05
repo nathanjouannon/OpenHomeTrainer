@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { buildLoopRoute, type LoopDesign } from './build-loop';
+import { buildLoopRoute, type LoopDesign, loopRouteFromPoints } from './build-loop';
 import { LapTracker } from './laps';
 import { ascentDescent, computeGrades, limitGrade, smooth } from './profile';
 import { angleDelta, emptyRoutePoint, Route } from './route';
@@ -229,5 +229,43 @@ describe('LapTracker', () => {
     let crossings = 0;
     for (let s = 1; s <= 6 * 3600; s++) crossings += t.update(s, s * 10).length;
     expect(crossings).toBe(Math.floor((6 * 3600 * 10) / 5000));
+  });
+});
+
+describe('loopRouteFromPoints', () => {
+  it('builds a loop from placed points: lengths, grades and headings', () => {
+    // A 400 m square, 4 points per side, climbing 4 m along the first side.
+    const x: number[] = [];
+    const y: number[] = [];
+    const z: number[] = [];
+    const corners: [number, number][] = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100],
+    ];
+    corners.forEach(([ax, ay], k) => {
+      const [bx, by] = corners[(k + 1) % 4] as [number, number];
+      for (let s = 0; s < 4; s++) {
+        x.push(ax + ((bx - ax) * s) / 4);
+        y.push(ay + ((by - ay) * s) / 4);
+        z.push(k === 0 ? 500 + s : k === 1 ? 504 : k === 2 ? 504 - (s * 4) / 8 : 502 - s / 2);
+      }
+    });
+    const route = loopRouteFromPoints({
+      id: 'square',
+      name: { fr: 'Carré', en: 'Square' },
+      worldId: 'w',
+      x: Float64Array.from(x),
+      y: Float64Array.from(y),
+      z: Float64Array.from(z),
+    });
+    expect(route.lengthM).toBeCloseTo(400, 6);
+    expect(route.pointCount).toBe(16);
+    expect(route.d[4]).toBeCloseTo(100, 6);
+    // Heading east along the first side (0 = north, clockwise).
+    expect(route.heading[1]).toBeCloseTo(Math.PI / 2, 6);
+    expect(route.grade[1]).toBeGreaterThan(0);
+    expect(route.meta.ascentM).toBeCloseTo(4, 6);
   });
 });

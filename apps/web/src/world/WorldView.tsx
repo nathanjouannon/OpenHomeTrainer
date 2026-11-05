@@ -61,7 +61,14 @@ import type { TextureArrays } from './texture-arrays';
 import { batchPlants, plantOf } from './vegetation-builders';
 import { REFLECTED_LAYER, Water } from './Water';
 import { realClock, useWorldClock, type WorldClock, WorldClockContext } from './world-clock';
-import { forestCover, occupancy, placeTrees, valueNoise2d, type WorldData } from './world-data';
+import {
+  forestCover,
+  occupancy,
+  placeTrees,
+  terrainHeightAt,
+  valueNoise2d,
+  type WorldData,
+} from './world-data';
 
 const LOD_DISTANCES_M = [0, 1300, 2800];
 /** Same seed as the trees, so that the forest floor lies under the forests. */
@@ -389,7 +396,13 @@ function Scene({
       />
       <StartArch route={route} base={base} />
       <Rider ref={rider} avatar={built.avatar} />
-      {freeCamera && <FreeCamera {...freeCamera} base={base} />}
+      {freeCamera && (
+        <FreeCamera
+          {...freeCamera}
+          base={base}
+          groundAt={(x, y) => terrainHeightAt(world.terrain, x, y)}
+        />
+      )}
     </>
   );
 }

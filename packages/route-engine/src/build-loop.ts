@@ -31,6 +31,79 @@ const DEFAULTS = { stepM: 5, maxGradePercent: 12, smoothingM: 120 };
 /** Grades are computed over ±25 m. */
 const GRADE_HALF_WINDOW_M = 25;
 
+export interface LoopPoints {
+  id: string;
+  version?: number;
+  name: LocalizedText;
+  worldId: string;
+  /** Points of the closed line (x east, y north, z altitude, m), about evenly spaced; the first one is the start line. */
+  x: Float64Array;
+  y: Float64Array;
+  z: Float64Array;
+  segments?: RouteSegment[];
+  surface?: RouteSurface[];
+  attribution?: string[];
+}
+
+/**
+ * Builds a closed loop route from points already placed and given their
+ * altitude (a loop sharing stretches with the roads of a network). The
+ * distances are the lengths along the line; the grades and headings are
+ * computed as in `buildLoopRoute`.
+ */
+export function loopRouteFromPoints(p: LoopPoints): Route {
+  const { x, y, z } = p;
+  const n = x.length;
+  const d: number[] = new Array(n);
+  let lengthM = 0;
+  for (let i = 0; i < n; i++) {
+    d[i] = lengthM;
+    const j = (i + 1) % n;
+    lengthM += Math.hypot((x[j] as number) - (x[i] as number), (y[j] as number) - (y[i] as number));
+  }
+  const spacingM = lengthM / n;
+  const grade = computeGrades(
+    z,
+    spacingM,
+    Math.max(1, Math.round(GRADE_HALF_WINDOW_M / spacingM)),
+    true,
+  );
+  const heading = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = (i - 1 + n) % n;
+    const b = (i + 1) % n;
+    heading[i] = Math.atan2(
+      (x[b] as number) - (x[a] as number),
+      (y[b] as number) - (y[a] as number),
+    );
+  }
+  const { ascentM, descentM } = ascentDescent(z, true);
+  return Route.fromJson({
+    format: 'hrt-route/1',
+    id: p.id,
+    version: p.version ?? 1,
+    name: p.name,
+    mode: 'virtual',
+    worldId: p.worldId,
+    loop: true,
+    lengthM,
+    ascentM,
+    descentM,
+    sampleStepM: spacingM,
+    points: {
+      d,
+      x: Array.from(x),
+      y: Array.from(y),
+      z: Array.from(z),
+      grade: Array.from(grade),
+      heading: Array.from(heading),
+    },
+    segments: p.segments ?? [],
+    surface: p.surface ?? [{ fromM: 0, toM: lengthM, type: 'asphalt' }],
+    attribution: p.attribution ?? [],
+  });
+}
+
 /** Builds a closed loop route from a spline drawn over a terrain. */
 export function buildLoopRoute(design: LoopDesign): Route {
   const stepTarget = design.stepM ?? DEFAULTS.stepM;

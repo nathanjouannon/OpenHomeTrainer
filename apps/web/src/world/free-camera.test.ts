@@ -3,6 +3,8 @@ import {
   type CameraPose,
   clampPitch,
   directionToAngles,
+  FREE_CAMERA_CLEARANCE_M,
+  keepAboveGround,
   moveKeysFromCodes,
   movePose,
   parsePoseParam,
@@ -93,5 +95,13 @@ describe('pose in text', () => {
     expect(text.split('\n')).toHaveLength(3);
     expect(text).toContain('x=100.0 y=200.0 z=300.0');
     expect(text).toContain('WebGPU');
+  });
+});
+
+describe('keepAboveGround', () => {
+  it('lifts the camera out of the ground, leaves it alone above', () => {
+    const low = { ...pose, z: 485.9 };
+    expect(keepAboveGround(low, 491.3).z).toBeCloseTo(491.3 + FREE_CAMERA_CLEARANCE_M, 6);
+    expect(keepAboveGround(low, 480)).toBe(low);
   });
 });

@@ -55,11 +55,13 @@ Monde v1 : **Val de Vérane** (nom fictif), zone de **10 × 10 km** sur un relie
 
 Les tracés sont produits par un **planificateur de routes** (`tools/world-builder/src/road-planner.ts`) : plus court chemin A* sur le relief, avec une pénalité au-dessus d'une pente cible, ce qui crée automatiquement des lacets ; seuls quelques points de passage sont donnés à la main.
 
+Depuis le lot 2.13 ([16 §1](16-retours-phase-2.md)), une boucle dont la route s'écarte du sol est retracée en mode strict (pente lue le long de chaque pas, coût pour tourner, de vraies épingles) et les boucles forment un **réseau** (`network.ts`) : une boucle posée sur la route d'une autre là où elles se suivent, croisements au même niveau. Écart route/sol au pire : 2 m (lac, collines), 8 m (col).
+
 | Boucle | Visé | Obtenu (tour) | Profil |
 |---|---|---|---|
 | Boucle du lac (plate) | ~12 km, < 80 m | **9,2 km, 80 m**, pente max 5 % | Échauffement, récupération, intervalles réguliers |
-| Boucle des collines (vallonnée) | ~20 km, ~300 m | **17,7 km, 378 m**, pente max 9 % | Bosses, la plus longue : 3,3 km à 7,6 % |
-| Boucle du col (montagne) | ~30 km, ~700 m | **26,5 km, 865 m**, pente max 10 % | Montée de 7,5 km à 8,9 % par la vallée, descente en lacets vers le lac, retour par la rive |
+| Boucle des collines (vallonnée) | ~20 km, ~300 m | **13,0 km, 140 m**, pente max 9 % (17,7 km et 378 m avant le lot 2.13) | Plaine et petites bosses, la plus longue : 1,4 km à 4,1 % ; une vraie montée reste à dessiner |
+| Boucle du col (montagne) | ~30 km, ~700 m | **39,5 km, 937 m**, pente max 10 % (26,5 km et 865 m avant le lot 2.13, avec des passages plus raides que la limite) | Montée par la vallée en lacets, col à ~1 180 m, descente en lacets vers Port-Vérane, retour par la rive |
 
 ## 4. Rendu
 

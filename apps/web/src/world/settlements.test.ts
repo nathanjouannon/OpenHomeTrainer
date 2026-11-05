@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { buildLoopRoute, Route, type RouteJson, type WorldManifest } from '@hrt/route-engine';
+import {
+  buildLoopRoute,
+  loopRouteFromPoints,
+  Route,
+  type RouteJson,
+  type WorldManifest,
+} from '@hrt/route-engine';
 import { describe, expect, it } from 'vitest';
 import { asphaltLiftM } from './road-builders';
 import { VERGE_OUTER_M } from './roadside';
@@ -195,5 +201,51 @@ describe('footprints', () => {
 
   it('keeps the cars beyond the verges', () => {
     expect(CAR_ROAD_CLEARANCE_M).toBeGreaterThan(VERGE_OUTER_M);
+  });
+});
+
+describe('village streets (lot 2.13)', () => {
+  const village = { id: 'v', name: 'V', center: [0, 0] as [number, number], radiusM: 300 };
+  /** A loop from explicit points, about 5 m apart. */
+  const fromPoints = (id: string, pts: [number, number][]) =>
+    loopRouteFromPoints({
+      id,
+      name: { fr: id, en: id },
+      worldId: 'w',
+      x: Float64Array.from(pts, (p) => p[0]),
+      y: Float64Array.from(pts, (p) => p[1]),
+      z: new Float64Array(pts.length).fill(500),
+    });
+  const line = (ax: number, ay: number, bx: number, by: number) => {
+    const n = Math.round(Math.hypot(bx - ax, by - ay) / 5);
+    return Array.from({ length: n }, (_, k): [number, number] => [
+      ax + ((bx - ax) * k) / n,
+      ay + ((by - ay) * k) / n,
+    ]);
+  };
+  // Through the village along y = 0, and back through it along y = 150.
+  const twice = fromPoints('deux-fois', [
+    ...line(-1000, 0, 1000, 0),
+    ...line(1000, 0, 1000, 150),
+    ...line(1000, 150, -1000, 150),
+    ...line(-1000, 150, -1000, 0),
+  ]);
+
+  it('gives a loop one street per village, its longest passage', () => {
+    const spans = villageSpans([twice], [village]);
+    expect(spans).toHaveLength(1);
+    // Along y = 0 (about 600 m), not along y = 150 (520 m).
+    expect((spans[0]?.toM ?? 0) - (spans[0]?.fromM ?? 0)).toBeGreaterThan(560);
+  });
+
+  it('gives no street to a loop on the street of another', () => {
+    const other = fromPoints('autre', [
+      ...line(-1000, 0, 1000, 0),
+      ...line(1000, 0, 1000, -500),
+      ...line(1000, -500, -1000, -500),
+      ...line(-1000, -500, -1000, 0),
+    ]);
+    const spans = villageSpans([twice, other], [village]);
+    expect(spans.map((s) => s.routeId)).toEqual(['deux-fois']);
   });
 });

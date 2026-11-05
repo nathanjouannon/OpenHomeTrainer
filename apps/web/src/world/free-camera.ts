@@ -153,3 +153,16 @@ export function poseReport(pose: CameraPose, ctx: PoseContext, href: string): st
   const setup = `${ctx.worldId}/${ctx.routeId} · qualité ${ctx.quality}${ctx.backend ? ` · ${ctx.backend}` : ''}`;
   return `${where}\n${setup}\n${poseUrl(href, pose)}`;
 }
+
+/** The free camera keeps at least this height above the ground (m). */
+export const FREE_CAMERA_CLEARANCE_M = 1.5;
+
+/**
+ * The pose, lifted above the ground when it went below it: under the
+ * terrain, the grass and the roads are seen from beneath and seem to float
+ * (feedback of 2026-11-04 at 16:39, docs/16 §1).
+ */
+export function keepAboveGround<P extends Pick<CameraPose, 'z'>>(pose: P, groundZ: number): P {
+  const min = groundZ + FREE_CAMERA_CLEARANCE_M;
+  return pose.z >= min ? pose : { ...pose, z: min };
+}

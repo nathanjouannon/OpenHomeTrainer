@@ -293,39 +293,80 @@ export function lateral(route: Route, d: number, offset: number) {
   };
 }
 
-/** Stretches of each route that lie inside a village. */
+/**
+ * Stretches of each route that lie inside a village: one street per route
+ * and village (its longest passage: a loop that runs by a village twice, on
+ * the way down and along the shore, had houses on both roads, docs/16 §1),
+ * and none on a road another route already has as a street (shared roads).
+ */
 export function villageSpans(
   routes: readonly Route[],
   villages: readonly VillageDef[],
 ): VillageSpan[] {
   const out: VillageSpan[] = [];
-  for (const route of routes) {
+  routes.forEach((route, ri) => {
     for (const v of villages) {
       const inside = (i: number) =>
         Math.hypot((route.x[i] as number) - v.center[0], (route.y[i] as number) - v.center[1]) <
         v.radiusM;
       const n = route.pointCount;
+      const passages: VillageSpan[] = [];
       // Start scanning from a point outside the village so spans never wrap.
       let start = 0;
       while (start < n && inside(start)) start++;
       if (start === n) {
-        out.push({ routeId: route.id, village: v.id, fromM: 0, toM: route.lengthM });
-        continue;
-      }
-      let from: number | null = null;
-      for (let k = 1; k <= n; k++) {
-        const i = (start + k) % n;
-        const d = route.d[i] as number;
-        if (inside(i) && from === null) from = d;
-        if (!inside(i) && from !== null) {
-          const to = d < from ? d + route.lengthM : d;
-          if (to - from > 40) out.push({ routeId: route.id, village: v.id, fromM: from, toM: to });
-          from = null;
+        passages.push({ routeId: route.id, village: v.id, fromM: 0, toM: route.lengthM });
+      } else {
+        let from: number | null = null;
+        for (let k = 1; k <= n; k++) {
+          const i = (start + k) % n;
+          const d = route.d[i] as number;
+          if (inside(i) && from === null) from = d;
+          if (!inside(i) && from !== null) {
+            const to = d < from ? d + route.lengthM : d;
+            if (to - from > 40)
+              passages.push({ routeId: route.id, village: v.id, fromM: from, toM: to });
+            from = null;
+          }
         }
       }
+      const longest = passages.reduce<VillageSpan | null>(
+        (a, b) => (!a || b.toM - b.fromM > a.toM - a.fromM ? b : a),
+        null,
+      );
+      if (!longest) continue;
+      if (onEarlierStreet(route, longest, routes.slice(0, ri), out)) continue;
+      out.push(longest);
     }
-  }
+  });
   return out;
+}
+
+/** True if most of a span runs on the street of an earlier route (within 3 m). */
+function onEarlierStreet(
+  route: Route,
+  span: VillageSpan,
+  earlier: readonly Route[],
+  streets: readonly VillageSpan[],
+): boolean {
+  const L = route.lengthM;
+  let on = 0;
+  let total = 0;
+  for (let d = span.fromM; d <= span.toM; d += 10) {
+    const p = route.sampleAt(d % L);
+    total++;
+    const hit = streets.some((s) => {
+      const other = earlier.find((r) => r.id === s.routeId);
+      if (!other) return false;
+      for (let e = s.fromM; e <= s.toM; e += 2.5) {
+        const q = other.sampleAt(e % other.lengthM);
+        if (Math.hypot(q.x - p.x, q.y - p.y) < 3) return true;
+      }
+      return false;
+    });
+    if (hit) on++;
+  }
+  return total > 0 && on / total > 0.5;
 }
 
 /** True if distance `d` of a route lies inside one of the village spans. */

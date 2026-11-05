@@ -35,6 +35,12 @@ const ROUTE_LIFT_M = 0.01;
  */
 export const asphaltLiftM = (routeIndex: number) => ASPHALT_Z + routeIndex * ROUTE_LIFT_M;
 
+/**
+ * Where a road crosses one drawn before it (another route, or its own
+ * earlier passage at the same level), its asphalt goes this much higher.
+ */
+const CROSSING_LIFT_M = 0.008;
+
 /** One column of a strip, at a distance along the route. */
 export interface StripColumn {
   /** Lateral offset from the axis, positive to the right of travel (m). */
@@ -249,7 +255,7 @@ function addAsphaltNoise(g: BufferGeometry): BufferGeometry {
 export function buildRoadSurfaces(
   routes: readonly Route[],
   base: number,
-  layout: Pick<RoadsideLayout, 'shared' | 'ditch'>,
+  layout: Pick<RoadsideLayout, 'shared' | 'ditch' | 'crossing'>,
   spans: readonly VillageSpan[],
   ground: GroundSampler,
 ): RoadSurfaces {
@@ -287,6 +293,10 @@ export function buildRoadSurfaces(
         u: c.offsetM - ROAD_HALF_WIDTH_M,
       };
     };
+    const crossing = layout.crossing?.get(route.id);
+    const n = route.pointCount;
+    const liftAt = (d: number) =>
+      lift + (crossing?.[Math.round(d / step) % n] ? CROSSING_LIFT_M : 0);
     for (const [from, to] of ownStretches(route, layout.shared.get(route.id))) {
       asphalt.push(
         addAsphaltNoise(
@@ -294,9 +304,9 @@ export function buildRoadSurfaces(
             route,
             base,
             2,
-            (_d, j) => {
+            (d, j) => {
               const offset = j === 0 ? -ROAD_HALF_WIDTH_M : ROAD_HALF_WIDTH_M;
-              return { offset, dz: lift, u: offset };
+              return { offset, dz: liftAt(d), u: offset };
             },
             from,
             to,

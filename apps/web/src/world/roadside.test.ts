@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { buildLoopRoute, Route, type RouteJson, type WorldManifest } from '@hrt/route-engine';
+import {
+  buildLoopRoute,
+  loopRouteFromPoints,
+  Route,
+  type RouteJson,
+  type WorldManifest,
+} from '@hrt/route-engine';
 import { describe, expect, it } from 'vitest';
 import { buildRoadSurfaces, ownStretches } from './road-builders';
 import {
@@ -315,6 +321,72 @@ describe.runIf(existsSync(resolve(WORLD_DIR, 'world.json')))('roadside of world-
       for (const span of spans.filter((x) => x.routeId === r.routeId)) {
         expect(r.toM <= span.fromM || r.fromM >= span.toM).toBe(true);
       }
+    }
+  });
+});
+
+describe('a loop that rides a road twice or crosses itself (lot 2.13)', () => {
+  const flat = terrainOf(() => 500);
+  /** A loop from explicit points, about 5 m apart. */
+  const fromPoints = (id: string, pts: [number, number][]) =>
+    loopRouteFromPoints({
+      id,
+      name: { fr: id, en: id },
+      worldId: 'w',
+      x: Float64Array.from(pts, (p) => p[0]),
+      y: Float64Array.from(pts, (p) => p[1]),
+      z: new Float64Array(pts.length).fill(500),
+    });
+  const line = (ax: number, ay: number, bx: number, by: number) => {
+    const n = Math.round(Math.hypot(bx - ax, by - ay) / 5);
+    return Array.from({ length: n }, (_, k): [number, number] => [
+      ax + ((bx - ax) * k) / n,
+      ay + ((by - ay) * k) / n,
+    ]);
+  };
+  const plan = (routes: Route[]) =>
+    planRoadside({
+      terrain: flat,
+      routes,
+      spans: [],
+      buildings: [],
+      waterLevelM: null,
+      forest: () => 0,
+    });
+
+  it('draws an out-and-back road once', () => {
+    // Out east along y = 0 and back along y = 1 m: the same road.
+    const route = fromPoints('aller-retour', [
+      ...line(0, 0, 1000, 0),
+      ...line(1000, 0, 1000, 1),
+      ...line(1000, 1, 0, 1),
+      ...line(0, 1, 0, 0),
+    ]);
+    const shared = plan([route]).shared.get(route.id) as Uint8Array;
+    const n = route.pointCount;
+    const back = Array.from(shared).filter((v, i) => v === 1 && (route.d[i] as number) > 1100);
+    // The way back (but its first and last 60 m, by the turns) lies on the way out.
+    expect(back.length * 5).toBeGreaterThan(800);
+    // The way out is drawn.
+    expect(shared.slice(0, Math.floor(n / 3)).every((v) => v === 0)).toBe(true);
+  });
+
+  it('marks the crossing of a figure of eight on its second passage', () => {
+    const route = fromPoints('huit', [
+      ...line(0, 0, 500, 500),
+      ...line(500, 500, 500, 0),
+      ...line(500, 0, 0, 500),
+      ...line(0, 500, 0, 0),
+    ]);
+    const crossing = plan([route]).crossing?.get(route.id) as Uint8Array;
+    const marked = Array.from(crossing.keys()).filter((i) => crossing[i] === 1);
+    // Only around (250, 250), on the second diagonal.
+    expect(marked.length).toBeGreaterThan(0);
+    for (const i of marked) {
+      expect(Math.hypot((route.x[i] as number) - 250, (route.y[i] as number) - 250)).toBeLessThan(
+        12,
+      );
+      expect(route.d[i] as number).toBeGreaterThan(1000);
     }
   });
 });

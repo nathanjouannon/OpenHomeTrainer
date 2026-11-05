@@ -12,6 +12,7 @@ import {
   FREE_CAMERA_CODES,
   FREE_CAMERA_FOV,
   FREE_SPEED_DEFAULT_MS,
+  keepAboveGround,
   moveKeysFromCodes,
   movePose,
   sceneToWorld,
@@ -29,10 +30,12 @@ export interface FreeCameraProps {
   start: CameraPose | null;
   /** Scene base altitude (world z of the scene's y = 0). */
   base: number;
+  /** Ground altitude at a world position: the camera never goes below it. */
+  groundAt?: (x: number, y: number) => number;
   onPose: (pose: CameraPose, speedMs: number) => void;
 }
 
-export function FreeCamera({ start, base, onPose }: FreeCameraProps) {
+export function FreeCamera({ start, base, groundAt, onPose }: FreeCameraProps) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const dom = useThree((s) => s.gl.domElement);
   const pose = useRef<CameraPose | null>(null);
@@ -117,7 +120,13 @@ export function FreeCamera({ start, base, onPose }: FreeCameraProps) {
   useFrame((_, delta) => {
     const p0 = pose.current;
     if (!p0) return;
-    const p = movePose(p0, moveKeysFromCodes(down.current), speed.current, Math.min(delta, 0.1));
+    const moved = movePose(
+      p0,
+      moveKeysFromCodes(down.current),
+      speed.current,
+      Math.min(delta, 0.1),
+    );
+    const p = groundAt ? keepAboveGround(moved, groundAt(moved.x, moved.y)) : moved;
     pose.current = p;
     const s = worldToScene(p, base);
     camera.position.set(s.x, s.y, s.z);

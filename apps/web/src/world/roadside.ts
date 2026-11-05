@@ -67,6 +67,12 @@ export interface RoadsideLayout {
   delineators: Prop[];
   /** Per route and sample: 1 when an earlier route already draws the road there. */
   shared: Map<string, Uint8Array>;
+  /**
+   * Per route and sample: 1 where the road crosses (or meets) a road drawn
+   * before it, another route or its own earlier passage: its asphalt goes
+   * a few millimetres over the other one there instead of fighting it.
+   */
+  crossing?: Map<string, Uint8Array>;
   /** Per route: ditch depth 0..1 at each sample, right side then left side. */
   ditch: Map<string, [Float32Array, Float32Array]>;
 }
@@ -86,8 +92,12 @@ export interface RoadsideInput {
 
 /** Thresholds of the layout rules (exported for the tests). */
 export const RULES = {
-  /** Two routes closer than this share the road (m). */
-  sharedM: 2,
+  /**
+   * Two routes closer than this share the road (m). A loop laid on the road
+   * of another (world-builder, network.ts) has its samples on that road's
+   * line, between two of its samples 5 m apart: up to 2.5 m from the nearest.
+   */
+  sharedM: 2.6,
   /** No furniture and no ditch where another road passes within this distance (m). */
   junctionM: 14,
   /** Furniture keeps this far from the village spans (m). */
@@ -112,6 +122,9 @@ export const RULES = {
   delineatorStepM: 50,
 } as const;
 
+/** A sample within this distance of an earlier road's sample lies on the crossing (m). */
+const CROSSING_REACH_M = ROAD_HALF_WIDTH_M * 2 + 1;
+
 /** Spatial hash of the route samples, for the "another road nearby" tests. */
 class SampleGrid {
   private readonly cells = new Map<number, number[]>();
@@ -135,7 +148,8 @@ class SampleGrid {
   /**
    * True if a sample of another road lies within `radius` of (x, y): another
    * route (only those before `ri` when `earlierOnly`), or the same route more
-   * than 60 m away along it (the other leg of a hairpin).
+   * than 60 m away along it (the other leg of a hairpin; when `earlierOnly`,
+   * only before `d`: a loop that rides a road twice, out and back, lot 2.13).
    */
   near(ri: number, d: number, x: number, y: number, radius: number, earlierOnly = false) {
     const reach = Math.ceil(radius / this.cellM);
@@ -150,10 +164,10 @@ class SampleGrid {
         for (let k = 0; k < list.length; k += 2) {
           const oi = list[k] as number;
           const i = list[k + 1] as number;
-          if (earlierOnly ? oi >= ri : false) continue;
+          if (earlierOnly && oi > ri) continue;
           const other = this.routes[oi] as Route;
           if (oi === ri) {
-            if (earlierOnly) continue;
+            if (earlierOnly && (other.d[i] as number) >= d) continue;
             const dd = Math.abs((other.d[i] as number) - d);
             if (Math.min(dd, route.lengthM - dd) < 60) continue;
           }
@@ -214,6 +228,7 @@ export function planRoadside(input: RoadsideInput): RoadsideLayout {
   const runs: RoadsideRun[] = [];
   const delineators: Prop[] = [];
   const shared = new Map<string, Uint8Array>();
+  const crossing = new Map<string, Uint8Array>();
   const ditch = new Map<string, [Float32Array, Float32Array]>();
 
   routes.forEach((route, ri) => {
@@ -228,6 +243,15 @@ export function planRoadside(input: RoadsideInput): RoadsideLayout {
       }
     }
     shared.set(route.id, sharedMask);
+    const crossMask = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      if (sharedMask[i]) continue;
+      const d = route.d[i] as number;
+      if (grid.near(ri, d, route.x[i] as number, route.y[i] as number, CROSSING_REACH_M, true)) {
+        crossMask[i] = 1;
+      }
+    }
+    crossing.set(route.id, crossMask);
     const ditches: [Float32Array, Float32Array] = [new Float32Array(n), new Float32Array(n)];
     ditch.set(route.id, ditches);
 
@@ -321,7 +345,7 @@ export function planRoadside(input: RoadsideInput): RoadsideLayout {
       }
     }
   });
-  return { runs, delineators, shared, ditch };
+  return { runs, delineators, shared, crossing, ditch };
 }
 
 /** Moving average over ±`radius` samples (no wrap: the ends just average less). */
