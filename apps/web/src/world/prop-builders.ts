@@ -6,11 +6,16 @@ import {
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
+  CapsuleGeometry,
   Color,
   CylinderGeometry,
+  ExtrudeGeometry,
+  LatheGeometry,
   RepeatWrapping,
+  Shape,
   SphereGeometry,
   SRGBColorSpace,
+  Vector2,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Building } from './settlements';
@@ -50,6 +55,12 @@ export const CLOTHES_COLORS = [
 
 const BAY_W = 3.2;
 const FLOOR_H = 3;
+/** The plinth goes this far under the lowest ground (bilinear vs mesh terrain). */
+const PLINTH_BURY_M = 0.6;
+/** Plinth colour: the wall colour, darker (stone or rendered base). */
+const PLINTH_SHADE = 0.68;
+/** Top of the plain band of a facade row (the window frame starts at 0.29 of the row). */
+const PLINTH_V = 0.25;
 
 /** Flat-shaded geometry from triangles (positions, uvs, colours). */
 class MeshBuilder {
@@ -97,6 +108,7 @@ export function buildBuildings(buildings: readonly Building[], base: number) {
   const barns = new MeshBuilder();
   const roofs = new MeshBuilder();
   const color = new Color();
+  const plinth = new Color();
   for (const b of buildings) {
     const rx = Math.cos(b.yaw);
     const ry = -Math.sin(b.yaw);
@@ -111,10 +123,16 @@ export function buildBuildings(buildings: readonly Building[], base: number) {
     const W = b.width / 2;
     const D = b.depth / 2;
     const H = b.wallHeight;
-    const foot = -3; // foundations go into the ground on slopes
+    // A whole number of window rows between the floor and the eave: a fixed
+    // 3 m row left the top windows cut by the roof (docs/16 §2).
+    const rowH = H / Math.max(1, Math.round(H / FLOOR_H));
+    // A blank plinth from the floor down into the lowest ground under the
+    // walls, so that no house floats or shows windows below the ground.
+    const foot = Math.min(-0.3, b.groundM - b.z - PLINTH_BURY_M);
     const target = b.kind === 'barn' ? barns : walls;
     color.set(WALL_COLORS[b.wallTint % WALL_COLORS.length] ?? '#ffffff');
     if (b.kind === 'barn') color.lerp(new Color('#ffffff'), 0.5);
+    plinth.copy(color).multiplyScalar(PLINTH_SHADE);
     // Four walls, counter-clockwise seen from outside.
     const corners: [number, number][] = [
       [-W, D],
@@ -128,17 +146,31 @@ export function buildBuildings(buildings: readonly Building[], base: number) {
       const len = Math.hypot(a1 - a0, f1 - f0) / BAY_W;
       // Wound so that the normal points outwards.
       target.quad(
-        P(a1, f1, foot),
-        P(a0, f0, foot),
+        P(a1, f1, 0),
+        P(a0, f0, 0),
         P(a0, f0, H),
         P(a1, f1, H),
         [
-          [0, foot / FLOOR_H],
-          [len, foot / FLOOR_H],
-          [len, H / FLOOR_H],
-          [0, H / FLOOR_H],
+          [0, 0],
+          [len, 0],
+          [len, H / rowH],
+          [0, H / rowH],
         ],
         color,
+      );
+      // The plinth samples the plain bottom of a row (no window there).
+      target.quad(
+        P(a1, f1, foot),
+        P(a0, f0, foot),
+        P(a0, f0, 0),
+        P(a1, f1, 0),
+        [
+          [0, 0.02],
+          [len, 0.02],
+          [len, PLINTH_V],
+          [0, PLINTH_V],
+        ],
+        plinth,
       );
     }
     // Gables at both ends of the ridge (ridge parallel to the facade).
@@ -152,9 +184,9 @@ export function buildBuildings(buildings: readonly Building[], base: number) {
         t1,
         t2,
         top,
-        [0, H / FLOOR_H],
-        [b.depth / BAY_W, H / FLOOR_H],
-        [b.depth / 2 / BAY_W, (H + R) / FLOOR_H],
+        [0, H / rowH],
+        [b.depth / BAY_W, H / rowH],
+        [b.depth / 2 / BAY_W, (H + R) / rowH],
         color,
       );
     }
@@ -313,47 +345,175 @@ const merge = (parts: BufferGeometry[]) => {
   return g;
 };
 
+/** A thin box from `a` to `b` (scene points, same x), `w` wide across X and `t` thick. */
+function strut(a: [number, number, number], b: [number, number, number], w: number, t: number) {
+  const len = Math.hypot(b[1] - a[1], b[2] - a[2]);
+  return new BoxGeometry(w, t, len)
+    .rotateX(-Math.atan2(b[1] - a[1], b[2] - a[2]))
+    .translate(a[0], (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+}
+
 /**
- * Small hatchback, length along +Z (forward). White parts take the instance
- * colour; glass, tyres and lights keep their own (vertex colours multiply).
+ * A side profile (x along the car, forward +; y up) extruded across the car,
+ * `width` wide with rounded edges, centred on X = 0, length along +Z.
+ */
+function extrudeShape(shape: Shape, width: number, round: number) {
+  return new ExtrudeGeometry(shape, {
+    depth: width - 2 * round,
+    bevelEnabled: round > 0,
+    bevelThickness: round,
+    bevelSize: round,
+    bevelSegments: 2,
+    curveSegments: 8,
+  })
+    .rotateY(-Math.PI / 2)
+    .translate(width / 2 - round, 0, 0);
+}
+
+function profile(points: readonly [number, number][]): Shape {
+  const shape = new Shape();
+  points.forEach(([x, y], k) => {
+    if (k === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  });
+  shape.closePath();
+  return shape;
+}
+
+/**
+ * Small hatchback (4.05 x 1.76 m), length along +Z (forward): body with wheel
+ * arches, glasshouse, pillars and roof, bumpers, lights, mirrors, wheels with
+ * rims. White parts take the instance colour; glass, tyres, trims and lights
+ * keep their own (vertex colours multiply).
  */
 export function carGeometry(): BufferGeometry {
-  return merge([
-    paint(new BoxGeometry(1.76, 0.62, 4.05).translate(0, 0.6, 0), '#ffffff'),
-    paint(new BoxGeometry(1.7, 0.18, 0.9).translate(0, 0.98, 1.45).rotateX(0.0), '#ffffff'),
-    paint(new BoxGeometry(1.6, 0.56, 2.15).translate(0, 1.18, -0.25), '#2a3138'),
-    paint(new BoxGeometry(1.56, 0.07, 1.95).translate(0, 1.48, -0.3), '#ffffff'),
-    ...[-0.78, 0.78].flatMap((x) =>
-      [-1.3, 1.3].map((z) =>
-        paint(
-          new CylinderGeometry(0.33, 0.33, 0.24, 14).rotateZ(Math.PI / 2).translate(x, 0.33, z),
-          '#151515',
-        ),
+  const wheelbase = 2.5;
+  const wheelR = 0.31;
+  const arch = 0.37;
+  // Lower body, front at +x: sills with the two wheel arches, nose, bonnet, waist, tailgate.
+  const body = new Shape();
+  body.moveTo(-1.98, 0.24);
+  for (const ax of [-wheelbase / 2, wheelbase / 2]) {
+    body.lineTo(ax - arch * Math.cos(0.19), 0.24);
+    body.absarc(ax, wheelR, arch, Math.PI - 0.19, 0.19, true);
+  }
+  body.lineTo(1.98, 0.24);
+  body.lineTo(2.04, 0.44);
+  body.lineTo(1.98, 0.66);
+  body.lineTo(1.1, 0.86);
+  body.lineTo(-1.7, 0.96);
+  body.lineTo(-1.97, 0.94);
+  body.lineTo(-2.03, 0.46);
+  body.closePath();
+  // Glasshouse: windscreen, side windows and rear window in one tinted volume.
+  const glass = profile([
+    [1.16, 0.84],
+    [0.32, 1.37],
+    [-1.22, 1.39],
+    [-1.86, 0.93],
+  ]);
+  const side = (x: number) => [
+    // A, B and C pillars.
+    strut([x, 0.88, 1.12], [x, 1.37, 0.33], 0.05, 0.08),
+    new BoxGeometry(0.05, 0.5, 0.12).translate(x, 1.14, -0.42),
+    strut([x, 1.39, -1.22], [x, 0.95, -1.84], 0.05, 0.16),
+    // Mirror.
+    new BoxGeometry(0.16, 0.1, 0.12).translate(x * 1.22, 0.98, 1.02),
+  ];
+  const wheels = [-0.79, 0.79].flatMap((x) =>
+    [-wheelbase / 2, wheelbase / 2].flatMap((z) => [
+      paint(
+        new CylinderGeometry(wheelR, wheelR, 0.2, 18).rotateZ(Math.PI / 2).translate(x, wheelR, z),
+        '#151515',
       ),
-    ),
-    paint(new BoxGeometry(0.35, 0.12, 0.05).translate(-0.6, 0.72, 2.03), '#fff6d8'),
-    paint(new BoxGeometry(0.35, 0.12, 0.05).translate(0.6, 0.72, 2.03), '#fff6d8'),
-    paint(new BoxGeometry(0.3, 0.12, 0.05).translate(-0.62, 0.78, -2.03), '#b00000'),
-    paint(new BoxGeometry(0.3, 0.12, 0.05).translate(0.62, 0.78, -2.03), '#b00000'),
+      paint(
+        new CylinderGeometry(0.19, 0.19, 0.205, 12).rotateZ(Math.PI / 2).translate(x, wheelR, z),
+        '#a9adb3',
+      ),
+    ]),
+  );
+  return merge([
+    paint(extrudeShape(body, 1.76, 0.07), '#ffffff'),
+    paint(extrudeShape(glass, 1.5, 0.04), '#1f262d'),
+    // Roof panel over the glasshouse.
+    paint(new BoxGeometry(1.5, 0.05, 1.5).translate(0, 1.4, -0.45), '#ffffff'),
+    ...[-0.76, 0.76].flatMap((x) => side(x).map((g) => paint(g, '#ffffff'))),
+    // Bumpers and sill trim.
+    paint(new BoxGeometry(1.74, 0.16, 0.12).translate(0, 0.33, 2.0), '#2a2d31'),
+    paint(new BoxGeometry(1.74, 0.16, 0.12).translate(0, 0.35, -2.0), '#2a2d31'),
+    paint(new BoxGeometry(1.79, 0.06, 1.6).translate(0, 0.27, 0), '#2a2d31'),
+    // Head and tail lights, number plates.
+    paint(new BoxGeometry(0.34, 0.1, 0.06).translate(-0.6, 0.62, 2.0), '#fff6d8'),
+    paint(new BoxGeometry(0.34, 0.1, 0.06).translate(0.6, 0.62, 2.0), '#fff6d8'),
+    paint(new BoxGeometry(0.26, 0.14, 0.05).translate(-0.66, 0.8, -1.99), '#b00000'),
+    paint(new BoxGeometry(0.26, 0.14, 0.05).translate(0.66, 0.8, -1.99), '#b00000'),
+    paint(new BoxGeometry(0.5, 0.11, 0.02).translate(0, 0.42, 2.07), '#f4f4f4'),
+    paint(new BoxGeometry(0.5, 0.11, 0.02).translate(0, 0.55, -2.04), '#f4f4f4'),
+    ...wheels,
   ]);
 }
 
-/** Pedestrian parts: body (instance colour), skin, and one leg pivoting at the hip. */
+/** Trousers of the pedestrians (instance colours of the legs). */
+export const TROUSERS_COLORS = ['#2c3340', '#3b4a6b', '#6b5b45', '#222222', '#55606e', '#8a7b62'];
+
+/** Height of the hips and shoulders of a pedestrian (m): pivots of the legs and arms. */
+export const PEDESTRIAN_HIP_M = 0.9;
+export const PEDESTRIAN_SHOULDER_M = 1.42;
+
+/**
+ * A walking pedestrian, in four instanced parts: the body (shirt, white: it
+ * takes the instance colour, with short-sleeve stubs), the head (neck, skin,
+ * hair), one arm (bare, hand) and one leg (white trousers: instance colour;
+ * shoe), the arm and the leg hanging from their pivot at y = 0.
+ */
 export function pedestrianGeometries() {
+  // Torso turned on a lathe (radius by height), flattened front to back.
+  const torso = new LatheGeometry(
+    [
+      [0, 0.86],
+      [0.15, 0.88],
+      [0.165, 0.98],
+      [0.15, 1.12],
+      [0.175, 1.3],
+      [0.19, 1.4],
+      [0.12, 1.47],
+      [0, 1.49],
+    ].map(([r, y]) => new Vector2(r, y)),
+    14,
+  ).scale(1, 1, 0.62);
+  const sleeve = (x: number) =>
+    new CylinderGeometry(0.065, 0.058, 0.2, 10).translate(x, PEDESTRIAN_SHOULDER_M - 0.08, 0);
   return {
     body: merge([
-      paint(new BoxGeometry(0.4, 0.62, 0.24).translate(0, 1.2, 0), '#ffffff'),
-      paint(new BoxGeometry(0.1, 0.55, 0.1).translate(0.25, 1.17, 0), '#ffffff'),
-      paint(new BoxGeometry(0.1, 0.55, 0.1).translate(-0.25, 1.17, 0), '#ffffff'),
+      paint(torso, '#ffffff'),
+      paint(sleeve(0.21), '#ffffff'),
+      paint(sleeve(-0.21), '#ffffff'),
     ]),
     head: merge([
-      paint(new SphereGeometry(0.11, 12, 8).translate(0, 1.64, 0), '#d6a283'),
+      paint(new CylinderGeometry(0.05, 0.055, 0.12, 10).translate(0, 1.51, 0), '#d6a283'),
       paint(
-        new SphereGeometry(0.115, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.67, -0.01),
+        new SphereGeometry(0.1, 14, 10).scale(0.92, 1.12, 1).translate(0, 1.64, 0.005),
+        '#d6a283',
+      ),
+      paint(
+        new SphereGeometry(0.104, 14, 7, 0, Math.PI * 2, 0, Math.PI * 0.55)
+          .scale(0.94, 1.1, 1.04)
+          .translate(0, 1.655, -0.012),
         '#3b2a1e',
       ),
+      paint(new BoxGeometry(0.03, 0.05, 0.04).translate(0, 1.625, 0.1), '#c99474'),
     ]),
-    leg: paint(new BoxGeometry(0.14, 0.88, 0.15).translate(0, -0.44, 0), '#2c3340'),
+    arm: merge([
+      paint(new CapsuleGeometry(0.042, 0.5, 4, 8).translate(0, -0.29, 0), '#d6a283'),
+      paint(new SphereGeometry(0.05, 8, 6).scale(0.8, 1.2, 0.6).translate(0, -0.62, 0), '#c99474'),
+    ]),
+    leg: merge([
+      paint(new CapsuleGeometry(0.068, 0.74, 4, 10).translate(0, -0.44, 0), '#ffffff'),
+      paint(
+        new BoxGeometry(0.11, 0.08, 0.26).translate(0, -PEDESTRIAN_HIP_M + 0.04, 0.05),
+        '#1d1d1f',
+      ),
+    ]),
   };
 }
 

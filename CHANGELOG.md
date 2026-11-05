@@ -42,6 +42,9 @@ Retours de la phase 2 (lot 2.13, [docs/16](docs/16-retours-phase-2.md)) :
 
 - **Clôtures, glissières, murets, balises et leurs ombres ne clignotent plus**, ni les ombres des lampadaires et des voitures garées. Un `ref` en ligne remettait leurs instances à zéro à chaque rendu React (4 fois par seconde avec le HUD) jusqu'au rafraîchissement suivant, 0,4 s plus tard. Un test interdit désormais ce motif dans les composants du monde.
 - **Les roues du cycliste ne s'enfoncent plus dans la route.** L'asphalte est dessiné 4 à 6 cm au-dessus de l'altitude de la route (selon la boucle) : le cycliste, et avec lui la caméra POV, et les voitures en circulation sont posés sur l'asphalte de leur boucle (`asphaltLiftM` dans `road-builders.ts`). L'asphalte ne change pas.
+- **Plus de voiture qui flotte ni de voiture dans une façade.** Le sol à côté des routes est 0,6 m sous la route : les voitures du village, posées à hauteur de trottoir, flottaient. Elles sont maintenant garées sur une place pavée au niveau du trottoir, inclinée comme la rue ; celles des fermes restent sur le terrain, dans la cour. Chaque voiture est testée contre les maisons et les autres voitures avec son emprise exacte, et les maisons posées ensuite lui laissent la place.
+- **Maisons sans fenêtres coupées ni vide dessous** : un nombre entier de rangées de fenêtres sous l'avant-toit et un soubassement uni qui descend jusqu'au sol (plus de fenêtres sous terre).
+- **Voitures et piétons refaits** : citadine arrondie avec passages de roue, vitrage, montants, pare-chocs, rétroviseurs et jantes ; piétons au torse galbé, avec cou, cheveux, bras qui se balancent en marchant et pantalons de couleurs variées.
 
 ## [0.1.0] — 2026-11-03 — Jalon M1 : MVP en monde virtuel
 

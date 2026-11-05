@@ -15,12 +15,40 @@ export interface VillageDef {
 export const ROAD_HALF_WIDTH_M = 3.25;
 export const SIDEWALK_WIDTH_M = 2;
 export const SIDEWALK_HEIGHT_M = 0.14;
+/** Footprint of a parked car (`carGeometry`), m. */
+export const CAR_LENGTH_M = 4.1;
+export const CAR_WIDTH_M = 1.8;
+/** Steepest plot a car is parked on: height spread under its four corners (m). */
+const CAR_MAX_TILT_M = 0.4;
+/** Highest a parking pad stands above the ground under it (m). */
+const PAD_MAX_HEIGHT_M = 1.6;
+/**
+ * No corner of a parked car comes closer to a road axis: beyond the verge
+ * slope (`VERGE_OUTER_M` = 6.55 m in roadside.ts, checked by a test), on the
+ * flat ground next to the road.
+ */
+export const CAR_ROAD_CLEARANCE_M = ROAD_HALF_WIDTH_M + 3.3 + 0.2;
+/** Free length kept between a village car and the houses before and after it (m). */
+const VILLAGE_CAR_GAP_M = 1.5;
+/**
+ * Village cars park beside the sidewalk, on a paved parking pad level with it:
+ * next to the road the ground is sunk under the road level (the terrain grid
+ * is too coarse to rise again within a few metres), a car standing on it
+ * looked parked in a ditch. Car centre and pad edges, from the road axis (m).
+ */
+const VILLAGE_CAR_OFFSET_M = ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M + 0.5 + CAR_WIDTH_M / 2;
+const PAD_OUTER_M = VILLAGE_CAR_OFFSET_M + CAR_WIDTH_M / 2 + 0.6;
+const PAD_INNER_M = ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M;
+/** Top of the sidewalks and pads above the route altitude (`buildSidewalks`, checked by a test). */
+export const PAD_TOP_M = SIDEWALK_HEIGHT_M + 0.04;
 
 export interface Building {
   x: number;
   y: number;
   /** Ground floor level. */
   z: number;
+  /** Lowest ground under the walls: the foundations go down to it. */
+  groundM: number;
   /** Direction the facade faces. */
   yaw: number;
   width: number;
@@ -42,6 +70,18 @@ export interface Prop {
 
 export interface ParkedCar extends Prop {
   color: number;
+  /** Nose-up angle (rad), on a sloping parking pad. */
+  pitch?: number;
+}
+
+/** Paved parking pad of a village car, level with the sidewalk. */
+export interface ParkingPad extends Footprint {
+  /** Top, at the sidewalk level (m). */
+  z: number;
+  /** Nose-up angle along `yaw` (rad): the slope of the street. */
+  pitch: number;
+  /** Lowest ground under the pad: its sides go down to it. */
+  groundM: number;
 }
 
 export interface VillageSign extends Prop {
@@ -75,7 +115,111 @@ export interface Settlements {
   lamps: Prop[];
   signs: VillageSign[];
   parkedCars: ParkedCar[];
+  /** Parking pads under the village cars. */
+  pads: ParkingPad[];
   pedestrians: Pedestrian[];
+}
+
+/**
+ * A rotated rectangle on the ground: `d` along the heading `yaw` (the facing
+ * of a building, the length of a car), `w` across it.
+ */
+export interface Footprint {
+  x: number;
+  y: number;
+  yaw: number;
+  w: number;
+  d: number;
+}
+
+/**
+ * True if two footprints closer than `gap` overlap (separating axes): each one
+ * is grown by `gap / 2` on every side.
+ */
+export function footprintsOverlap(a: Footprint, b: Footprint, gap = 0): boolean {
+  const margin = gap / 2;
+  const axes = [a.yaw, a.yaw + Math.PI / 2, b.yaw, b.yaw + Math.PI / 2];
+  // Half extent of a footprint projected on a unit axis of heading t.
+  const reach = (f: Footprint, t: number) =>
+    (Math.abs(Math.cos(t - f.yaw)) * f.d) / 2 + (Math.abs(Math.sin(t - f.yaw)) * f.w) / 2 + margin;
+  for (const t of axes) {
+    const along = Math.abs((b.x - a.x) * Math.sin(t) + (b.y - a.y) * Math.cos(t));
+    if (along > reach(a, t) + reach(b, t)) return false;
+  }
+  return true;
+}
+
+const buildingFootprint = (b: Pick<Building, 'x' | 'y' | 'yaw' | 'width' | 'depth'>) => ({
+  x: b.x,
+  y: b.y,
+  yaw: b.yaw,
+  w: b.width,
+  d: b.depth,
+});
+
+/** The four corners of a footprint. */
+export function footprintCorners(f: Footprint): [number, number][] {
+  const fx = Math.sin(f.yaw);
+  const fy = Math.cos(f.yaw);
+  return [-1, 1].flatMap((sl) =>
+    [-1, 1].map((sw): [number, number] => [
+      f.x + fx * sl * (f.d / 2) + fy * sw * (f.w / 2),
+      f.y + fy * sl * (f.d / 2) - fx * sw * (f.w / 2),
+    ]),
+  );
+}
+
+/** Horizontal distance to the nearest road axis, from segments bucketed in cells. */
+class RoadDistance {
+  private readonly cell = 32;
+  private readonly buckets = new Map<string, [number, number, number, number][]>();
+
+  constructor(routes: readonly Route[]) {
+    for (const r of routes) {
+      const n = r.pointCount;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        if (!r.loop && j === 0) break;
+        const seg: [number, number, number, number] = [
+          r.x[i] as number,
+          r.y[i] as number,
+          r.x[j] as number,
+          r.y[j] as number,
+        ];
+        const c0 = Math.floor(Math.min(seg[0], seg[2]) / this.cell);
+        const c1 = Math.floor(Math.max(seg[0], seg[2]) / this.cell);
+        const r0 = Math.floor(Math.min(seg[1], seg[3]) / this.cell);
+        const r1 = Math.floor(Math.max(seg[1], seg[3]) / this.cell);
+        for (let c = c0; c <= c1; c++) {
+          for (let k = r0; k <= r1; k++) {
+            const key = `${c},${k}`;
+            const list = this.buckets.get(key);
+            if (list) list.push(seg);
+            else this.buckets.set(key, [seg]);
+          }
+        }
+      }
+    }
+  }
+
+  /** Exact below one cell (32 m), at least one cell beyond. */
+  at(x: number, y: number): number {
+    const cc = Math.floor(x / this.cell);
+    const rc = Math.floor(y / this.cell);
+    let best = Number.POSITIVE_INFINITY;
+    for (let c = cc - 1; c <= cc + 1; c++) {
+      for (let k = rc - 1; k <= rc + 1; k++) {
+        for (const [ax, ay, bx, by] of this.buckets.get(`${c},${k}`) ?? []) {
+          const dx = bx - ax;
+          const dy = by - ay;
+          const len2 = dx * dx + dy * dy;
+          const t = len2 > 0 ? Math.min(1, Math.max(0, ((x - ax) * dx + (y - ay) * dy) / len2)) : 0;
+          best = Math.min(best, Math.hypot(x - ax - dx * t, y - ay - dy * t));
+        }
+      }
+    }
+    return best;
+  }
 }
 
 /** Coarse occupancy grid of the world (4 m cells). */
@@ -214,11 +358,19 @@ export function generateSettlements(
   const signs: VillageSign[] = [];
   const parkedCars: ParkedCar[] = [];
   const pedestrians: Pedestrian[] = [];
+  const carFootprints: Footprint[] = [];
+  const pads: ParkingPad[] = [];
   const dry = (x: number, y: number) =>
     waterLevelM === null || terrainHeightAt(terrain, x, y) > waterLevelM + 1;
 
-  const tryBuilding = (b: Omit<Building, 'z'>, roadZ: number, maxStep = 3.5): Building | null => {
+  const tryBuilding = (
+    b: Omit<Building, 'z' | 'groundM'>,
+    roadZ: number,
+    maxStep = 3.5,
+  ): Building | null => {
     if (!grid.rectFree(b.x, b.y, b.yaw, b.width, b.depth)) return null;
+    const footprint = buildingFootprint(b);
+    if (carFootprints.some((c) => footprintsOverlap(footprint, c, 0.6))) return null;
     // Ground under the corners: skip steep or flooded plots.
     const fx = Math.sin(b.yaw);
     const fy = Math.cos(b.yaw);
@@ -239,9 +391,88 @@ export function generateSettlements(
     const z = Math.max(hi, roadZ + SIDEWALK_HEIGHT_M);
     if (z - lo > 4) return null;
     grid.markRect(b.x, b.y, b.yaw, b.width, b.depth, 0.5);
-    const building = { ...b, z };
+    const building = { ...b, z, groundM: lo };
     buildings.push(building);
     return building;
+  };
+
+  // Parked cars stand on the ground (the terrain, sunk under the road level
+  // near the roads: never the road altitude), on a nearly flat plot clear of
+  // the roads and their verges, of the buildings and of the other cars
+  // (exact footprints: the 4 m grid is too coarse for a car).
+  const roadDistance = new RoadDistance(routes);
+  /** True if a footprint is clear of the buildings and of the other cars and pads. */
+  const clear = (f: Footprint) =>
+    !buildings.some((b) => footprintsOverlap(f, buildingFootprint(b), 0.6)) &&
+    !carFootprints.some((c) => footprintsOverlap(f, c, 0.4));
+  /** Lowest and highest ground under the corners of a footprint, null over water. */
+  const groundUnder = (f: Footprint): [number, number] | null => {
+    const heights = footprintCorners(f).map(([px, py]) =>
+      dry(px, py) ? terrainHeightAt(terrain, px, py) : Number.NaN,
+    );
+    if (heights.some(Number.isNaN)) return null;
+    return [Math.min(...heights), Math.max(...heights)];
+  };
+  const park = (f: Footprint, car: ParkedCar) => {
+    grid.markRect(f.x, f.y, f.yaw, f.w, f.d, 0.5);
+    carFootprints.push(f);
+    parkedCars.push(car);
+  };
+
+  // Farm cars stand on the ground (the terrain), on a nearly flat plot clear of
+  // the roads and their verges, of the buildings and of the other cars (exact
+  // footprints: the 4 m grid is too coarse for a car).
+  const tryCar = (x: number, y: number, yaw: number, color: number): boolean => {
+    // Yaw is a heading: the car's length runs along it (the depth of the footprint).
+    const car = { x, y, yaw, w: CAR_WIDTH_M, d: CAR_LENGTH_M };
+    if (footprintCorners(car).some(([px, py]) => roadDistance.at(px, py) < CAR_ROAD_CLEARANCE_M)) {
+      return false;
+    }
+    const ground = groundUnder(car);
+    if (!ground || ground[1] - ground[0] > CAR_MAX_TILT_M || !clear(car)) return false;
+    park(car, { x, y, z: terrainHeightAt(terrain, x, y), yaw, color });
+    return true;
+  };
+
+  // Village cars stand on a parking pad beside the sidewalk, sloping with the street.
+  const tryVillageCar = (
+    route: Route,
+    along: number,
+    side: 1 | -1,
+    flip: boolean,
+    color: number,
+  ): boolean => {
+    const p = lateral(route, along, side * ((PAD_INNER_M + PAD_OUTER_M) / 2));
+    const pad = {
+      x: p.x,
+      y: p.y,
+      yaw: p.heading,
+      w: PAD_OUTER_M - PAD_INNER_M,
+      d: CAR_LENGTH_M + 1.2,
+    };
+    // Beyond the sidewalk of its road (its inner edge lies against it) and
+    // clear of any other road; the inside of a bend is allowed a little.
+    if (footprintCorners(pad).some(([px, py]) => roadDistance.at(px, py) < PAD_INNER_M - 0.3)) {
+      return false;
+    }
+    const ground = groundUnder(pad);
+    if (!ground || !clear(pad)) return false;
+    const top = p.z + PAD_TOP_M;
+    // Do not perch a pad over a deep drop.
+    if (top - ground[0] > PAD_MAX_HEIGHT_M) return false;
+    const grade = (route.sampleAt(along + 2).z - route.sampleAt(along - 2).z) / 4;
+    const pitch = Math.atan(grade);
+    const c = lateral(route, along, side * VILLAGE_CAR_OFFSET_M);
+    pads.push({ ...pad, z: top, pitch, groundM: ground[0] });
+    park(pad, {
+      x: c.x,
+      y: c.y,
+      z: top,
+      yaw: c.heading + (flip ? Math.PI : 0),
+      pitch: flip ? -pitch : pitch,
+      color,
+    });
+    return true;
   };
 
   for (const span of spans) {
@@ -282,24 +513,17 @@ export function generateSettlements(
                 p.z,
               )
             : null;
-        // A car in front of some houses, in a gap or a driveway.
+        // A car beside some houses, in the gap after the house, beyond the verge;
+        // the next house leaves it room.
+        let parkedUntil = 0;
         if (placed && setback > 3 && rand() < 0.45) {
-          const c = lateral(
-            route,
-            d + width + 2.5,
-            side * (ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M + 1.4),
-          );
-          if (grid.get(c.x, c.y) !== 2) {
-            parkedCars.push({
-              x: c.x,
-              y: c.y,
-              z: c.z + SIDEWALK_HEIGHT_M,
-              yaw: c.heading + (rand() < 0.5 ? 0 : Math.PI),
-              color: Math.floor(rand() * 8),
-            });
+          const along = d + width + VILLAGE_CAR_GAP_M + CAR_LENGTH_M / 2 + 0.6;
+          const flip = rand() < 0.5;
+          if (tryVillageCar(route, along, side, flip, Math.floor(rand() * 8))) {
+            parkedUntil = along + CAR_LENGTH_M / 2 + 0.6 + VILLAGE_CAR_GAP_M;
           }
         }
-        d += width + 3 + rand() * 8;
+        d = Math.max(d + width + 3 + rand() * 8, parkedUntil);
       }
       // Street lamps on the sidewalk.
       for (let l = span.fromM + (side === 1 ? 10 : 25); l < span.toM; l += 32) {
@@ -373,17 +597,12 @@ export function generateSettlements(
         3,
       );
       if (rand() < 0.7) {
-        const c = lateral(route, (d - 6) % route.lengthM, side * (offset - 6));
-        parkedCars.push({
-          x: c.x,
-          y: c.y,
-          z: terrainHeightAt(terrain, c.x, c.y),
-          yaw: c.heading + rand() * Math.PI,
-          color: Math.floor(rand() * 8),
-        });
+        // In the yard, between the farmhouse and the road.
+        const c = lateral(route, (d - 6) % route.lengthM, side * (offset - house.depth / 2 - 4));
+        tryCar(c.x, c.y, c.heading + rand() * Math.PI, Math.floor(rand() * 8));
       }
     }
   }
 
-  return { buildings, spans, lamps, signs, parkedCars, pedestrians };
+  return { buildings, spans, lamps, signs, parkedCars, pads, pedestrians };
 }

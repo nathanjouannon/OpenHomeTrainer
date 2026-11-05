@@ -2,8 +2,9 @@
 
 import { emptyRoutePoint, type Route } from '@hrt/route-engine';
 import { useFrame } from '@react-three/fiber';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
+  BoxGeometry,
   type BufferGeometry,
   Color,
   DoubleSide,
@@ -23,10 +24,14 @@ import {
   carGeometry,
   facadeTexture,
   lampGeometry,
+  PEDESTRIAN_HIP_M,
+  PEDESTRIAN_SHOULDER_M,
   pedestrianGeometries,
   roofTexture,
+  TROUSERS_COLORS,
   villageSignTexture,
 } from './prop-builders';
+import { sidewalkTexture } from './road-builders';
 import { toScene } from './scene-builders';
 import {
   type Prop,
@@ -42,7 +47,7 @@ const yawToScene = (heading: number) => Math.PI - heading;
 
 function useInstances(
   ref: React.RefObject<InstancedMesh | null>,
-  props: readonly Prop[],
+  props: readonly (Prop & { pitch?: number })[],
   base: number,
   colors?: readonly string[],
   colorOf?: (i: number) => number,
@@ -54,7 +59,8 @@ function useInstances(
     const c = new Color();
     props.forEach((p, i) => {
       toScene(p.x, p.y, p.z, base, o.position);
-      o.rotation.set(0, yawToScene(p.yaw), 0);
+      // Yaw first, then the nose-up pitch about the car's own axis.
+      o.rotation.set(-(p.pitch ?? 0), yawToScene(p.yaw), 0, 'YXZ');
       o.updateMatrix();
       mesh.setMatrixAt(i, o.matrix);
       if (colors && colorOf)
@@ -105,7 +111,44 @@ export function Settlements3D({
     }),
     [],
   );
-  const geo = useMemo(() => ({ car: carGeometry(), lamp: lampGeometry() }), []);
+  const geo = useMemo(
+    () => ({
+      car: carGeometry(),
+      lamp: lampGeometry(),
+      // Unit pad, its top at y = 0: scaled to each pad, its sides go down into the ground.
+      pad: new BoxGeometry(1, 1, 1).translate(0, -0.5, 0),
+    }),
+    [],
+  );
+  const padMaterial = useMemo(() => {
+    const map = sidewalkTexture();
+    const first = s.pads[0];
+    // Same paving as the sidewalks (1.5 m slabs).
+    if (first) map.repeat.set(first.w / 1.5, first.d / 1.5);
+    return new MeshStandardMaterial({ map, roughness: 0.9 });
+  }, [s]);
+  useEffect(
+    () => () => {
+      padMaterial.map?.dispose();
+      padMaterial.dispose();
+    },
+    [padMaterial],
+  );
+  const pads = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const mesh = pads.current;
+    if (!mesh) return;
+    const o = new Object3D();
+    s.pads.forEach((p, i) => {
+      toScene(p.x, p.y, p.z, base, o.position);
+      o.rotation.set(-p.pitch, yawToScene(p.yaw), 0, 'YXZ');
+      o.scale.set(p.w, p.z - p.groundM + 0.5, p.d);
+      o.updateMatrix();
+      mesh.setMatrixAt(i, o.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [s, base]);
   const lamps = useRef<InstancedMesh>(null);
   const cars = useRef<InstancedMesh>(null);
   const carColor = useMemo(() => (i: number) => s.parkedCars[i]?.color ?? 0, [s]);
@@ -119,6 +162,14 @@ export function Settlements3D({
       <mesh geometry={built.roofs} material={mats.roofs} castShadow receiveShadow />
       {s.lamps.length > 0 && (
         <instancedMesh ref={lamps} args={[geo.lamp, mats.painted, s.lamps.length]} />
+      )}
+      {s.pads.length > 0 && (
+        <instancedMesh
+          ref={pads}
+          args={[geo.pad, padMaterial, s.pads.length]}
+          renderOrder={-1}
+          receiveShadow
+        />
       )}
       {s.parkedCars.length > 0 && (
         <instancedMesh ref={cars} args={[geo.car, mats.car, s.parkedCars.length]} receiveShadow />
@@ -175,6 +226,7 @@ function Pedestrians({
   const body = useRef<InstancedMesh>(null);
   const head = useRef<InstancedMesh>(null);
   const legs = useRef<InstancedMesh>(null);
+  const arms = useRef<InstancedMesh>(null);
   const state = useMemo(
     () => people.map((p) => ({ d: p.startM, v: p.speedMs, phase: clock.random() * 6 })),
     [people, clock],
@@ -194,8 +246,14 @@ function Pedestrians({
     const c = new Color();
     people.forEach((p, i) => {
       body.current?.setColorAt(i, c.set(CLOTHES_COLORS[p.color % CLOTHES_COLORS.length] ?? '#888'));
+      // Trousers: another colour than the shirt, from the person's index.
+      c.set(TROUSERS_COLORS[(i * 7 + p.color) % TROUSERS_COLORS.length] ?? '#333');
+      legs.current?.setColorAt(i * 2, c);
+      legs.current?.setColorAt(i * 2 + 1, c);
     });
-    if (body.current?.instanceColor) body.current.instanceColor.needsUpdate = true;
+    for (const m of [body.current, legs.current]) {
+      if (m?.instanceColor) m.instanceColor.needsUpdate = true;
+    }
   }, [people]);
 
   useFrame((_, delta) => {
@@ -223,14 +281,21 @@ function Pedestrians({
       body.current?.setMatrixAt(i, o.matrix);
       head.current?.setMatrixAt(i, o.matrix);
       for (const side of [0, 1]) {
-        leg.position.set(side ? 0.1 : -0.1, 0.88, 0);
-        leg.rotation.set(Math.sin(st.phase + side * Math.PI) * 0.45, 0, 0);
+        const swing = Math.sin(st.phase + side * Math.PI);
+        leg.position.set(side ? 0.1 : -0.1, PEDESTRIAN_HIP_M, 0);
+        leg.rotation.set(swing * 0.45, 0, 0);
         leg.updateMatrix();
         tmp.m.multiplyMatrices(o.matrix, leg.matrix);
         legs.current?.setMatrixAt(i * 2 + side, tmp.m);
+        // Arms swing against the leg of their side, hanging a little out.
+        leg.position.set(side ? 0.215 : -0.215, PEDESTRIAN_SHOULDER_M - 0.04, 0);
+        leg.rotation.set(-swing * 0.35, 0, side ? 0.06 : -0.06);
+        leg.updateMatrix();
+        tmp.m.multiplyMatrices(o.matrix, leg.matrix);
+        arms.current?.setMatrixAt(i * 2 + side, tmp.m);
       }
     });
-    for (const mesh of [body.current, head.current, legs.current]) {
+    for (const mesh of [body.current, head.current, legs.current, arms.current]) {
       if (mesh) mesh.instanceMatrix.needsUpdate = true;
     }
   });
@@ -253,6 +318,12 @@ function Pedestrians({
       <instancedMesh
         ref={legs}
         args={[geo.leg, material, people.length * 2]}
+        frustumCulled={false}
+        castShadow
+      />
+      <instancedMesh
+        ref={arms}
+        args={[geo.arm, material, people.length * 2]}
         frustumCulled={false}
         castShadow
       />
