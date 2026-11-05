@@ -363,8 +363,8 @@ function extrudeShape(shape: Shape, width: number, round: number) {
     bevelEnabled: round > 0,
     bevelThickness: round,
     bevelSize: round,
-    bevelSegments: 2,
-    curveSegments: 8,
+    bevelSegments: 1,
+    curveSegments: 5,
   })
     .rotateY(-Math.PI / 2)
     .translate(width / 2 - round, 0, 0);
@@ -423,11 +423,11 @@ export function carGeometry(): BufferGeometry {
   const wheels = [-0.79, 0.79].flatMap((x) =>
     [-wheelbase / 2, wheelbase / 2].flatMap((z) => [
       paint(
-        new CylinderGeometry(wheelR, wheelR, 0.2, 18).rotateZ(Math.PI / 2).translate(x, wheelR, z),
+        new CylinderGeometry(wheelR, wheelR, 0.2, 10).rotateZ(Math.PI / 2).translate(x, wheelR, z),
         '#151515',
       ),
       paint(
-        new CylinderGeometry(0.19, 0.19, 0.205, 12).rotateZ(Math.PI / 2).translate(x, wheelR, z),
+        new CylinderGeometry(0.19, 0.19, 0.205, 7).rotateZ(Math.PI / 2).translate(x, wheelR, z),
         '#a9adb3',
       ),
     ]),
@@ -479,10 +479,10 @@ export function pedestrianGeometries() {
       [0.12, 1.47],
       [0, 1.49],
     ].map(([r, y]) => new Vector2(r, y)),
-    14,
+    8,
   ).scale(1, 1, 0.62);
   const sleeve = (x: number) =>
-    new CylinderGeometry(0.065, 0.058, 0.2, 10).translate(x, PEDESTRIAN_SHOULDER_M - 0.08, 0);
+    new CylinderGeometry(0.065, 0.058, 0.2, 6).translate(x, PEDESTRIAN_SHOULDER_M - 0.08, 0);
   return {
     body: merge([
       paint(torso, '#ffffff'),
@@ -490,13 +490,13 @@ export function pedestrianGeometries() {
       paint(sleeve(-0.21), '#ffffff'),
     ]),
     head: merge([
-      paint(new CylinderGeometry(0.05, 0.055, 0.12, 10).translate(0, 1.51, 0), '#d6a283'),
+      paint(new CylinderGeometry(0.05, 0.055, 0.12, 6).translate(0, 1.51, 0), '#d6a283'),
       paint(
-        new SphereGeometry(0.1, 14, 10).scale(0.92, 1.12, 1).translate(0, 1.64, 0.005),
+        new SphereGeometry(0.1, 8, 6).scale(0.92, 1.12, 1).translate(0, 1.64, 0.005),
         '#d6a283',
       ),
       paint(
-        new SphereGeometry(0.104, 14, 7, 0, Math.PI * 2, 0, Math.PI * 0.55)
+        new SphereGeometry(0.104, 8, 3, 0, Math.PI * 2, 0, Math.PI * 0.55)
           .scale(0.94, 1.1, 1.04)
           .translate(0, 1.655, -0.012),
         '#3b2a1e',
@@ -504,11 +504,11 @@ export function pedestrianGeometries() {
       paint(new BoxGeometry(0.03, 0.05, 0.04).translate(0, 1.625, 0.1), '#c99474'),
     ]),
     arm: merge([
-      paint(new CapsuleGeometry(0.042, 0.5, 4, 8).translate(0, -0.29, 0), '#d6a283'),
-      paint(new SphereGeometry(0.05, 8, 6).scale(0.8, 1.2, 0.6).translate(0, -0.62, 0), '#c99474'),
+      paint(new CapsuleGeometry(0.042, 0.5, 1, 5).translate(0, -0.29, 0), '#d6a283'),
+      paint(new SphereGeometry(0.05, 5, 3).scale(0.8, 1.2, 0.6).translate(0, -0.62, 0), '#c99474'),
     ]),
     leg: merge([
-      paint(new CapsuleGeometry(0.068, 0.74, 4, 10).translate(0, -0.44, 0), '#ffffff'),
+      paint(new CapsuleGeometry(0.068, 0.74, 1, 6).translate(0, -0.44, 0), '#ffffff'),
       paint(
         new BoxGeometry(0.11, 0.08, 0.26).translate(0, -PEDESTRIAN_HIP_M + 0.04, 0.05),
         '#1d1d1f',

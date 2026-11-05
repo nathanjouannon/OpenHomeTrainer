@@ -1,7 +1,7 @@
 // Villages, farms, street furniture, pedestrians and oncoming traffic.
 
 import { emptyRoutePoint, type Route } from '@hrt/route-engine';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BoxGeometry,
@@ -242,25 +242,36 @@ function Pedestrians({
     [],
   );
 
-  useLayoutEffect(() => {
+  const camera = useThree((s) => s.camera);
+  const colors = useMemo(() => {
     const c = new Color();
-    people.forEach((p, i) => {
-      body.current?.setColorAt(i, c.set(CLOTHES_COLORS[p.color % CLOTHES_COLORS.length] ?? '#888'));
+    return people.map((p, i) => ({
+      shirt: c.set(CLOTHES_COLORS[p.color % CLOTHES_COLORS.length] ?? '#888').clone(),
       // Trousers: another colour than the shirt, from the person's index.
-      c.set(TROUSERS_COLORS[(i * 7 + p.color) % TROUSERS_COLORS.length] ?? '#333');
-      legs.current?.setColorAt(i * 2, c);
-      legs.current?.setColorAt(i * 2 + 1, c);
+      trousers: c
+        .set(TROUSERS_COLORS[(i * 7 + p.color) % TROUSERS_COLORS.length] ?? '#333')
+        .clone(),
+    }));
+  }, [people]);
+
+  // The colour attributes exist before the first frame (the shader uses them).
+  useLayoutEffect(() => {
+    const white = new Color('#ffffff');
+    people.forEach((_, i) => {
+      body.current?.setColorAt(i, white);
+      legs.current?.setColorAt(i * 2, white);
+      legs.current?.setColorAt(i * 2 + 1, white);
     });
-    for (const m of [body.current, legs.current]) {
-      if (m?.instanceColor) m.instanceColor.needsUpdate = true;
-    }
   }, [people]);
 
   useFrame((_, delta) => {
     const dt = Math.min(clock.step(delta), 0.1);
     const { o, leg, p } = tmp;
-    people.forEach((person, i) => {
-      const st = state[i];
+    // Only the people near the camera are drawn (and cast shadows): packed
+    // into the first instances, with their colours.
+    let k = 0;
+    people.forEach((person, n) => {
+      const st = state[n];
       const route = routes.get(person.routeId);
       if (!st || !route) return;
       st.d += st.v * dt;
@@ -271,10 +282,18 @@ function Pedestrians({
       }
       st.phase += Math.abs(st.v) * dt * 3.2;
       route.sampleAt(st.d, p);
-      const offset = person.side * (ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M * (0.35 + (i % 3) * 0.15));
+      const offset = person.side * (ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M * (0.35 + (n % 3) * 0.15));
       const x = p.x + Math.cos(p.heading) * offset;
       const y = p.y - Math.sin(p.heading) * offset;
       toScene(x, y, p.z + SIDEWALK_HEIGHT_M + 0.04, base, o.position);
+      if (o.position.distanceTo(camera.position) > PEDESTRIANS_VIEW_M) return;
+      const i = k++;
+      const c = colors[n];
+      if (c) {
+        body.current?.setColorAt(i, c.shirt);
+        legs.current?.setColorAt(i * 2, c.trousers);
+        legs.current?.setColorAt(i * 2 + 1, c.trousers);
+      }
       o.position.y += Math.abs(Math.sin(st.phase)) * 0.03;
       o.rotation.set(0, yawToScene(st.v > 0 ? p.heading : p.heading + Math.PI), 0);
       o.updateMatrix();
@@ -295,8 +314,17 @@ function Pedestrians({
         arms.current?.setMatrixAt(i * 2 + side, tmp.m);
       }
     });
-    for (const mesh of [body.current, head.current, legs.current, arms.current]) {
-      if (mesh) mesh.instanceMatrix.needsUpdate = true;
+    for (const [mesh, per] of [
+      [body.current, 1],
+      [head.current, 1],
+      [legs.current, 2],
+      [arms.current, 2],
+    ] as const) {
+      if (!mesh) continue;
+      mesh.count = k * per;
+      mesh.visible = k > 0;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
   });
 
@@ -332,6 +360,8 @@ function Pedestrians({
 }
 
 const TRAFFIC_CARS = 6;
+/** Pedestrians are drawn within this distance of the camera (m). */
+const PEDESTRIANS_VIEW_M = 500;
 
 /**
  * Oncoming cars in the left lane of the ridden route, spawned ahead of the
