@@ -30,9 +30,9 @@ export const HIP_Z = SEAT.z - 0.05;
  * the lever body, just behind the top of the hoods.
  */
 export const WRIST = new Vector3(
-  BAR_WIDTH / 2,
-  COCKPIT.hoodTop.y + 0.012,
-  COCKPIT.hoodTop.z - 0.104,
+  BAR_WIDTH / 1.78,
+  COCKPIT.hoodTop.y + 0.02,
+  COCKPIT.hoodTop.z - 0.102,
 );
 /** Direction of the hands (wrist → knuckles) on the hoods. */
 export const HAND_DIR = new Vector3(0, -0.28, 1).normalize();
