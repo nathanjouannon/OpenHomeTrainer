@@ -36,14 +36,14 @@ export interface TerrainProfile {
 export interface VegetationProfile {
   /** Trees placed in the world. */
   trees: number;
-  /** Distances where the tree tiers end (m): full model, LOD 1, LOD 2; imposters go on to `treeViewM`. */
+  /** Reach distances where the tree tiers end (m, further ahead of the camera): full model, LOD 1, LOD 2; imposters go on to `treeViewM`. */
   treeTiersM: readonly [number, number, number];
   treeViewM: number;
   /** Shrubs placed in the world, the distance where their full model ends and where they vanish (m). */
   shrubs: number;
   shrubFullM: number;
   shrubViewM: number;
-  /** Grass around the camera: radius (m) and clumps per m²; null when off. */
+  /** Grass around the camera: radius (reach metres, see vegetation-reach.ts) and clumps per m²; null when off. */
   grass: { radiusM: number; density: number; tall: number; flowers: number } | null;
 }
 
@@ -84,7 +84,7 @@ const PROFILES: Record<Quality, RenderProfile> = {
       shrubs: 3000,
       shrubFullM: 35,
       shrubViewM: 200,
-      grass: { radiusM: 28, density: 1.4, tall: 0.5, flowers: 0.25 },
+      grass: { radiusM: 32, density: 1.4, tall: 0.5, flowers: 0.25 },
     },
     atmosphere: { clouds: false, heightFog: false },
     water: 'flat',
@@ -100,7 +100,7 @@ const PROFILES: Record<Quality, RenderProfile> = {
       shrubs: 12_000,
       shrubFullM: 55,
       shrubViewM: 330,
-      grass: { radiusM: 45, density: 2.6, tall: 0.9, flowers: 0.5 },
+      grass: { radiusM: 52, density: 2.6, tall: 0.9, flowers: 0.5 },
     },
     atmosphere: { clouds: true, heightFog: true },
     water: 'environment',
@@ -116,7 +116,7 @@ const PROFILES: Record<Quality, RenderProfile> = {
       shrubs: 26_000,
       shrubFullM: 75,
       shrubViewM: 450,
-      grass: { radiusM: 60, density: 3.6, tall: 1.2, flowers: 0.7 },
+      grass: { radiusM: 66, density: 3.6, tall: 1.2, flowers: 0.7 },
     },
     atmosphere: { clouds: true, heightFog: true },
     water: 'planar',

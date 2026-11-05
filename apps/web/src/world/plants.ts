@@ -8,6 +8,13 @@ import type { Route } from '@hrt/route-engine';
 import { VERGE_OUTER_M } from './roadside';
 import { inSpan, type VillageSpan } from './settlements';
 import { LAYER_COUNT, TERRAIN_LAYERS } from './terrain-splat';
+import {
+  fadeBandM,
+  PLANT_REACH_MARGIN_M,
+  REACH_AHEAD,
+  reachDistance,
+  type ViewDirection,
+} from './vegetation-reach';
 import { mulberry32, type Terrain, terrainHeightAt, valueNoise2d } from './world-data';
 
 // ---------------------------------------------------------------- species
@@ -78,6 +85,11 @@ export function createTierBuffers(capacity: number): TierBuffers {
  * their species: `radiiM[k]` is the distance where tier k ends, the last tier
  * going on to `maxM`. `out[species][tier]` are reset, then filled up to their
  * capacity. Returns the number of instances left out for lack of room.
+ *
+ * With `view`, distances are reach distances (further ahead of the camera,
+ * see vegetation-reach.ts) and, when `view.fade` is set, an instance near a
+ * limit goes into both tiers around it (and the last tier keeps the plants a
+ * little past `maxM`): the materials dither between them.
  */
 export function collectTiers(
   batches: readonly VegetationBatch[],
@@ -87,30 +99,44 @@ export function collectTiers(
   maxM: number,
   chunkM: number,
   out: readonly (readonly (TierBuffers | undefined)[])[],
+  view?: { dir: ViewDirection; fade: boolean },
 ): number {
   for (const species of out) for (const tier of species) if (tier) tier.count = 0;
-  const reach = maxM + chunkM * Math.SQRT1_2;
-  const ends = [...radiiM.map((r) => r * r), maxM * maxM];
-  const last = ends.length - 1;
+  const fade = view?.fade ?? false;
+  const band = (limit: number) => (fade ? fadeBandM(limit) + PLANT_REACH_MARGIN_M : 0);
+  const limits = [...radiiM, maxM];
+  const last = limits.length - 1;
+  const farthest = maxM + band(maxM);
+  const reach = farthest * (view ? REACH_AHEAD : 1) + chunkM * Math.SQRT1_2;
   let dropped = 0;
+  const push = (b: VegetationBatch, i: number, tier: number) => {
+    const buffers = out[b.species[i] as number]?.[tier];
+    if (!buffers) return;
+    if (buffers.count * 16 >= buffers.matrices.length) {
+      dropped++;
+      return;
+    }
+    buffers.matrices.set(b.matrices.subarray(i * 16, i * 16 + 16), buffers.count * 16);
+    buffers.colors.set(b.colors.subarray(i * 3, i * 3 + 3), buffers.count * 3);
+    buffers.count++;
+  };
   for (const b of batches) {
     if (Math.hypot(b.center.x - x, b.center.z - z) > reach) continue;
     for (let i = 0; i < b.count; i++) {
       const dx = (b.matrices[i * 16 + 12] as number) - x;
       const dz = (b.matrices[i * 16 + 14] as number) - z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 > (ends[last] as number)) continue;
+      const d = view ? reachDistance(dx, dz, view.dir) : Math.hypot(dx, dz);
+      if (d > farthest) continue;
       let tier = 0;
-      while (tier < last && d2 > (ends[tier] as number)) tier++;
-      const buffers = out[b.species[i] as number]?.[tier];
-      if (!buffers) continue;
-      if (buffers.count * 16 >= buffers.matrices.length) {
-        dropped++;
-        continue;
-      }
-      buffers.matrices.set(b.matrices.subarray(i * 16, i * 16 + 16), buffers.count * 16);
-      buffers.colors.set(b.colors.subarray(i * 3, i * 3 + 3), buffers.count * 3);
-      buffers.count++;
+      while (tier < last && d > (limits[tier] as number)) tier++;
+      if (tier === last && d > maxM && !fade) continue;
+      push(b, i, tier);
+      if (!fade) continue;
+      // In the band of the limit with the next tier, or of the previous one.
+      const next = limits[tier] as number;
+      if (tier < last && next - d < band(next)) push(b, i, tier + 1);
+      const prev = tier > 0 ? (limits[tier - 1] as number) : null;
+      if (prev !== null && d - prev < band(prev)) push(b, i, tier - 1);
     }
   }
   return dropped;
@@ -504,16 +530,28 @@ export function flowerSpecies(x: number, y: number): GrassKind {
 }
 
 /** Keys of the tiles of `sizeM` whose centre is within `radiusM` of (x, y). */
-export function tilesAround(x: number, y: number, radiusM: number, sizeM: number) {
+export function tilesAround(
+  x: number,
+  y: number,
+  radiusM: number,
+  sizeM: number,
+  /** Look direction in the world frame (x east, y north): reach distances instead. */
+  dir?: { x: number; y: number },
+) {
   const out: { ix: number; iy: number }[] = [];
-  const x0 = Math.floor((x - radiusM) / sizeM);
-  const x1 = Math.floor((x + radiusM) / sizeM);
-  const y0 = Math.floor((y - radiusM) / sizeM);
-  const y1 = Math.floor((y + radiusM) / sizeM);
+  const box = dir ? radiusM * REACH_AHEAD : radiusM;
+  const x0 = Math.floor((x - box) / sizeM);
+  const x1 = Math.floor((x + box) / sizeM);
+  const y0 = Math.floor((y - box) / sizeM);
+  const y1 = Math.floor((y + box) / sizeM);
+  // reachDistance takes the scene frame (x, z = -y); the direction is flipped alike.
+  const view = dir ? { x: dir.x, z: -dir.y } : null;
   for (let iy = y0; iy <= y1; iy++) {
     for (let ix = x0; ix <= x1; ix++) {
-      if (Math.hypot((ix + 0.5) * sizeM - x, (iy + 0.5) * sizeM - y) <= radiusM)
-        out.push({ ix, iy });
+      const dx = (ix + 0.5) * sizeM - x;
+      const dy = (iy + 0.5) * sizeM - y;
+      const d = view ? reachDistance(dx, -dy, view) : Math.hypot(dx, dy);
+      if (d <= radiusM) out.push({ ix, iy });
     }
   }
   return out;

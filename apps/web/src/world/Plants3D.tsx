@@ -17,6 +17,7 @@ import {
   type InstancedMesh,
   type Material,
 } from 'three';
+import { uniform } from 'three/tsl';
 import {
   collectTiers,
   type GrassKind,
@@ -43,8 +44,20 @@ import {
   createFoliageMaterial,
   createGrassMaterial,
   createImposterMaterial,
+  createReachUniforms,
   createShadowMaterial,
+  type GrassFadeNodes,
+  type ReachUniforms,
+  type TierFade,
 } from './vegetation-material';
+import {
+  type GrassFade,
+  grassFadeFor,
+  grassSlots,
+  reachDistance,
+  type ViewDirection,
+  viewDirection,
+} from './vegetation-reach';
 import {
   foliageTexture,
   grassTexture,
@@ -65,8 +78,8 @@ const UPDATE_S = 0.4;
 const GRASS_UPDATE_S = 0.2;
 export const GRASS_TILE_M = 12;
 /** Most instances of one species in each tier (before the number the world holds). */
-const TREE_TIER_CAPS = [1500, 7000, 24_000, Number.POSITIVE_INFINITY];
-const SHRUB_TIER_CAPS = [2500, 9000];
+const TREE_TIER_CAPS = [2500, 10_000, 32_000, Number.POSITIVE_INFINITY];
+const SHRUB_TIER_CAPS = [3500, 12_000];
 /** Most shadow-casting trees of one species. */
 const SHADOW_TREES_MAX = 2500;
 
@@ -121,21 +134,23 @@ export function Vegetation({
     const foliage = foliageTexture();
     const imposters = imposterTexture();
     const grass = grassTexture();
-    const wind = createGrassMaterial(grass);
+    const grassReach = createReachUniforms();
+    const grassFade = createGrassFadeUniforms();
+    const wind = createGrassMaterial(grass, 1, { reach: grassReach, grass: grassFade.nodes });
     return {
       textures: [foliage, imposters, grass],
-      foliage: createFoliageMaterial(foliage),
-      imposter: createImposterMaterial(imposters),
+      foliage,
+      imposters,
       shadow: createShadowMaterial(),
       wind,
+      grassReach,
+      grassFade,
       models: buildModels(),
     };
   }, []);
   useEffect(
     () => () => {
       for (const t of resources.textures) t.dispose();
-      resources.foliage.dispose();
-      resources.imposter.dispose();
       resources.shadow.dispose();
       resources.wind.material.dispose();
       const { trees, shrubs, shadows, grass } = resources.models;
@@ -145,17 +160,34 @@ export function Vegetation({
     },
     [resources],
   );
+  // Trees: full model and LOD 1 in foliage, then two imposter tiers; shrubs: two foliage tiers.
+  const treeMaterial = useCallback(
+    (tier: number, fade: { reach: ReachUniforms; tier: TierFade }) =>
+      tier < 2
+        ? createFoliageMaterial(resources.foliage, fade)
+        : createImposterMaterial(resources.imposters, fade),
+    [resources],
+  );
+  const shrubMaterial = useCallback(
+    (_tier: number, fade: { reach: ReachUniforms; tier: TierFade }) =>
+      createFoliageMaterial(resources.foliage, fade),
+    [resources],
+  );
   const clock = useWorldClock();
   useFrame((_, delta) => {
     resources.wind.time.value += clock.step(delta);
   });
   const chunkM = terrainSizeM / CHUNKS_PER_SIDE;
+  const grassRadius = profile.grass?.radiusM ?? 0;
+  useLayoutEffect(() => {
+    resources.grassFade.set(grassFadeFor(grassRadius, GRASS_TILE_M));
+  }, [resources, grassRadius]);
   return (
     <>
       <PlantTiers
         batches={data.trees}
         geometries={resources.models.trees}
-        materials={[resources.foliage, resources.foliage, resources.imposter, resources.imposter]}
+        material={treeMaterial}
         radiiM={profile.treeTiersM}
         maxM={profile.treeViewM}
         chunkM={chunkM}
@@ -173,7 +205,7 @@ export function Vegetation({
       <PlantTiers
         batches={data.shrubs}
         geometries={resources.models.shrubs}
-        materials={[resources.foliage, resources.foliage]}
+        material={shrubMaterial}
         radiiM={[profile.shrubFullM]}
         maxM={profile.shrubViewM}
         chunkM={chunkM}
@@ -186,6 +218,7 @@ export function Vegetation({
           grass={profile.grass}
           geometries={resources.models.grass}
           material={resources.wind.material}
+          reach={resources.grassReach}
         />
       )}
     </>
@@ -197,7 +230,7 @@ export function Vegetation({
 function PlantTiers({
   batches,
   geometries,
-  materials,
+  material,
   radiiM,
   maxM,
   chunkM,
@@ -207,8 +240,8 @@ function PlantTiers({
   batches: readonly VegetationBatch[];
   /** [species][tier], null where a species has no mesh. */
   geometries: readonly (readonly (BufferGeometry | null)[])[];
-  /** By tier. */
-  materials: readonly Material[];
+  /** Material of a tier, dithered at its limits. */
+  material: (tier: number, fade: { reach: ReachUniforms; tier: TierFade }) => Material;
   radiiM: readonly number[];
   maxM: number;
   chunkM: number;
@@ -239,6 +272,24 @@ function PlantTiers({
   const shadowMeshes = useRef<(InstancedMesh | null)[]>([]);
   const shadowBuffers = useRef<(TierBuffers | undefined)[][]>(SPECIES.map(() => []));
   const timer = useRef(UPDATE_S);
+  const reach = useMemo(() => createReachUniforms(), []);
+  const dir = useRef<ViewDirection>({ x: 0, z: -1 });
+  // One material per tier: tier t fades in at limit t - 1 and out at limit t
+  // (the last one at maxM).
+  const radiiKey = radiiM.join(',');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: radiiKey stands for radiiM
+  const materials = useMemo(() => {
+    const limits = [...radiiM, maxM];
+    return limits.map((outer, t) =>
+      material(t, { reach, tier: { inner: t > 0 ? (limits[t - 1] as number) : null, outer } }),
+    );
+  }, [material, radiiKey, maxM, reach]);
+  useEffect(
+    () => () => {
+      for (const m of materials) m.dispose();
+    },
+    [materials],
+  );
 
   useLayoutEffect(() => {
     geometries.forEach((tiers, s) => {
@@ -272,11 +323,18 @@ function PlantTiers({
   }, [geometries, capacity]);
 
   useFrame((_, delta) => {
+    // The fades follow the camera every frame; the direction changes with the sort.
+    reach.camera.value.set(camera.position.x, camera.position.z);
     timer.current += clock.step(delta);
     if (timer.current < UPDATE_S) return;
     timer.current = 0;
     const { x, z } = camera.position;
-    collectTiers(batches, x, z, radiiM, maxM, chunkM, buffers.current);
+    viewDirection(camera, dir.current);
+    reach.dir.value.set(dir.current.x, dir.current.z);
+    collectTiers(batches, x, z, radiiM, maxM, chunkM, buffers.current, {
+      dir: dir.current,
+      fade: true,
+    });
     meshes.current.forEach((tiers, s) => {
       tiers.forEach((mesh, t) => {
         const buf = buffers.current[s]?.[t];
@@ -347,11 +405,13 @@ function GrassField({
   grass,
   geometries,
   material,
+  reach,
 }: {
   source: GrassSource;
   grass: NonNullable<VegetationProfile['grass']>;
   geometries: Record<GrassKind, BufferGeometry>;
   material: Material;
+  reach: ReachUniforms;
 }) {
   const layers: { kind: GrassKind; density: number; capacityShare: number }[] = [
     { kind: 'grass', density: grass.density, capacityShare: 1 },
@@ -373,6 +433,7 @@ function GrassField({
           radiusM={grass.radiusM}
           geometry={geometries[l.kind]}
           material={material}
+          reach={reach}
         />
       ))}
     </>
@@ -387,6 +448,7 @@ function GrassLayer({
   radiusM,
   geometry,
   material,
+  reach,
 }: {
   source: GrassSource;
   kind: GrassKind;
@@ -395,13 +457,12 @@ function GrassLayer({
   radiusM: number;
   geometry: BufferGeometry;
   material: Material;
+  reach: ReachUniforms;
 }) {
   const camera = useThree((s) => s.camera);
   const clock = useWorldClock();
-  const slots = useMemo(
-    () => Math.ceil((Math.PI * (radiusM + GRASS_TILE_M) ** 2) / GRASS_TILE_M ** 2) + 12,
-    [radiusM],
-  );
+  const slots = useMemo(() => grassSlots(radiusM, GRASS_TILE_M), [radiusM]);
+  const dir = useRef<ViewDirection>({ x: 0, z: -1 });
   const mesh = useRef<InstancedMesh | null>(null);
   const tiles = useRef(new Map<string, number>());
   const free = useRef<number[]>([]);
@@ -424,11 +485,15 @@ function GrassLayer({
   }, [slots, capacityPerTile]);
 
   useFrame((_, delta) => {
+    // Every layer writes the same values in the same frames.
+    reach.camera.value.set(camera.position.x, camera.position.z);
     timer.current += clock.step(delta);
     if (timer.current < GRASS_UPDATE_S) return;
     timer.current = 0;
     const m = mesh.current;
     if (!m?.instanceColor) return;
+    const view = viewDirection(camera, dir.current);
+    reach.dir.value.set(view.x, view.z);
     const matrices = m.instanceMatrix.array as Float32Array;
     const colors = m.instanceColor.array as Float32Array;
     // World frame: y is north, the opposite of the scene's z.
@@ -438,14 +503,21 @@ function GrassLayer({
     // Give back the tiles that left the ring (with some slack against flicker).
     for (const [key, slot] of tiles.current) {
       const [ix, iy] = key.split(',').map(Number) as [number, number];
-      const dist = Math.hypot((ix + 0.5) * GRASS_TILE_M - cx, (iy + 0.5) * GRASS_TILE_M - cy);
+      const dist = reachDistance(
+        (ix + 0.5) * GRASS_TILE_M - cx,
+        -((iy + 0.5) * GRASS_TILE_M - cy),
+        view,
+      );
       if (dist <= radiusM + GRASS_TILE_M * 0.8) continue;
       matrices.fill(0, slot * capacityPerTile * 16, (slot + 1) * capacityPerTile * 16);
       tiles.current.delete(key);
       free.current.push(slot);
       changed = true;
     }
-    for (const { ix, iy } of tilesAround(cx, cy, radiusM, GRASS_TILE_M)) {
+    for (const { ix, iy } of tilesAround(cx, cy, radiusM, GRASS_TILE_M, {
+      x: view.x,
+      y: -view.z,
+    })) {
       const key = `${ix},${iy}`;
       if (tiles.current.has(key)) continue;
       const slot = free.current.pop();
@@ -475,4 +547,23 @@ function GrassLayer({
       frustumCulled={false}
     />
   );
+}
+
+/** GrassFade values as uniforms: the auto quality changes the radius without a new shader. */
+function createGrassFadeUniforms() {
+  const u = {
+    thinFromM: uniform(0),
+    fullM: uniform(0),
+    keepFar: uniform(1),
+    fadeM: uniform(1),
+  };
+  return {
+    nodes: u as unknown as GrassFadeNodes,
+    set(f: GrassFade) {
+      u.thinFromM.value = f.thinFromM;
+      u.fullM.value = f.fullM;
+      u.keepFar.value = f.keepFar;
+      u.fadeM.value = f.fadeM;
+    },
+  };
 }
