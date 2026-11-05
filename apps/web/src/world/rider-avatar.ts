@@ -33,6 +33,7 @@ import {
   type Shape,
 } from './avatar-shape';
 import { buildHelmetGeometry } from './helmet';
+import { EYE_OFFSET } from './pov-camera';
 import { HAND_DIR, pedalPosition, SEAT, solveTwoBone, WRIST } from './rider-geometry';
 
 const X = new Vector3(1, 0, 0);
@@ -53,8 +54,6 @@ const REACH = 0.96;
 const HAND_ROLL = 1.0;
 /** Finger flexion (rad) by phalanx, thumb included, for the grip on the hoods. */
 const FINGER_CURL = [0.75, 1.0, 0.7];
-/** Rest height of the eyes above the head bone, and ahead of it. */
-const EYE_OFFSET = new Vector3(0, 0.105, 0.095);
 /** Foot pitch (rad, toes down) at the top of the pedal stroke and its swing. */
 const FOOT_PITCH = 0.08;
 const FOOT_SWING = 0.12;
