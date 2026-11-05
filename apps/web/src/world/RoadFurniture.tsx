@@ -5,7 +5,7 @@
 
 import type { Route } from '@hrt/route-engine';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   type BufferGeometry,
   DoubleSide,
@@ -116,31 +116,34 @@ function NearInstances({
     }
   });
 
+  // Set up once per mesh, never in an inline `ref`: React calls an inline ref
+  // again on every render, which emptied the batch until the next refill and
+  // made the whole kind blink (feedback of 2026-11-03, docs/16 §3).
+  const hasShadow = shadowRadiusM !== null;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the meshes are rebuilt when these change
+  useLayoutEffect(() => {
+    for (const m of [mesh.current, shadow.current]) {
+      if (!m) continue;
+      m.count = 0;
+      m.visible = false;
+    }
+    shadow.current?.layers.set(SHADOW_ONLY_LAYER);
+    // Filled on the next frame.
+    timer.current = NEAR_SHADOWS_UPDATE_S;
+  }, [geometry, material, capacity, hasShadow]);
+
   if (total === 0) return null;
   return (
     <>
       <instancedMesh
-        ref={(m) => {
-          mesh.current = m;
-          if (m) {
-            m.count = 0;
-            m.visible = false;
-          }
-        }}
+        ref={mesh}
         args={[geometry, material, capacity]}
         frustumCulled={false}
         receiveShadow
       />
-      {shadowRadiusM !== null && (
+      {hasShadow && (
         <instancedMesh
-          ref={(m) => {
-            shadow.current = m;
-            if (m) {
-              m.count = 0;
-              m.visible = false;
-              m.layers.set(SHADOW_ONLY_LAYER);
-            }
-          }}
+          ref={shadow}
           args={[geometry, shadowMaterial, capacity]}
           frustumCulled={false}
           castShadow

@@ -55,6 +55,8 @@ Retours du 2026-11-03 (poteaux et clôtures qui clignotent) et du 2026-11-04 (vi
 - **Même défaut ailleurs (même clignotement attendu) :** `NearShadows.tsx` (ombres des lampadaires, voitures garées, piétons) et `Trees` dans `WorldView.tsx` (ombres des arbres). Vérifier aussi `Settlements3D.tsx`.
 - **Piste :** ne plus initialiser dans un `ref` en ligne ; fixer `count`, `visible` et `layers` une fois dans un `useLayoutEffect` (ou un `ref` stable), remplir le lot dans le même effet pour qu'il ne soit jamais vide, et/ou mémoïser `WorldView` et `Scene` avec des props stables. Ajouter un test (deux rendus : `count` ne doit pas retomber à 0).
 
+**Corrigé le 2026-11-05.** `RoadFurniture.tsx` et `NearShadows.tsx` passent des `useRef` stables et règlent `count`, `visible` et `layers` dans un `useLayoutEffect`, une fois par maillage. `Settlements3D.tsx` et les arbres (`Plants3D.tsx`, les ombres ne sont plus dans `WorldView.tsx`) n'avaient pas le défaut : leurs `ref` en ligne ne font qu'une affectation. `instanced-refs.test.ts` lit les composants du monde et refuse tout `ref` en ligne qui touche `count`, `visible` ou `layers` (le test échoue sur l'ancien code).
+
 ## 4. Roues du cycliste dans la route
 
 Retour du 2026-11-04 (vue de côté) : les deux pneus sont coupés de quelques centimètres par l'asphalte.

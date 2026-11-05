@@ -4,7 +4,7 @@
 // its instances. The copy holds only the ones within reach of the cascades.
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { type RefObject, useMemo, useRef } from 'react';
+import { type RefObject, useLayoutEffect, useMemo, useRef } from 'react';
 import { type BufferGeometry, type InstancedMesh, MeshBasicMaterial } from 'three';
 import { SHADOW_ONLY_LAYER } from './Rider';
 import { collectNear } from './scene-builders';
@@ -48,15 +48,22 @@ export function NearShadows({
     m.instanceMatrix.needsUpdate = true;
   });
 
+  // Set up once per mesh, never in an inline `ref`: React calls an inline ref
+  // again on every render, which emptied the batch until the next refill and
+  // made the shadows blink (docs/16 §3).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the mesh is rebuilt when these change
+  useLayoutEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    m.count = 0;
+    m.layers.set(SHADOW_ONLY_LAYER);
+    // Filled on the next frame.
+    timer.current = NEAR_SHADOWS_UPDATE_S;
+  }, [geometry, capacity]);
+
   return (
     <instancedMesh
-      ref={(m) => {
-        mesh.current = m;
-        if (m) {
-          m.count = 0;
-          m.layers.set(SHADOW_ONLY_LAYER);
-        }
-      }}
+      ref={mesh}
       args={[geometry, material, capacity]}
       frustumCulled={false}
       castShadow

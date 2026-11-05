@@ -36,6 +36,12 @@ Phase 2 « Rendu réaliste » en cours : voir la [roadmap](docs/ROADMAP.md).
 - POV du cycliste glTF, validée par le propriétaire : champ vertical de 110° (au lieu de 96°), regard incliné de −0,55 rad (au lieu de −0,57), yeux 6 cm devant l'os de la tête (au lieu de 9,5) : le cintre, le Garmin et les avant-bras en bas de l'image, la route jusqu'à l'horizon. Réglages regroupés dans `pov-camera.ts` et figés par un test.
 - Banc : les rendus imbriqués (cartes d'ombres) s'ajoutent aux compteurs de l'image au lieu de les remettre à zéro ; cartes d'ombres et environment map comptées dans la mémoire estimée.
 
+### Corrigé
+
+Retours de la phase 2 (lot 2.13, [docs/16](docs/16-retours-phase-2.md)) :
+
+- **Clôtures, glissières, murets, balises et leurs ombres ne clignotent plus**, ni les ombres des lampadaires et des voitures garées. Un `ref` en ligne remettait leurs instances à zéro à chaque rendu React (4 fois par seconde avec le HUD) jusqu'au rafraîchissement suivant, 0,4 s plus tard. Un test interdit désormais ce motif dans les composants du monde.
+
 ## [0.1.0] — 2026-11-03 — Jalon M1 : MVP en monde virtuel
 
 Clôture des phases 0 et 1. Les vérifications qui demandent le vrai trainer (sortie de 3 h, import du `.fit` sur Strava et Garmin Connect, test sur 2 trainers) sont reportées au lot 3.13 (ex-lot 2.11, déplacé en phase 3 faute de trainer).
