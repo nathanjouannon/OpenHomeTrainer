@@ -3,18 +3,37 @@
 // the ground between the wheels.
 
 import { Vector3 } from 'three';
+import {
+  BAR_WIDTH,
+  BOTTOM_BRACKET,
+  COCKPIT,
+  CRANK_LENGTH,
+  SADDLE_TOP,
+  WHEEL_RADIUS,
+} from './bike-geometry';
 
-export const WHEEL_R = 0.34;
-export const CRANK_L = 0.17;
+export const WHEEL_R = WHEEL_RADIUS;
+export const CRANK_L = CRANK_LENGTH;
 /** Bottom bracket. */
-export const BB = new Vector3(0, 0.29, -0.06);
-/** Hip joints, seated (middle point). */
-export const HIP_Y = 0.98;
-export const HIP_Z = -0.27;
-/** Hip joints of the avatar, seated: higher and further forward than `HIP_*` (the pelvis rests on the saddle, not in it). */
-export const SEAT = { y: 1.02, z: -0.22 } as const;
-/** Where the wrists rest on the hoods (per side, multiplied by ±1 on X). */
-export const WRIST = new Vector3(0.22, 0.995, 0.51);
+export const BB = new Vector3(0, BOTTOM_BRACKET.y, BOTTOM_BRACKET.z);
+/**
+ * Hip joints of the avatar, seated (middle point): above the top of the saddle
+ * (the pelvis rests on it) and a little ahead of its middle, where the sit
+ * bones are.
+ */
+export const SEAT = { y: SADDLE_TOP.y + 0.06, z: SADDLE_TOP.z + 0.01 } as const;
+/** Hip joints of the procedural rider, seated: a little lower and further back than `SEAT`. */
+export const HIP_Y = SEAT.y - 0.04;
+export const HIP_Z = SEAT.z - 0.05;
+/**
+ * Where the wrists rest on the hoods (per side, multiplied by ±1 on X): over
+ * the lever body, just behind the top of the hoods.
+ */
+export const WRIST = new Vector3(
+  BAR_WIDTH / 2,
+  COCKPIT.hoodTop.y + 0.012,
+  COCKPIT.hoodTop.z - 0.104,
+);
 /** Direction of the hands (wrist → knuckles) on the hoods. */
 export const HAND_DIR = new Vector3(0, -0.28, 1).normalize();
 

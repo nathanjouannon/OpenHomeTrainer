@@ -14,6 +14,7 @@ import { rendererFromQuery } from './world/renderer-options';
 const RidePage = lazy(() => import('./pages/RidePage'));
 const WorldSpikePage = lazy(() => import('./spikes/world/WorldSpikePage'));
 const BenchPage = lazy(() => import('./bench/BenchPage'));
+const BikeViewPage = lazy(() => import('./bench/BikeViewPage'));
 
 export function App() {
   const t = useT();
@@ -53,6 +54,12 @@ export function App() {
       return (
         <Suspense fallback={loading}>
           <BenchPage auto={query.has('auto')} renderer={rendererFromQuery(query, 'auto')} />
+        </Suspense>
+      );
+    case 'bike':
+      return (
+        <Suspense fallback={loading}>
+          <BikeViewPage />
         </Suspense>
       );
     case '3d':

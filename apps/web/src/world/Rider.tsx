@@ -1,13 +1,13 @@
 // Cyclist and bike: cranks driven by the cadence, legs by two-bone IK on the
-// pedals, wheels turning at the virtual speed. The rider is procedural (lot
-// 1.5) unless the rigged avatar is available (lot 2.10, `rider-avatar.ts`),
-// which replaces the legs, torso, head and arms and is posed on its skeleton.
+// pedals, wheels turning at the virtual speed. The bike is built by
+// `bike-builder.ts` (lot 2.12). The rider is procedural (lot 1.5) unless the
+// rigged avatar is available (lot 2.10, `rider-avatar.ts`), which replaces the
+// legs, torso, head and arms and is posed on its skeleton.
 // Local frame: +Z forward, +Y up, +X to the rider's left.
 
 import { useFrame } from '@react-three/fiber';
 import { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react';
 import {
-  BoxGeometry,
   type BufferAttribute,
   BufferGeometry,
   CylinderGeometry,
@@ -17,15 +17,14 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
-  PlaneGeometry,
   type SkinnedMesh,
   SphereGeometry,
-  TorusGeometry,
   Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { buildBike } from './bike-builder';
 import { AvatarRig } from './rider-avatar';
-import { BB, CRANK_L, HIP_Y, HIP_Z, pedalPosition, WHEEL_R } from './rider-geometry';
+import { BB, CRANK_L, HIP_Y, HIP_Z, WHEEL_R, WRIST } from './rider-geometry';
 
 const THIGH_L = 0.44;
 const SHIN_L = 0.45;
@@ -68,15 +67,13 @@ export const Rider = forwardRef<
   RiderHandle,
   {
     jersey?: string;
-    frame?: string;
     /** Scene of the rigged avatar (lot 2.10); the procedural rider without it. */
     avatar?: Object3D | null;
   }
->(function Rider({ jersey = '#e4572e', frame = '#1f6feb', avatar = null }, ref) {
+>(function Rider({ jersey = '#e4572e', avatar = null }, ref) {
   const group = useRef<Group>(null);
-  const rearWheel = useRef<Group>(null);
-  const frontWheel = useRef<Group>(null);
-  const crank = useRef<Group>(null);
+  const bike = useMemo(() => buildBike(), []);
+  useLayoutEffect(() => () => bike.dispose(), [bike]);
   const legs = {
     lThigh: useRef<Mesh>(null),
     lShin: useRef<Mesh>(null),
@@ -84,7 +81,6 @@ export const Rider = forwardRef<
     rShin: useRef<Mesh>(null),
   };
   const torso = useRef<Group>(null);
-  const pedals = { l: useRef<Mesh>(null), r: useRef<Mesh>(null) };
   const rig = useMemo(() => (avatar ? new AvatarRig(avatar, { jersey }) : null), [avatar, jersey]);
   useLayoutEffect(() => () => rig?.dispose(), [rig]);
   const state = useRef({ crankAngle: 0, wheelAngle: 0, standing: 0 });
@@ -97,7 +93,7 @@ export const Rider = forwardRef<
     const g = group.current;
     if (!g) return;
     const legMeshes = new Set(Object.values(legs).map((r) => r.current));
-    const animated = new Set([...legMeshes, ...Object.values(pedals).map((r) => r.current)]);
+    const animated = new Set<Object3D | null>([...legMeshes, bike.pedals.l, bike.pedals.r]);
     const inRig = (o: Object3D) => {
       for (let p: Object3D | null = o; p; p = p.parent) if (p === rig?.root) return true;
       return false;
@@ -131,43 +127,18 @@ export const Rider = forwardRef<
       }
       for (const m of merged) m.geometry.dispose();
     };
-  }, [rig]);
+  }, [rig, bike]);
 
   const mats = useMemo(
     () => ({
-      frame: new MeshStandardMaterial({ color: frame, roughness: 0.35, metalness: 0.4 }),
-      dark: new MeshStandardMaterial({ color: '#1b1b1d', roughness: 0.6 }),
-      tyre: new MeshStandardMaterial({ color: '#141414', roughness: 0.9 }),
-      metal: new MeshStandardMaterial({ color: '#b9bcc2', roughness: 0.3, metalness: 0.8 }),
       jersey: new MeshStandardMaterial({ color: jersey, roughness: 0.7 }),
       shorts: new MeshStandardMaterial({ color: '#151518', roughness: 0.8 }),
       skin: new MeshStandardMaterial({ color: '#d9a27e', roughness: 0.8 }),
       helmet: new MeshStandardMaterial({ color: '#f2f2f2', roughness: 0.4 }),
-      hood: new MeshStandardMaterial({ color: '#2a2b2e', roughness: 0.75 }),
       glove: new MeshStandardMaterial({ color: '#202124', roughness: 0.8 }),
     }),
-    [jersey, frame],
+    [jersey],
   );
-
-  const tubes = useMemo(() => {
-    const p = (x: number, y: number, z: number) => new Vector3(x, y, z);
-    const rear = p(0, WHEEL_R, -0.5);
-    const front = p(0, WHEEL_R, 0.5);
-    const seatCluster = p(0, 0.84, -0.22);
-    const headTop = p(0, 0.9, 0.38);
-    const headBottom = p(0, 0.74, 0.42);
-    return [
-      [BB, seatCluster, 0.018],
-      [seatCluster, rear, 0.011],
-      [BB, rear, 0.012],
-      [seatCluster, headTop, 0.016],
-      [BB, headBottom, 0.022],
-      [headBottom, headTop, 0.02],
-      [headBottom, front, 0.014],
-      [seatCluster, p(0, HIP_Y - 0.06, HIP_Z - 0.02), 0.012],
-      [headTop, p(0, 0.94, 0.44), 0.014],
-    ] as [Vector3, Vector3, number][];
-  }, []);
 
   useImperativeHandle(ref, () => ({
     get group() {
@@ -181,16 +152,9 @@ export const Rider = forwardRef<
       // Out of the saddle on hard efforts at low speed (climbing).
       const wantStanding = powerW > 380 && speedMs < 6 ? 1 : 0;
       s.standing += (wantStanding - s.standing) * Math.min(1, dtS * 2);
-      if (rearWheel.current) rearWheel.current.rotation.x = s.wheelAngle;
-      if (frontWheel.current) frontWheel.current.rotation.x = s.wheelAngle;
-      if (crank.current) crank.current.rotation.x = s.crankAngle;
+      bike.setPose(s.crankAngle, s.wheelAngle);
       const lift = s.standing * 0.12;
       const forward = s.standing * 0.12;
-      for (const side of [1, -1] as const) {
-        pedals[side === 1 ? 'l' : 'r'].current?.position.copy(
-          pedalPosition(side, s.crankAngle, new Vector3()),
-        );
-      }
       if (rig) {
         rig.pose(s.crankAngle, s.standing);
         return;
@@ -222,7 +186,7 @@ export const Rider = forwardRef<
     () =>
       ([1, -1] as const).map((side) => {
         const shoulder = new Vector3(side * 0.18, shoulderY, shoulderZ);
-        const hand = new Vector3(side * 0.205, 0.99, 0.52);
+        const hand = new Vector3(side * WRIST.x, WRIST.y, WRIST.z);
         const elbow = shoulder
           .clone()
           .lerp(hand, 0.5)
@@ -234,83 +198,9 @@ export const Rider = forwardRef<
 
   return (
     <group ref={group}>
-      {/* Wheels */}
-      {[
-        [rearWheel, -0.5],
-        [frontWheel, 0.5],
-      ].map(([r, z]) => (
-        <group key={String(z)} position={[0, WHEEL_R, z as number]}>
-          <group ref={r as typeof rearWheel}>
-            <mesh
-              material={mats.tyre}
-              rotation={[0, Math.PI / 2, 0]}
-              geometry={new TorusGeometry(WHEEL_R - 0.015, 0.016, 8, 40)}
-            />
-            <mesh
-              material={mats.dark}
-              rotation={[0, Math.PI / 2, 0]}
-              geometry={new TorusGeometry(WHEEL_R - 0.045, 0.012, 6, 40)}
-            />
-            {[0, 1, 2, 3, 4, 5].map((k) => (
-              <mesh
-                key={k}
-                material={mats.metal}
-                rotation={[(k * Math.PI) / 6, 0, 0]}
-                geometry={new BoxGeometry(0.004, (WHEEL_R - 0.05) * 2, 0.004)}
-              />
-            ))}
-          </group>
-        </group>
-      ))}
-      {/* Frame */}
-      {tubes.map(([a, b, r]) => (
-        <mesh
-          key={`${a.toArray()}${b.toArray()}`}
-          material={mats.frame}
-          geometry={unitCylinder}
-          ref={(m) => limb(m, a, b, r)}
-        />
-      ))}
-      <mesh
-        material={mats.dark}
-        position={[0, HIP_Y - 0.04, HIP_Z - 0.04]}
-        geometry={new BoxGeometry(0.12, 0.04, 0.26)}
-      />
-      <DropBar
-        tape={mats.dark}
-        hood={mats.hood}
-        glove={mats.glove}
-        metal={mats.metal}
-        hands={!rig}
-      />
+      <primitive object={bike.root} />
       {!rig && <PovArms skin={mats.skin} jersey={mats.jersey} glove={mats.glove} />}
       {rig && <primitive object={rig.root} />}
-      {([1, -1] as const).map((side) => (
-        <mesh
-          key={side}
-          ref={pedals[side === 1 ? 'l' : 'r']}
-          material={mats.dark}
-          geometry={pedalGeometry}
-        />
-      ))}
-      {/* Cranks */}
-      <group ref={crank} position={BB.toArray()}>
-        <mesh
-          material={mats.metal}
-          rotation={[0, 0, Math.PI / 2]}
-          geometry={new CylinderGeometry(0.1, 0.1, 0.01, 24)}
-          position={[-0.06, 0, 0]}
-        />
-        {[1, -1].map((side) => (
-          <group key={side} rotation={[side === 1 ? 0 : Math.PI, 0, 0]}>
-            <mesh
-              material={mats.dark}
-              position={[side * 0.08, -CRANK_L / 2, 0]}
-              geometry={new BoxGeometry(0.02, CRANK_L, 0.025)}
-            />
-          </group>
-        ))}
-      </group>
       {/* Legs */}
       {!rig && (
         <>
@@ -375,8 +265,6 @@ export const Rider = forwardRef<
   );
 });
 
-const pedalGeometry = new BoxGeometry(0.09, 0.02, 0.1);
-
 /** Layer 1 is not rendered by the POV camera (the head would fill the view). */
 export const POV_HIDDEN_LAYER = 1;
 /** Layer 2 is rendered by the POV camera only. */
@@ -407,12 +295,14 @@ export function mergeStaticParts(root: Object3D, animated: ReadonlySet<Object3D 
     }
     for (const meshes of buckets.values()) {
       if (meshes.length < 2) continue;
+      // All indexed or all not: `mergeGeometries` needs the same layout.
+      const indexed = meshes.every((m) => m.geometry.index);
       const parts = meshes.map((m) => {
         m.updateMatrix();
-        const g = m.geometry.index ? m.geometry.clone() : m.geometry.clone().toNonIndexed();
+        const g = m.geometry.index && !indexed ? m.geometry.toNonIndexed() : m.geometry.clone();
         g.applyMatrix4(m.matrix);
         for (const name of Object.keys(g.attributes)) {
-          if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
+          if (!['position', 'normal', 'uv', 'color'].includes(name)) g.deleteAttribute(name);
         }
         return g;
       });
@@ -491,7 +381,7 @@ function PovArms({
       {[1, -1].flatMap((side) => {
         const shoulder = v(side * 0.19, 1.38, 0.16);
         const elbow = v(side * 0.27, 0.95, 0.25);
-        const wrist = v(side * 0.205, 0.995, 0.53);
+        const wrist = v(side * WRIST.x, WRIST.y, WRIST.z);
         const sleeveEnd = elbow.clone().lerp(shoulder, 0.45);
         const cuffStart = elbow.clone().lerp(wrist, 0.86);
         return [
@@ -541,134 +431,6 @@ function PovArms({
           />,
         ];
       })}
-    </group>
-  );
-}
-
-/**
- * Road drop handlebar seen in the POV view: tops, ramps, hoods with brake and
- * shift levers, drops, gloved hands on the hoods and a bike computer.
- */
-function DropBar({
-  tape,
-  hood,
-  glove,
-  metal,
-  hands,
-}: {
-  tape: MeshStandardMaterial;
-  hood: MeshStandardMaterial;
-  glove: MeshStandardMaterial;
-  metal: MeshStandardMaterial;
-  /** Procedural gloved hands (the avatar has its own). */
-  hands: boolean;
-}) {
-  const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
-  const curve = (side: number) => [
-    v(side * 0.02, 0.95, 0.46),
-    v(side * 0.12, 0.95, 0.46),
-    v(side * 0.18, 0.952, 0.49),
-    v(side * 0.205, 0.955, 0.53),
-    v(side * 0.21, 0.93, 0.6),
-    v(side * 0.21, 0.87, 0.625),
-    v(side * 0.21, 0.81, 0.6),
-    v(side * 0.21, 0.785, 0.53),
-    v(side * 0.21, 0.79, 0.43),
-  ];
-  return (
-    <group>
-      {[1, -1].flatMap((side) => {
-        const pts = curve(side);
-        return [
-          ...pts.slice(1).map((b, i) => (
-            <mesh
-              // biome-ignore lint/suspicious/noArrayIndexKey: fixed list of bar segments
-              key={`bar${side}${i}`}
-              material={tape}
-              geometry={unitCylinder}
-              ref={(m) => limb(m, pts[i] as Vector3, b, 0.0125)}
-            />
-          )),
-          // Hood: lever body angled up and forward from the ramp.
-          <mesh
-            key={`hood${side}`}
-            material={hood}
-            geometry={unitCylinder}
-            ref={(m) => limb(m, v(side * 0.205, 0.95, 0.525), v(side * 0.205, 0.99, 0.615), 0.022)}
-          />,
-          <mesh
-            key={`horn${side}`}
-            material={hood}
-            position={[side * 0.205, 0.995, 0.615]}
-            geometry={new SphereGeometry(0.024, 10, 8)}
-            scale={[0.85, 1.1, 1]}
-          />,
-          // Brake lever blade and the shift paddle behind it.
-          <mesh
-            key={`lever${side}`}
-            material={metal}
-            geometry={unitCylinder}
-            ref={(m) => limb(m, v(side * 0.205, 0.975, 0.62), v(side * 0.212, 0.82, 0.645), 0.009)}
-          />,
-          <mesh
-            key={`paddle${side}`}
-            material={hood}
-            geometry={unitCylinder}
-            ref={(m) => limb(m, v(side * 0.2, 0.96, 0.61), v(side * 0.2, 0.85, 0.625), 0.006)}
-          />,
-          // Gloved hand wrapped around the hood: palm on top, fingers around the lever.
-          hands && (
-            <mesh
-              key={`hand${side}`}
-              material={glove}
-              position={[side * 0.207, 0.99, 0.56]}
-              rotation={[-0.5, 0, 0]}
-              scale={[0.036, 0.026, 0.055]}
-              geometry={new SphereGeometry(1, 14, 10)}
-            />
-          ),
-          hands && (
-            <mesh
-              key={`fingers${side}`}
-              material={glove}
-              geometry={unitCylinder}
-              ref={(m) => limb(m, v(side * 0.2, 0.985, 0.6), v(side * 0.208, 0.945, 0.625), 0.016)}
-            />
-          ),
-          hands && (
-            <mesh
-              key={`thumb${side}`}
-              material={glove}
-              geometry={unitCylinder}
-              ref={(m) => limb(m, v(side * 0.185, 0.975, 0.53), v(side * 0.19, 0.99, 0.585), 0.012)}
-            />
-          ),
-        ];
-      })}
-      {/* Stem and bike computer. */}
-      <mesh
-        material={tape}
-        position={[0, 0.95, 0.46]}
-        rotation={[0, 0, Math.PI / 2]}
-        geometry={new CylinderGeometry(0.016, 0.016, 0.05, 10)}
-      />
-      <mesh
-        material={tape}
-        position={[0, 0.968, 0.51]}
-        geometry={new BoxGeometry(0.052, 0.016, 0.085)}
-      />
-      <mesh
-        position={[0, 0.977, 0.512]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        geometry={new PlaneGeometry(0.042, 0.06)}
-      >
-        <meshStandardMaterial
-          color="#b8c4b0"
-          emissive="#4b5a46"
-          emissiveIntensity={0.4}
-          roughness={0.3}
-        />
-      </mesh>
     </group>
   );
 }

@@ -8,6 +8,7 @@
 - Le nom **HomeRealTrainer** doit être vérifié (INPI / EUIPO, noms de domaine) avant toute communication publique. ⚠️
 - Les noms de lieux réels (cols, villes) sont utilisables ; les marques d'événements (logos de courses, maillots distinctifs) ne le sont pas.
 - Les noms de marques de matériel (Wahoo, Tacx, Zwift Click…) peuvent être cités de façon descriptive pour indiquer la compatibilité, sans logo ni suggestion de partenariat.
+- **Vélo du monde virtuel (lot 2.12)** : le vélo reproduit celui du développeur (SCOTT Addict RC, Shimano Ultegra, Garmin, CeramicSpeed) ; les formes et les couleurs sont refaites dans le code. Seuls les lettrages SCOTT (tube diagonal) et ULTEGRA (manivelles) sont dessinés, en décalcomanies désactivables (option `logos` de `buildBike`). Usage personnel et local : sans objet. **À désactiver, ou à remplacer par un vélo générique, avant toute diffusion de l'application** (bêta ouverte, phase 3 et suivantes).
 
 ## 2. Données géographiques et imagerie
 

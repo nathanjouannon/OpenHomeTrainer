@@ -25,3 +25,7 @@ bench-results/
 
 # CC0 assets (textures, environment map) downloaded by `pnpm fetch-assets`
 apps/web/public/assets/
+
+# Photos de référence du vélo (lot 2.12, locales : elles montrent un intérieur privé)
+docs/references/velo/
+apps/web/public/references/

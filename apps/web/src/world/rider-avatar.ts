@@ -364,6 +364,15 @@ export class AvatarRig {
       bone.position.add(shift);
       bone.updateMatrix();
     }
+    // Arms: the lower arm and the hand sit further from their parents.
+    const armScale = shape.armScale ?? 1;
+    if (armScale !== 1) {
+      for (const [name, bone] of this.bones) {
+        if (!/^(lowerarm|hand)_[lr]$/.test(name)) continue;
+        bone.position.multiplyScalar(armScale);
+        bone.updateMatrix();
+      }
+    }
     this.root.updateMatrixWorld(true);
     for (const mesh of this.skinnedMeshes(scene)) mesh.skeleton.calculateInverses();
   }

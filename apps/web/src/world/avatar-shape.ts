@@ -16,6 +16,11 @@ export interface Shape {
   torso: Record<string, { x: number; z: number }>;
   /** Share of the cross-section kept by the limb and neck bones, about the bone axis. */
   limbs: Record<string, number>;
+  /**
+   * Arms (shoulder to hand) lengthened by this share (1: as modelled): the
+   * Superhero's are short for the reach of a road bike. The hands keep their size.
+   */
+  armScale?: number;
 }
 
 /** A slim road cyclist from the Superhero body. */
@@ -28,10 +33,12 @@ export const CYCLIST_SHAPE: Shape = {
     spine_02: { x: 0.75, z: 0.84 },
     spine_03: { x: 0.75, z: 0.84 },
   },
-  limbs: { thigh: 0.84, calf: 0.87, upperarm: 0.8, lowerarm: 0.86, neck_01: 0.88 },
+  limbs: { thigh: 0.84, calf: 0.87, upperarm: 0.7, lowerarm: 0.76, neck_01: 0.88 },
+  armScale: 1.18,
 };
 
 const ARM_PARTS = /^(upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/;
+const HAND_PARTS = /^(hand|thumb|index|middle|ring|pinky)/;
 const LEG_PARTS = /^(thigh|calf|foot|ball)/;
 
 /** `thigh_l` → part `thigh`, side +1 (left, +X). */
@@ -62,7 +69,14 @@ const axis = new Vector3();
 const moved = new Vector3();
 
 /** The vertex `p` as moved by one bone's share of the reshaping. */
-function viaBone(name: string, p: Vector3, seg: BoneSegment, shape: Shape, out: Vector3): Vector3 {
+function viaBone(
+  name: string,
+  p: Vector3,
+  seg: BoneSegment,
+  shape: Shape,
+  out: Vector3,
+  segments: ReadonlyMap<string, BoneSegment>,
+): Vector3 {
   const { side } = splitBoneName(name);
   const { part } = splitBoneName(name);
   out.copy(p);
@@ -88,8 +102,41 @@ function viaBone(name: string, p: Vector3, seg: BoneSegment, shape: Shape, out: 
     }
   }
   out.x -= side * boneShift(name, shape);
+  lengthenArm(part, side, out, shape, segments);
   return out;
 }
+
+/**
+ * Arms longer by `armScale`: upper and lower arm grow about the (moved)
+ * shoulder, the hand and fingers keep their size and follow the wrist.
+ */
+function lengthenArm(
+  part: string,
+  side: 1 | -1 | 0,
+  out: Vector3,
+  shape: Shape,
+  segments: ReadonlyMap<string, BoneSegment>,
+) {
+  const k = shape.armScale ?? 1;
+  if (k === 1 || side === 0 || !ARM_PARTS.test(part)) return;
+  const suffix = side === 1 ? 'l' : 'r';
+  const upper = segments.get(`upperarm_${suffix}`);
+  if (!upper) return;
+  const shoulder = armShoulder.copy(upper.from);
+  shoulder.x -= side * shape.shoulderShift;
+  if (HAND_PARTS.test(part)) {
+    const lower = segments.get(`lowerarm_${suffix}`);
+    if (!lower) return;
+    // The wrist (end of the lower arm) moves as the shoulder-to-wrist vector grows.
+    const wrist = armWrist.copy(lower.to);
+    wrist.x -= side * shape.shoulderShift;
+    out.addScaledVector(wrist.sub(shoulder), k - 1);
+  } else {
+    out.sub(shoulder).multiplyScalar(k).add(shoulder);
+  }
+}
+const armShoulder = new Vector3();
+const armWrist = new Vector3();
 
 /**
  * New rest position of a vertex weighted over several bones: the positions
@@ -108,7 +155,7 @@ export function reshapeVertex(
   for (const { bone, weight } of influences) {
     const seg = segments.get(bone);
     if (weight <= 0 || !seg) continue;
-    out.addScaledVector(viaBone(bone, p, seg, shape, moved), weight);
+    out.addScaledVector(viaBone(bone, p, seg, shape, moved, segments), weight);
     total += weight;
   }
   return total > 0 ? out.divideScalar(total) : out.copy(p);
