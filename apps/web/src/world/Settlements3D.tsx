@@ -270,11 +270,14 @@ export function Traffic({
   route,
   settlements,
   base,
+  liftM,
   riderDistance,
 }: {
   route: Route;
   settlements: Settlements;
   base: number;
+  /** Height of the asphalt of the route above its altitude (m). */
+  liftM: number;
   riderDistance: () => number;
 }) {
   const geometry = useMemo<BufferGeometry>(() => carGeometry(), []);
@@ -323,7 +326,7 @@ export function Traffic({
       const offset = -ROAD_HALF_WIDTH_M / 2;
       const x = p.x + Math.cos(p.heading) * offset;
       const y = p.y - Math.sin(p.heading) * offset;
-      toScene(x, y, p.z + 0.04, base, tmp.o.position);
+      toScene(x, y, p.z + liftM, base, tmp.o.position);
       tmp.o.rotation.set(0, yawToScene(p.heading + Math.PI), 0);
       tmp.o.updateMatrix();
       mesh.current?.setMatrixAt(i, tmp.o.matrix);

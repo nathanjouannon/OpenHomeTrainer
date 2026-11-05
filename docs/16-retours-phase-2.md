@@ -63,6 +63,8 @@ Retour du 2026-11-04 (vue de côté) : les deux pneus sont coupés de quelques c
 
 **Cause trouvée :** le cycliste est posé à l'altitude de la route (`riderPose` dans `WorldView.tsx`) avec le bas des roues à y = 0, mais l'asphalte est dessiné **au-dessus** de l'altitude de la route : `ASPHALT_Z = 0.04` plus `ri * ROUTE_LIFT_M` (0,01 par indice de route) dans `road-builders.ts`, soit 4 à 6 cm. Les roues s'enfoncent de 4 à 6 cm (plus sur la route d'indice 2). **Piste :** remonter le groupe du cycliste de la hauteur d'asphalte de la route courante (exporter les constantes ou une fonction depuis `road-builders.ts`) plutôt que de changer l'asphalte. Vérifier aussi l'ombre, les voitures en circulation (`Traffic`) et la hauteur des yeux en POV, qui bougent des mêmes quelques centimètres.
 
+**Corrigé le 2026-11-05.** `road-builders.ts` exporte `asphaltLiftM(indiceDeRoute)` (la même valeur qui pose l'asphalte) ; `buildWorldScene` en garde une table par boucle (`asphaltLift`) et `riderPose` monte le cycliste d'autant. L'ombre et la caméra POV suivent le groupe du cycliste (les réglages de `pov-camera.ts` ne changent pas, la caméra monte des mêmes 4 à 6 cm). Les voitures en circulation (`Traffic`) prennent la même hauteur au lieu d'un 0,04 m écrit en dur. Sur un tronçon partagé, l'asphalte est celui de la première boucle : l'écart est alors d'au plus 2 cm.
+
 ## 5. Végétation qui apparaît d'un coup
 
 Retour du 2026-11-04 : la végétation plaît, mais les arbres changent de modèle (niveau de détail) et l'herbe apparaît quand on avance. Le retour demande d'augmenter ces distances, **surtout devant le cycliste**, idéalement sans apparition visible.

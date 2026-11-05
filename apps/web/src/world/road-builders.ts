@@ -29,6 +29,12 @@ const ASPHALT_Z = 0.04;
  */
 const ROUTE_LIFT_M = 0.01;
 
+/**
+ * Height of the asphalt of the route at `routeIndex` (order of the routes given
+ * to `buildRoadSurfaces`) above the route altitude: what the wheels stand on.
+ */
+export const asphaltLiftM = (routeIndex: number) => ASPHALT_Z + routeIndex * ROUTE_LIFT_M;
+
 /** One column of a strip, at a distance along the route. */
 export interface StripColumn {
   /** Lateral offset from the axis, positive to the right of travel (m). */
@@ -256,7 +262,7 @@ export function buildRoadSurfaces(
   const groundCols = VERGE_PROFILE.slice(1);
   const gravelCols = VERGE_PROFILE.slice(0, 3);
   routes.forEach((route, ri) => {
-    const lift = ASPHALT_Z + ri * ROUTE_LIFT_M;
+    const lift = asphaltLiftM(ri);
     const step = route.lengthM / route.pointCount;
     const ditch = layout.ditch.get(route.id);
     const depthAt = (side: 1 | -1, d: number) => {

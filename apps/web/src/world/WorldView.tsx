@@ -35,6 +35,7 @@ import { renderProfile, terrainProfile } from './render-profile';
 import { createWorldRenderer, frameInfo, rendererBackend } from './renderer';
 import type { RendererBackend, RendererPreference } from './renderer-options';
 import {
+  asphaltLiftM,
   buildRoadSurfaces,
   curbTexture,
   ROAD_WIDTH_M,
@@ -75,6 +76,8 @@ export interface BuiltWorld {
   terrainSizeM: number;
   chunks: BufferGeometry[][];
   roads: RoadSurfaces;
+  /** Height of the asphalt of each route above its altitude, by route id (m). */
+  asphaltLift: ReadonlyMap<string, number>;
   /** Guardrails, walls, fences and delineators (lot 2.5). */
   roadside: RoadsideInstances;
   settlements: Settlements;
@@ -175,6 +178,7 @@ export async function buildWorldScene(
     terrainSizeM: t.sizeM,
     chunks,
     roads,
+    asphaltLift: new Map(routes.map((r, i) => [r.id, asphaltLiftM(i)])),
     roadside: roadsideInstances(layout, world.routes, t, base),
     settlements,
     vegetation,
@@ -303,6 +307,8 @@ function Scene({
     [],
   );
   const base = built.base;
+  // The wheels stand on the asphalt, drawn a few cm above the route altitude.
+  const liftM = built.asphaltLift.get(route.id) ?? asphaltLiftM(0);
   const fogColor = FOG_COLOR;
   const profile = useMemo(() => adaptProfile(renderProfile(quality), level), [quality, level]);
   const post = profile.post;
@@ -317,7 +323,7 @@ function Scene({
     const d = v.prevDistanceM + (v.distanceM - v.prevDistanceM) * alpha();
     const p = route.sampleAt(d, tmp.p);
     const a = route.sampleAt(d + 4, tmp.ahead);
-    riderPose(p, a, base, tmp.pos, tmp.dir, tmp.right);
+    riderPose(p, a, base, liftM, tmp.pos, tmp.dir, tmp.right);
     const g = rider.current?.group;
     if (g) {
       g.position.copy(tmp.pos);
@@ -378,6 +384,7 @@ function Scene({
         route={route}
         settlements={built.settlements}
         base={base}
+        liftM={liftM}
         riderDistance={riderDistance}
       />
       <StartArch route={route} base={base} />
@@ -398,12 +405,13 @@ function riderPose(
   p: RoutePoint,
   ahead: RoutePoint,
   base: number,
+  liftM: number,
   pos: Vector3,
   dir: Vector3,
   right: Vector3,
 ) {
   right.set(Math.cos(p.heading), 0, Math.sin(p.heading));
-  toScene(p.x, p.y, p.z, base, pos).addScaledVector(right, LANE_OFFSET_M);
+  toScene(p.x, p.y, p.z + liftM, base, pos).addScaledVector(right, LANE_OFFSET_M);
   dir.set(ahead.x - p.x, ahead.z - p.z, -(ahead.y - p.y)).normalize();
 }
 
