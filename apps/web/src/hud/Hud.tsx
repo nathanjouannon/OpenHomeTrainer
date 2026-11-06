@@ -1,12 +1,14 @@
 // Ride HUD (lot 1.6), refreshed at 4 Hz from the session state.
 
 import type { Route } from '@hrt/route-engine';
+import type { Interval } from '@hrt/workouts';
 import { useEffect, useState } from 'react';
 import { formatDuration, formatter, gradeBand } from '../format';
 import { useT } from '../i18n';
 import type { LiveState } from '../ride/ride-session';
 import { useSettings } from '../store/settings';
 import { ElevationProfile, MiniMap } from './charts';
+import { WorkoutGraph } from './WorkoutGraph';
 
 export function useLiveState(state: LiveState, hz = 4): LiveState {
   const [snap, setSnap] = useState<LiveState>(() => ({ ...state }));
@@ -46,10 +48,14 @@ export function Hud({
   state,
   route,
   weightKg,
+  workoutIntervals = [],
+  ftpW = 200,
 }: {
   state: LiveState;
   route: Route;
   weightKg: number;
+  workoutIntervals?: readonly Interval[];
+  ftpW?: number;
 }) {
   const t = useT();
   const settings = useSettings();
@@ -87,6 +93,43 @@ export function Hud({
         </div>
         <MiniMap route={route} lapDistanceM={s.lapDistanceM} />
       </div>
+      {s.workout && (
+        <div className="workout-banner">
+          <div className="workout-now">
+            <span className="tile-label">
+              {s.workout.name} · {s.workout.index + 1}/{s.workout.count}
+            </span>
+            <span className="workout-target">
+              {s.workout.finished ? t('hud.workoutDone') : `${s.ergTargetW ?? s.workout.targetW} W`}
+              {!s.workout.finished && <small> {s.workout.label}</small>}
+            </span>
+            {s.workout.offsetW !== 0 && (
+              <span className="tile-sub">
+                {s.workout.offsetW > 0 ? '+' : ''}
+                {s.workout.offsetW} W
+              </span>
+            )}
+          </div>
+          <div className="workout-time">
+            <span className="tile-value">{formatDuration(s.workout.remainingS)}</span>
+            {s.workout.next && (
+              <span className="tile-sub">
+                {t('hud.next')} : {s.workout.next.targetW + s.workout.offsetW} W ·{' '}
+                {s.workout.next.label}
+              </span>
+            )}
+          </div>
+          <div className="workout-graph-wrap">
+            <WorkoutGraph
+              intervals={workoutIntervals}
+              ftpW={ftpW}
+              elapsedS={s.workout.elapsedS}
+              adjustW={s.workout.offsetW}
+              height={56}
+            />
+          </div>
+        </div>
+      )}
       <div className="hud-bottom">
         <div className="hud-tiles">
           <Tile

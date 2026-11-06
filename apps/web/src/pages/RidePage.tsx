@@ -1,10 +1,12 @@
 import { parseRouteId, type Route } from '@hrt/route-engine';
+import type { Workout } from '@hrt/workouts';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDelta, formatDuration } from '../format';
 import { DevCameraPanel } from '../hud/DevCameraPanel';
 import { Hud, useLiveState } from '../hud/Hud';
 import { useT } from '../i18n';
 import type { RideAction } from '../ride/actions';
+import { DEFAULT_WORKOUT_FTP_W } from '../ride/ride-session';
 import { type RideGoal, useRideController } from '../ride/useRideController';
 import { navigate } from '../router';
 import { useDevices } from '../store/devices';
@@ -15,6 +17,7 @@ import {
   updateSettings,
   useSettings,
 } from '../store/settings';
+import { findWorkout } from '../store/workouts';
 import { FrameStats } from '../world/frame-stats';
 import { type CameraPose, parsePoseParam } from '../world/free-camera';
 import type { RendererBackend } from '../world/renderer-options';
@@ -47,11 +50,13 @@ export default function RidePage({
   worldId,
   routeId,
   goal,
+  workoutId = null,
   devView,
 }: {
   worldId: string;
   routeId: string;
   goal: string | null;
+  workoutId?: string | null;
   devView?: DevView;
 }) {
   const t = useT();
@@ -81,6 +86,7 @@ export default function RidePage({
     return base && reversed ? base.reversed() : base;
   }, [world, routeId]);
   const parsedGoal = useMemo(() => parseGoal(goal), [goal]);
+  const workout = useMemo(() => findWorkout(workoutId), [workoutId]);
   if (error) {
     return (
       <main className="page">
@@ -107,6 +113,7 @@ export default function RidePage({
       worldId={worldId}
       routeId={routeId}
       devView={devView ?? { atM: 0, camera: null }}
+      workout={workout}
     />
   );
 }
@@ -119,6 +126,7 @@ function RideRunning({
   worldId,
   routeId,
   devView,
+  workout,
 }: {
   world: WorldData;
   built: BuiltWorld;
@@ -127,10 +135,11 @@ function RideRunning({
   worldId: string;
   routeId: string;
   devView: DevView;
+  workout: Workout | null;
 }) {
   const t = useT();
   const settings = useSettings();
-  const ride = useRideController(route, world.manifest.id, goal);
+  const ride = useRideController(route, world.manifest.id, goal, workout);
   const { session, loop, dispatcher, toasts, pushToast, onEvent } = ride;
   const live = useLiveState(session.state, 4);
   const [hudVisible, setHudVisible] = useState(true);
@@ -164,6 +173,10 @@ function RideRunning({
       pushToast(t('ride.ergSpiral'), 'warn');
     } else if (e.type === 'ergRecovered') {
       pushToast(t('ride.ergRecovered'), 'good');
+    } else if (e.type === 'interval') {
+      pushToast(`${e.label} · ${e.targetW} W`);
+    } else if (e.type === 'workoutDone') {
+      pushToast(t('ride.workoutDone'), 'good');
     } else if (e.type === 'goal') {
       pushToast(t('ride.goalReached'), 'good');
     }
@@ -251,7 +264,13 @@ function RideRunning({
         />
       )}
       {hudVisible && !free && (
-        <Hud state={session.state} route={route} weightKg={settings.profile.weightKg} />
+        <Hud
+          state={session.state}
+          route={route}
+          weightKg={settings.profile.weightKg}
+          workoutIntervals={session.workoutIntervals}
+          ftpW={settings.profile.ftpW ?? DEFAULT_WORKOUT_FTP_W}
+        />
       )}
       <div className="warnings">
         {live.powerStale && !live.paused && (

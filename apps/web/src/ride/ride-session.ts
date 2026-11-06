@@ -14,6 +14,13 @@ import {
 import { airDensityAtAltitude, type RiderParams, simulateStep } from '@hrt/physics';
 import { type NewRide, type RideHeader, RideRecorder, type RideSample } from '@hrt/recorder';
 import { emptyRoutePoint, type LapCrossing, LapTracker, type Route } from '@hrt/route-engine';
+import {
+  flatten,
+  type Interval,
+  type RunnerState,
+  type Workout,
+  WorkoutRunner,
+} from '@hrt/workouts';
 
 /** Power older than this is considered gone: the rider freewheels (docs/04 §8). */
 export const STALE_POWER_MS = 3000;
@@ -34,11 +41,23 @@ export interface RideSessionConfig {
   difficulty: number;
   powerSource: PowerSource;
   ride: NewRide;
+  /** A structured workout to follow in ERG (lot 3.2). Its power shares use the rider's FTP. */
+  workout?: Workout | null;
   /** Wall clock (epoch ms). */
   now?: () => number;
   /** Monotonic clock (ms), same base as SensorReading.timestamp. */
   clock?: () => number;
 }
+
+/** Where the rider is in the workout. */
+export interface WorkoutLive extends RunnerState {
+  name: string;
+  /** Manual ±5 W adjustment added to every target, W. */
+  offsetW: number;
+}
+
+/** FTP used to play a workout when the profile has none. */
+export const DEFAULT_WORKOUT_FTP_W = 200;
 
 export interface LiveState {
   /** Riding time, s. */
@@ -73,6 +92,7 @@ export interface LiveState {
   /** Power actually commanded to the trainer in ERG mode (after ramp), W. */
   ergCommandW: number | null;
   ergState: ErgState | null;
+  workout: WorkoutLive | null;
   paused: boolean;
   powerStale: boolean;
   goalReached: boolean;
@@ -84,6 +104,8 @@ export type RideEvent =
   | { type: 'goal' }
   | { type: 'erg'; on: boolean; targetW: number | null }
   | { type: 'ergTarget'; targetW: number }
+  | { type: 'interval'; index: number; label: string; targetW: number }
+  | { type: 'workoutDone' }
   | { type: 'ergSpiral' }
   | { type: 'ergRecovered' }
   | { type: 'pause' }
@@ -119,6 +141,10 @@ export class RideSession {
   private readonly powerWindow: number[] = [];
   private lastSample: RideSample | null = null;
   private erg: ErgController | null = null;
+  private readonly runner: WorkoutRunner | null;
+  private offsetW = 0;
+  /** The workout flattened for the rider's FTP (for the graph). */
+  readonly workoutIntervals: readonly Interval[];
 
   constructor(private readonly config: RideSessionConfig) {
     this.route = config.route;
@@ -153,10 +179,62 @@ export class RideSession {
       ergTargetW: null,
       ergCommandW: null,
       ergState: null,
+      workout: null,
       paused: false,
       powerStale: true,
       goalReached: false,
     };
+    const workout = config.workout ?? null;
+    this.workoutIntervals = workout
+      ? flatten(workout, config.rider.ftpW ?? DEFAULT_WORKOUT_FTP_W)
+      : [];
+    this.runner = workout ? new WorkoutRunner(this.workoutIntervals) : null;
+    if (this.runner && workout) {
+      this.setErg(this.runner.state.targetW);
+      this.syncWorkout(workout.name);
+    }
+  }
+
+  /** A workout is running: the ERG target belongs to it. */
+  get workoutActive(): boolean {
+    return this.runner !== null && !this.runner.state.finished;
+  }
+
+  private syncWorkout(name = this.config.workout?.name ?? '') {
+    const r = this.runner;
+    if (!r) return;
+    const st = r.state;
+    this.state.workout = { ...st, name, offsetW: this.offsetW };
+    if (this.erg && !st.finished) {
+      this.erg.setTarget(Math.max(0, st.targetW + this.offsetW));
+      this.state.ergTargetW = this.erg.targetW;
+    }
+  }
+
+  private onWorkoutEvents(events: { type: string; index?: number }[]) {
+    const r = this.runner;
+    if (!r) return;
+    for (const e of events) {
+      if (e.type === 'finished') {
+        this.setErg(null);
+        this.emit({ type: 'workoutDone' });
+      } else if (e.type === 'interval') {
+        const st = r.state;
+        this.emit({
+          type: 'interval',
+          index: st.index,
+          label: st.label,
+          targetW: st.targetW + this.offsetW,
+        });
+      }
+    }
+  }
+
+  /** Next (1) or previous/restart (-1) interval of the workout. */
+  skipInterval(direction: 1 | -1): void {
+    if (!this.runner || !this.workoutActive) return;
+    this.onWorkoutEvents(this.runner.skip(direction));
+    this.syncWorkout();
   }
 
   on(cb: (e: RideEvent) => void): () => void {
@@ -263,6 +341,7 @@ export class RideSession {
 
   /** ERG on at the current 3 s power (rounded to 5 W), or off. */
   toggleErg(): void {
+    if (this.workoutActive) return;
     if (this.erg) this.setErg(null);
     else this.setErg(Math.max(50, Math.round(this.state.power3sW / 5) * 5));
   }
@@ -270,6 +349,14 @@ export class RideSession {
   /** ±5 W on the ERG target (docs/15 §3.4). Returns false in SIM mode. */
   adjustErg(deltaW: number): boolean {
     if (!this.erg) return false;
+    if (this.workoutActive) {
+      // In a workout the buttons shift every target instead of replacing one.
+      this.erg.resume();
+      this.offsetW += deltaW;
+      this.syncWorkout();
+      this.emit({ type: 'ergTarget', targetW: this.erg.targetW });
+      return true;
+    }
     // After a spiral, a button press also tells the controller the rider is back.
     this.erg.resume();
     this.setErg(this.erg.targetW + deltaW);
@@ -309,6 +396,10 @@ export class RideSession {
     s.heartRateBpm = inp.heartRateBpm;
     s.prevDistanceM = s.distanceM;
 
+    if (this.runner && !s.paused && !this.runner.state.finished) {
+      this.onWorkoutEvents(this.runner.advance(dtS));
+    }
+    this.syncWorkout();
     // The trainer keeps receiving its command even when paused (no jolt on resume).
     let command: TrainerCommand | null;
     if (this.erg) {

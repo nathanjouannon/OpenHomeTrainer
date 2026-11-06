@@ -41,6 +41,7 @@
         "packages/physics/**",
         "packages/route-engine/**",
         "packages/drivetrain/**",
+        "packages/workouts/**",
         "packages/recorder/**"
       ],
       "linter": {

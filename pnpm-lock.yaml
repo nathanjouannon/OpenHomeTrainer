@@ -53,6 +53,9 @@ importers:
       '@hrt/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@hrt/workouts':
+        specifier: workspace:*
+        version: link:../../packages/workouts
       '@react-three/drei':
         specifier: ^10.7.9
         version: 10.7.9(@react-three/fiber@9.8.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0))(@types/react@19.3.0)(@types/three@0.187.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0)
@@ -130,6 +133,12 @@ importers:
         version: link:../shared
 
   packages/shared: {}
+
+  packages/workouts:
+    dependencies:
+      '@hrt/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   tools/bench:
     devDependencies:

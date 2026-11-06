@@ -201,3 +201,50 @@ describe('ERG mode', () => {
     expect(session.state.ergTargetW).toBeNull();
   });
 });
+
+describe('workout', () => {
+  const workout = {
+    id: 'w',
+    name: 'Test',
+    source: 'custom' as const,
+    steps: [
+      { type: 'steady' as const, durationS: 10, power: { unit: 'ftp' as const, value: 0.5 } },
+      { type: 'steady' as const, durationS: 10, power: { unit: 'ftp' as const, value: 1 } },
+    ],
+  };
+
+  it('drives the ERG target interval by interval, with ±5 W on top, then returns to SIM', () => {
+    const { session, ride } = makeSession({ workout });
+    const events: string[] = [];
+    session.on((e) => events.push(e.type));
+    expect(session.state.ergTargetW).toBe(125); // FTP 250
+    ride(5, 200);
+    session.shift(1);
+    expect(session.state.ergTargetW).toBe(130);
+    expect(session.state.workout?.offsetW).toBe(5);
+    ride(7, 200); // 12 s in: second interval
+    expect(session.state.workout?.index).toBe(1);
+    expect(session.state.ergTargetW).toBe(255);
+    expect(events).toContain('interval');
+    session.skipInterval(-1); // 2 s in: back to the first one
+    expect(session.state.workout?.index).toBe(0);
+    ride(25, 200);
+    expect(events).toContain('workoutDone');
+    expect(session.ergActive).toBe(false);
+    expect(session.state.workout?.finished).toBe(true);
+  });
+
+  it('does not let the ERG key switch a workout off', () => {
+    const { session } = makeSession({ workout });
+    session.toggleErg();
+    expect(session.ergActive).toBe(true);
+  });
+
+  it('holds the workout clock while paused', () => {
+    const { session, ride } = makeSession({ workout });
+    ride(3, 200);
+    session.pause();
+    ride(10, 200);
+    expect(session.state.workout?.elapsedS).toBeCloseTo(3, 0);
+  });
+});

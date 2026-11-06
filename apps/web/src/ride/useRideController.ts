@@ -6,6 +6,7 @@ import { roadDrivetrain } from '@hrt/drivetrain';
 import { DEFAULT_RIDER_PARAMS } from '@hrt/physics';
 import { type RideHeader, RideSaver } from '@hrt/recorder';
 import type { Route } from '@hrt/route-engine';
+import type { Workout } from '@hrt/workouts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FixedStepLoop } from '../sim/fixed-step-loop';
 import { deviceHub, type Role } from '../store/devices';
@@ -65,7 +66,12 @@ function commandSender() {
   return send;
 }
 
-export function useRideController(route: Route, worldId: string, goal: RideGoal | null) {
+export function useRideController(
+  route: Route,
+  worldId: string,
+  goal: RideGoal | null,
+  workout: Workout | null = null,
+) {
   const dispatcher = useMemo(() => new ActionDispatcher(), []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
@@ -83,6 +89,7 @@ export function useRideController(route: Route, worldId: string, goal: RideGoal 
         cda: CDA_BY_BIKE[p.bikeType],
         ftpW: p.ftpW,
       },
+      workout,
       drivetrain: s.virtualShifting ? roadDrivetrain(s.cassetteSpeeds) : null,
       difficulty: s.difficulty,
       powerSource: s.powerSource,
@@ -101,7 +108,7 @@ export function useRideController(route: Route, worldId: string, goal: RideGoal 
       if (command) send(command);
     });
     return { session, loop };
-  }, [route, worldId, goal]);
+  }, [route, worldId, goal, workout]);
 
   const pushToast = useRef((text: string, tone: Toast['tone'] = 'info') => {
     const id = ++toastId.current;
@@ -158,6 +165,8 @@ export function useRideController(route: Route, worldId: string, goal: RideGoal 
       dispatcher.on('shiftFrontUp', () => session.shift(1, 'front')),
       dispatcher.on('shiftFrontDown', () => session.shift(-1, 'front')),
       dispatcher.on('lap', () => session.manualLap()),
+      dispatcher.on('intervalNext', () => session.skipInterval(1)),
+      dispatcher.on('intervalPrev', () => session.skipInterval(-1)),
       dispatcher.on('ergToggle', () => session.toggleErg()),
       dispatcher.on('ergUp', () => session.adjustErg(ERG_STEP_W)),
       dispatcher.on('ergDown', () => session.adjustErg(-ERG_STEP_W)),

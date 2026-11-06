@@ -915,3 +915,115 @@ input[type="range"] {
   margin: 0;
   text-align: right;
 }
+
+/* Workouts (lot 3.2) */
+.workout-list {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.workout-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.workout-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.workout-graph {
+  display: block;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.12);
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.workout-editor {
+  display: grid;
+  gap: 10px;
+}
+.workout-editor label {
+  display: grid;
+  gap: 4px;
+}
+.step-list {
+  display: grid;
+  gap: 6px;
+}
+.step-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.1);
+}
+.step-row .num-field {
+  display: grid;
+  gap: 2px;
+  width: 90px;
+}
+.step-row .num-field input {
+  width: 100%;
+}
+.step-children {
+  flex-basis: 100%;
+  padding-left: 14px;
+  border-left: 3px solid rgba(127, 127, 127, 0.35);
+}
+.step-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.step-add {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.workout-banner {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 70vw);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(10, 14, 20, 0.62);
+  color: #fff;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+.workout-target {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.1;
+  display: block;
+}
+.workout-target small {
+  font-size: 0.9rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+.workout-time {
+  text-align: right;
+  display: grid;
+}
+.workout-graph-wrap {
+  grid-column: 1 / -1;
+}
+.tile-erg {
+  outline: 2px solid #f08a24;
+}
+.tile-erg-hold {
+  outline-color: #e0453a;
+}

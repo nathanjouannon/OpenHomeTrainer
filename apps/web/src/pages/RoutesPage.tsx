@@ -4,10 +4,11 @@ import { formatDuration, formatter } from '../format';
 import { ElevationProfile, MiniMap } from '../hud/charts';
 import { useT } from '../i18n';
 import { estimateLapTimeS } from '../ride/estimate';
-import { navigate } from '../router';
+import { navigate, parseHash } from '../router';
 import { deviceHub } from '../store/devices';
 import { rideStore } from '../store/rides';
 import { CDA_BY_BIKE, useSettings } from '../store/settings';
+import { useWorkouts } from '../store/workouts';
 import { fetchManifest, fetchRoute } from '../world/world-data';
 import { Page, useLocalized } from './common';
 
@@ -28,6 +29,10 @@ export function RoutesPage() {
   const [reverse, setReverse] = useState(false);
   const [goalKind, setGoalKind] = useState<GoalKind>('none');
   const [goalValue, setGoalValue] = useState(60);
+  const workouts = useWorkouts();
+  const [workoutId, setWorkoutId] = useState(
+    () => parseHash(window.location.hash).query.get('workout') ?? '',
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +89,7 @@ export function RoutesPage() {
             : goalValue;
       q.set('goal', `${goalKind}:${value}`);
     }
+    if (workoutId) q.set('workout', workoutId);
     navigate(
       `/ride/${manifest.id}/${selected}${reverse ? REVERSE_SUFFIX : ''}${q.size ? `?${q}` : ''}`,
     );
@@ -147,6 +153,17 @@ export function RoutesPage() {
             >
               <option value="forward">{t('routes.direction.forward')}</option>
               <option value="reverse">{t('routes.direction.reverse')}</option>
+            </select>
+          </fieldset>
+          <fieldset className="goal">
+            <legend>{t('routes.workout')}</legend>
+            <select value={workoutId} onChange={(e) => setWorkoutId(e.target.value)}>
+              <option value="">{t('routes.workout.none')}</option>
+              {workouts.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
             </select>
           </fieldset>
           <fieldset className="goal">

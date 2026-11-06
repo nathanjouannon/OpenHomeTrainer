@@ -17,6 +17,8 @@ export type RideAction =
   | 'toggleHud'
   | 'lap'
   | 'ergToggle'
+  | 'intervalNext'
+  | 'intervalPrev'
   | 'ergUp'
   | 'ergDown'
   | 'fullscreen'
@@ -42,6 +44,8 @@ export const DEFAULT_KEYMAP: Readonly<Record<string, RideAction>> = {
   h: 'toggleHud',
   l: 'lap',
   e: 'ergToggle',
+  n: 'intervalNext',
+  b: 'intervalPrev',
   ']': 'ergUp',
   '[': 'ergDown',
   f: 'fullscreen',

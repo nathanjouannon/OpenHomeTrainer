@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage';
 import { RoutesPage } from './pages/RoutesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SummaryPage } from './pages/SummaryPage';
+import { WorkoutsPage } from './pages/WorkoutsPage';
 import { useLocation } from './router';
 import { BleSpikePage } from './spikes/ble/BleSpikePage';
 import { rendererFromQuery } from './world/renderer-options';
@@ -25,6 +26,8 @@ export function App() {
   switch (page) {
     case 'devices':
       return <DevicesPage />;
+    case 'workouts':
+      return <WorkoutsPage />;
     case 'routes':
       return <RoutesPage />;
     case 'ride': {
@@ -33,10 +36,11 @@ export function App() {
       return (
         <Suspense fallback={loading}>
           <RidePage
-            key={`${worldId}/${routeId}`}
+            key={`${worldId}/${routeId}/${query.get('workout') ?? ''}`}
             worldId={worldId}
             routeId={routeId}
             goal={query.get('goal')}
+            workoutId={query.get('workout')}
             devView={{
               atM: Number(query.get('at')) || 0,
               camera: query.get('camera'),

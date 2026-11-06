@@ -55,6 +55,10 @@ export function HomePage() {
               : t('devices.status.disconnected')}
           </span>
         </a>
+        <a href="#/workouts">
+          <strong>{t('home.workouts')}</strong>
+          <span>{t('home.workoutsHint')}</span>
+        </a>
         <a href="#/rides">
           <strong>{t('home.history')}</strong>
           <span>
