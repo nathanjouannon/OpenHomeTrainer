@@ -1,4 +1,4 @@
-import type { Route } from '@hrt/route-engine';
+import { parseRouteId, type Route } from '@hrt/route-engine';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDelta, formatDuration } from '../format';
 import { DevCameraPanel } from '../hud/DevCameraPanel';
@@ -74,7 +74,12 @@ export default function RidePage({
   }, [worldId]);
   useDisposeOnUnmount(world?.built ?? null);
 
-  const route = world?.data.routes.get(routeId);
+  // The reverse direction shares the geometry of the route the world was built for.
+  const route = useMemo(() => {
+    const { baseId, reversed } = parseRouteId(routeId);
+    const base = world?.data.routes.get(baseId);
+    return base && reversed ? base.reversed() : base;
+  }, [world, routeId]);
   const parsedGoal = useMemo(() => parseGoal(goal), [goal]);
   if (error) {
     return (

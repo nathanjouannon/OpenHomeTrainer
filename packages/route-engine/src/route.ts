@@ -67,6 +67,16 @@ export const emptyRoutePoint = (): RoutePoint => ({
 
 const TWO_PI = Math.PI * 2;
 
+/** Suffix of the id of a route ridden the other way round. */
+export const REVERSE_SUFFIX = '-inverse';
+
+/** Splits `boucle-du-lac-inverse` into the base id and the direction. */
+export function parseRouteId(id: string): { baseId: string; reversed: boolean } {
+  return id.endsWith(REVERSE_SUFFIX)
+    ? { baseId: id.slice(0, -REVERSE_SUFFIX.length), reversed: true }
+    : { baseId: id, reversed: false };
+}
+
 /** Shortest signed angle from a to b, in (-π, π]. */
 export function angleDelta(a: number, b: number): number {
   let d = (b - a) % TWO_PI;
@@ -140,6 +150,63 @@ export class Route {
 
   get id() {
     return this.meta.id;
+  }
+
+  /**
+   * The same road ridden the other way round (a loop starts at the same point
+   * and leaves by the other side). Same geometry, so the world built for the
+   * original fits; grades flip sign, headings turn by π, climbs become plain
+   * stretches. The id gets REVERSE_SUFFIX so best laps and rides stay apart.
+   */
+  reversed(): Route {
+    const n = this.d.length;
+    const L = this.meta.lengthM;
+    const loop = this.meta.loop;
+    // New point k comes from source index src(k); a loop keeps point 0 first.
+    const src = (k: number) => (loop ? (n - k) % n : n - 1 - k);
+    const col = (a: Float64Array, f: (v: number) => number = (v) => v) =>
+      Array.from({ length: n }, (_, k) => f(a[src(k)] as number));
+    const d = Array.from({ length: n }, (_, k) => {
+      const i = src(k);
+      return loop && k === 0 ? 0 : L - (this.d[i] as number);
+    });
+    const flip = (a: { startM: number; endM: number }) => ({
+      startM: L - a.endM,
+      endM: L - a.startM,
+    });
+    return new Route(
+      {
+        ...this.meta,
+        id: `${this.meta.id}${REVERSE_SUFFIX}`,
+        name: {
+          fr: `${this.meta.name.fr} (sens inverse)`,
+          en: `${this.meta.name.en} (reverse)`,
+        },
+        ascentM: this.meta.descentM,
+        descentM: this.meta.ascentM,
+        segments: this.meta.segments
+          .map((s) => ({
+            ...s,
+            ...flip(s),
+            type: s.type === 'climb' ? ('other' as const) : s.type,
+          }))
+          .sort((a, b) => a.startM - b.startM),
+        surface: this.meta.surface
+          .map((s) => {
+            const f = flip({ startM: s.fromM, endM: s.toM });
+            return { ...s, fromM: f.startM, toM: f.endM };
+          })
+          .sort((a, b) => a.fromM - b.fromM),
+      },
+      {
+        d,
+        x: col(this.x),
+        y: col(this.y),
+        z: col(this.z),
+        grade: col(this.grade, (v) => -v),
+        heading: col(this.heading, (v) => angleDelta(0, v + Math.PI)),
+      },
+    );
   }
 
   get lengthM() {

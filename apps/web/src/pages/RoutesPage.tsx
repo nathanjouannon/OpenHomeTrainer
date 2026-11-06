@@ -1,4 +1,4 @@
-import type { Route, WorldManifest } from '@hrt/route-engine';
+import { parseRouteId, REVERSE_SUFFIX, type Route, type WorldManifest } from '@hrt/route-engine';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDuration, formatter } from '../format';
 import { ElevationProfile, MiniMap } from '../hud/charts';
@@ -25,6 +25,7 @@ export function RoutesPage() {
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [best, setBest] = useState<Record<string, number>>({});
+  const [reverse, setReverse] = useState(false);
   const [goalKind, setGoalKind] = useState<GoalKind>('none');
   const [goalValue, setGoalValue] = useState(60);
 
@@ -57,8 +58,19 @@ export function RoutesPage() {
   const estimates = useMemo(() => {
     const power = (p.ftpW ?? 200) * 0.75;
     const params = { massKg: p.weightKg, bikeMassKg: p.bikeMassKg, cda: CDA_BY_BIKE[p.bikeType] };
-    return Object.fromEntries(routes.map((r) => [r.id, estimateLapTimeS(r, power, params)]));
+    return Object.fromEntries(
+      routes.flatMap((r) => {
+        const rev = r.reversed();
+        return [
+          [r.id, estimateLapTimeS(r, power, params)],
+          [rev.id, estimateLapTimeS(rev, power, params)],
+        ];
+      }),
+    );
   }, [routes, p.ftpW, p.weightKg, p.bikeMassKg, p.bikeType]);
+
+  const reversedRoutes = useMemo(() => routes.map((r) => r.reversed()), [routes]);
+  const shownRoutes = reverse ? reversedRoutes : routes;
 
   const start = () => {
     if (!manifest || !selected) return;
@@ -72,7 +84,9 @@ export function RoutesPage() {
             : goalValue;
       q.set('goal', `${goalKind}:${value}`);
     }
-    navigate(`/ride/${manifest.id}/${selected}${q.size ? `?${q}` : ''}`);
+    navigate(
+      `/ride/${manifest.id}/${selected}${reverse ? REVERSE_SUFFIX : ''}${q.size ? `?${q}` : ''}`,
+    );
   };
 
   return (
@@ -85,14 +99,15 @@ export function RoutesPage() {
             <strong>{loc(manifest.name)}</strong> — {loc(manifest.description)}
           </p>
           <div className="route-list">
-            {routes.map((r) => {
-              const info = manifest.routes.find((m) => m.id === r.id);
+            {shownRoutes.map((r) => {
+              const baseId = parseRouteId(r.id).baseId;
+              const info = manifest.routes.find((m) => m.id === baseId);
               return (
                 <button
                   type="button"
                   key={r.id}
-                  className={`route-card ${selected === r.id ? 'selected' : ''}`}
-                  onClick={() => setSelected(r.id)}
+                  className={`route-card ${selected === baseId ? 'selected' : ''}`}
+                  onClick={() => setSelected(baseId)}
                 >
                   <MiniMap route={r} size={110} />
                   <div className="route-info">
@@ -124,6 +139,16 @@ export function RoutesPage() {
               );
             })}
           </div>
+          <fieldset className="goal">
+            <legend>{t('routes.direction')}</legend>
+            <select
+              value={reverse ? 'reverse' : 'forward'}
+              onChange={(e) => setReverse(e.target.value === 'reverse')}
+            >
+              <option value="forward">{t('routes.direction.forward')}</option>
+              <option value="reverse">{t('routes.direction.reverse')}</option>
+            </select>
+          </fieldset>
           <fieldset className="goal">
             <legend>{t('routes.goal')}</legend>
             <select value={goalKind} onChange={(e) => setGoalKind(e.target.value as GoalKind)}>

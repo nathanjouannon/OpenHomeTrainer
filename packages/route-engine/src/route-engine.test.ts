@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildLoopRoute, type LoopDesign, loopRouteFromPoints } from './build-loop';
 import { LapTracker } from './laps';
 import { ascentDescent, computeGrades, limitGrade, smooth } from './profile';
-import { angleDelta, emptyRoutePoint, Route } from './route';
+import { angleDelta, emptyRoutePoint, parseRouteId, Route } from './route';
 import { resampleClosedSpline } from './spline';
 import { validateLoop } from './validate';
 
@@ -96,6 +96,28 @@ describe('buildLoopRoute', () => {
       elevationAt: (x) => 500 + 200 * Math.sin(x / 300),
     });
     for (const g of steep.grade) expect(Math.abs(g)).toBeLessThanOrEqual(6 + 1e-6);
+  });
+
+  it('reverses a loop: same road, opposite direction', () => {
+    const rev = route.reversed();
+    const L = route.lengthM;
+    expect(rev.id).toBe(`${route.id}-inverse`);
+    expect(rev.lengthM).toBe(L);
+    expect(validateLoop(rev)).toEqual([]);
+    const a = route.sampleAt(0);
+    const b = rev.sampleAt(0);
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(1e-6);
+    for (const d of [100, 1234.5, L / 2, L - 300]) {
+      const f = route.sampleAt(d);
+      const r = rev.sampleAt(L - d);
+      expect(Math.hypot(f.x - r.x, f.y - r.y)).toBeLessThan(0.05);
+      expect(r.z).toBeCloseTo(f.z, 1);
+      expect(r.gradePercent).toBeCloseTo(-f.gradePercent, 1);
+      expect(Math.abs(angleDelta(f.heading, r.heading))).toBeCloseTo(Math.PI, 1);
+    }
+    expect(rev.meta.ascentM).toBeCloseTo(route.meta.descentM, 6);
+    expect(rev.reversed().sampleAt(777).x).toBeCloseTo(route.sampleAt(777).x, 4);
+    expect(parseRouteId(rev.id)).toEqual({ baseId: route.id, reversed: true });
   });
 
   it('round-trips through JSON', () => {
