@@ -96,6 +96,23 @@ export function Hud({
             unit="W"
             sub={`3 s : ${Math.round(s.power3sW)} W`}
           />
+          {s.ergTargetW !== null && (
+            <Tile
+              className={`tile-erg${s.ergState && s.ergState !== 'active' ? ' tile-erg-hold' : ''}`}
+              label={t('hud.erg')}
+              value={String(s.ergTargetW)}
+              unit="W"
+              sub={
+                s.ergState === 'spiral'
+                  ? t('hud.ergSpiral')
+                  : s.ergState === 'stopped'
+                    ? t('hud.ergStopped')
+                    : s.ergCommandW !== null && s.ergCommandW !== s.ergTargetW
+                      ? `→ ${s.ergCommandW} W`
+                      : undefined
+              }
+            />
+          )}
           <Tile label={t('hud.wkg')} value={f.num(s.power3sW / weightKg, 1)} />
           <Tile label={t('hud.cadence')} value={String(Math.round(s.cadenceRpm))} unit="rpm" />
           <Tile

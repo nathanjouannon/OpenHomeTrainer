@@ -37,7 +37,8 @@ export const DEFAULT_TRAINER_CONTROLLER_OPTIONS: Readonly<TrainerControllerOptio
   deadbandPercent: 0.1,
 };
 
-export type TrainerCommand = { kind: 'sim'; gradePercent: number };
+export type SimCommand = { kind: 'sim'; gradePercent: number };
+export type TrainerCommand = SimCommand | { kind: 'erg'; powerW: number };
 
 export interface TrainerControllerInput {
   /** Simulated (real) grade at the rider's position, in %. */
@@ -89,7 +90,7 @@ export class TrainerController {
     this.lastSent = null;
   }
 
-  update(dtS: number, input: TrainerControllerInput): TrainerCommand | null {
+  update(dtS: number, input: TrainerControllerInput): SimCommand | null {
     const o = this.options;
     const felt = feltGrade(input.gradePercent, o);
     const alpha = 1 - Math.exp(-dtS / Math.max(1e-3, o.smoothingTimeConstantS));

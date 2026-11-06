@@ -53,9 +53,11 @@ function makeSession(overrides: Partial<RideSessionConfig> = {}) {
     now: () => wallMs,
     ...overrides,
   });
+  const ergCommands: number[] = [];
   /** Advances `seconds` of riding at a constant power fed at 4 Hz by the trainer. */
   const ride = (seconds: number, powerW: number | null, hr = 140) => {
     const commands: number[] = [];
+    ergCommands.length = 0;
     for (let i = 0; i < Math.round(seconds / DT); i++) {
       clockMs += DT * 1000;
       wallMs += DT * 1000;
@@ -64,11 +66,12 @@ function makeSession(overrides: Partial<RideSessionConfig> = {}) {
         session.onReading('heartrate', { timestamp: clockMs, heartRateBpm: hr });
       }
       const { command } = session.step(DT);
-      if (command) commands.push(command.gradePercent);
+      if (command?.kind === 'sim') commands.push(command.gradePercent);
+      else if (command?.kind === 'erg') ergCommands.push(command.powerW);
     }
     return commands;
   };
-  return { session, ride };
+  return { session, ride, ergCommands };
 }
 
 describe('RideSession', () => {
@@ -121,7 +124,7 @@ describe('RideSession', () => {
     const before = session.state.trainerGradePercent ?? 0;
     session.shift(1);
     const { command } = session.step(DT);
-    expect(command?.gradePercent).toBeGreaterThan(before);
+    expect(command?.kind === 'sim' ? command.gradePercent : null).toBeGreaterThan(before);
     expect(session.state.gearLabel).toBe('50×21');
   });
 
@@ -173,4 +176,28 @@ describe('RideSession', () => {
     const times = header.laps.slice(1, -1).map((l) => l.endS - l.startS);
     expect(Math.max(...times) - Math.min(...times)).toBeLessThan(0.1);
   }, 30_000);
+});
+
+describe('ERG mode', () => {
+  it('sends target power commands and keeps the physics on measured power', () => {
+    const { session, ride, ergCommands } = makeSession();
+    session.setErg(210);
+    ride(5, 200);
+    expect(ergCommands[0]).toBe(210);
+    expect(session.state.ergTargetW).toBe(210);
+    expect(session.state.distanceM).toBeGreaterThan(0);
+  });
+
+  it('turns the gear buttons into ±5 W and back to SIM', () => {
+    const { session, ride } = makeSession();
+    ride(1, 200);
+    session.setErg(200);
+    session.shift(1);
+    session.shift(1);
+    session.shift(-1);
+    expect(session.state.ergTargetW).toBe(205);
+    session.setErg(null);
+    expect(ride(2, 200).length).toBeGreaterThan(0);
+    expect(session.state.ergTargetW).toBeNull();
+  });
 });

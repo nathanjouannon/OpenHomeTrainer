@@ -153,6 +153,17 @@ function RideRunning({
         `${t('ride.lapDone', { lap: c.lap, time: formatDuration(c.durationS) })}${delta}${c.isBest && c.lap > 1 ? ` — ${t('ride.bestLap')}` : ''}`,
         c.isBest ? 'good' : 'info',
       );
+    } else if (e.type === 'erg') {
+      pushToast(
+        e.on ? t('ride.ergOn', { watts: e.targetW ?? 0 }) : t('ride.ergOff'),
+        e.on ? 'good' : 'info',
+      );
+    } else if (e.type === 'ergTarget') {
+      pushToast(t('ride.ergTarget', { watts: e.targetW }));
+    } else if (e.type === 'ergSpiral') {
+      pushToast(t('ride.ergSpiral'), 'warn');
+    } else if (e.type === 'ergRecovered') {
+      pushToast(t('ride.ergRecovered'), 'good');
     } else if (e.type === 'goal') {
       pushToast(t('ride.goalReached'), 'good');
     }

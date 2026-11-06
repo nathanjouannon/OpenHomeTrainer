@@ -16,6 +16,9 @@ export type RideAction =
   | 'cameraFree'
   | 'toggleHud'
   | 'lap'
+  | 'ergToggle'
+  | 'ergUp'
+  | 'ergDown'
   | 'fullscreen'
   | 'simPowerUp'
   | 'simPowerDown';
@@ -38,6 +41,9 @@ export const DEFAULT_KEYMAP: Readonly<Record<string, RideAction>> = {
   g: 'cameraFree',
   h: 'toggleHud',
   l: 'lap',
+  e: 'ergToggle',
+  ']': 'ergUp',
+  '[': 'ergDown',
   f: 'fullscreen',
   arrowup: 'simPowerUp',
   arrowdown: 'simPowerDown',

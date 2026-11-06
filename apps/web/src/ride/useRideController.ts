@@ -12,7 +12,7 @@ import { deviceHub, type Role } from '../store/devices';
 import { rideStore } from '../store/rides';
 import { CDA_BY_BIKE, getSettings } from '../store/settings';
 import { ActionDispatcher } from './actions';
-import { type ReadingSource, type RideEvent, RideSession } from './ride-session';
+import { ERG_STEP_W, type ReadingSource, type RideEvent, RideSession } from './ride-session';
 
 export const APP_VERSION = '0.1.0-dev';
 const SAVE_INTERVAL_MS = 10_000;
@@ -49,8 +49,11 @@ function commandSender() {
       return;
     }
     inFlight = true;
-    trainer
-      .setSimulation({ gradePercent: cmd.gradePercent })
+    const done =
+      cmd.kind === 'erg'
+        ? trainer.setTargetPower(cmd.powerW)
+        : trainer.setSimulation({ gradePercent: cmd.gradePercent });
+    done
       .catch(() => undefined)
       .finally(() => {
         inFlight = false;
@@ -155,6 +158,9 @@ export function useRideController(route: Route, worldId: string, goal: RideGoal 
       dispatcher.on('shiftFrontUp', () => session.shift(1, 'front')),
       dispatcher.on('shiftFrontDown', () => session.shift(-1, 'front')),
       dispatcher.on('lap', () => session.manualLap()),
+      dispatcher.on('ergToggle', () => session.toggleErg()),
+      dispatcher.on('ergUp', () => session.adjustErg(ERG_STEP_W)),
+      dispatcher.on('ergDown', () => session.adjustErg(-ERG_STEP_W)),
       dispatcher.on('simPowerUp', () => deviceHub.simulatedTrainer?.adjustRiderPower(1)),
       dispatcher.on('simPowerDown', () => deviceHub.simulatedTrainer?.adjustRiderPower(-1)),
       dispatcher.on('fullscreen', () => {

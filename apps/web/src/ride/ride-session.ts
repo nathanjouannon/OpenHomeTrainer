@@ -5,6 +5,8 @@
 import type { SensorReading } from '@hrt/devices';
 import {
   type DrivetrainConfig,
+  ErgController,
+  type ErgState,
   Gearbox,
   type TrainerCommand,
   TrainerController,
@@ -16,6 +18,8 @@ import { emptyRoutePoint, type LapCrossing, LapTracker, type Route } from '@hrt/
 /** Power older than this is considered gone: the rider freewheels (docs/04 §8). */
 export const STALE_POWER_MS = 3000;
 const MAX_POWER_W = 2500;
+/** ERG: power change per press of a gear button, in W. */
+export const ERG_STEP_W = 5;
 const MAX_POWER_W_PER_KG = 25;
 const CRR_BY_SURFACE = { asphalt: 0.004, gravel: 0.008, dirt: 0.012 } as const;
 
@@ -64,6 +68,11 @@ export interface LiveState {
   gearLabel: string | null;
   /** Grade last sent to the trainer. */
   trainerGradePercent: number | null;
+  /** ERG target in W, or null in SIM mode. */
+  ergTargetW: number | null;
+  /** Power actually commanded to the trainer in ERG mode (after ramp), W. */
+  ergCommandW: number | null;
+  ergState: ErgState | null;
   paused: boolean;
   powerStale: boolean;
   goalReached: boolean;
@@ -73,6 +82,10 @@ export type RideEvent =
   | { type: 'lap'; crossing: LapCrossing }
   | { type: 'gear'; label: string; index: number }
   | { type: 'goal' }
+  | { type: 'erg'; on: boolean; targetW: number | null }
+  | { type: 'ergTarget'; targetW: number }
+  | { type: 'ergSpiral' }
+  | { type: 'ergRecovered' }
   | { type: 'pause' }
   | { type: 'resume' };
 
@@ -105,6 +118,7 @@ export class RideSession {
   > = {};
   private readonly powerWindow: number[] = [];
   private lastSample: RideSample | null = null;
+  private erg: ErgController | null = null;
 
   constructor(private readonly config: RideSessionConfig) {
     this.route = config.route;
@@ -136,6 +150,9 @@ export class RideSession {
       gearCount: this.gearbox?.cogCount ?? 0,
       gearLabel: this.gearbox?.label() ?? null,
       trainerGradePercent: null,
+      ergTargetW: null,
+      ergCommandW: null,
+      ergState: null,
       paused: false,
       powerStale: true,
       goalReached: false,
@@ -185,12 +202,18 @@ export class RideSession {
     return {
       powerW: p1 ?? p2,
       cadenceRpm: c1 ?? c2 ?? 0,
+      cadenceKnown: (c1 ?? c2) !== null,
       heartRateBpm: this.fresh('heartRate', now) ?? this.fresh('trainerHeartRate', now),
     };
   }
 
   /** Rear shift by default; `front` changes chainring. 1 = harder. */
   shift(direction: 1 | -1, derailleur: 'rear' | 'front' = 'rear'): void {
+    // In ERG the gear buttons move the target instead (the gear is kept, inactive).
+    if (this.erg) {
+      if (derailleur === 'rear') this.adjustErg(direction * ERG_STEP_W);
+      return;
+    }
     const box = this.gearbox;
     if (!box) return;
     const changed =
@@ -205,6 +228,52 @@ export class RideSession {
     this.state.gearIndex = box.rearIndex;
     this.state.gearLabel = box.label();
     this.emit({ type: 'gear', label: this.state.gearLabel, index: box.index });
+  }
+
+  get ergActive(): boolean {
+    return this.erg !== null;
+  }
+
+  /**
+   * Switches to ERG at `watts` (the trainer holds that power whatever the grade),
+   * or back to SIM with `null`. Workouts (lot 3.2) call this at each interval.
+   */
+  setErg(watts: number | null): void {
+    if (watts === null) {
+      if (!this.erg) return;
+      this.erg = null;
+      this.trainer.invalidate();
+      this.state.ergTargetW = null;
+      this.state.ergCommandW = null;
+      this.state.ergState = null;
+      this.emit({ type: 'erg', on: false, targetW: null });
+      return;
+    }
+    if (this.erg) {
+      this.erg.setTarget(watts);
+      this.state.ergTargetW = this.erg.targetW;
+      this.emit({ type: 'ergTarget', targetW: this.erg.targetW });
+      return;
+    }
+    this.erg = new ErgController(watts);
+    this.state.ergTargetW = this.erg.targetW;
+    this.state.ergState = 'active';
+    this.emit({ type: 'erg', on: true, targetW: this.erg.targetW });
+  }
+
+  /** ERG on at the current 3 s power (rounded to 5 W), or off. */
+  toggleErg(): void {
+    if (this.erg) this.setErg(null);
+    else this.setErg(Math.max(50, Math.round(this.state.power3sW / 5) * 5));
+  }
+
+  /** ±5 W on the ERG target (docs/15 §3.4). Returns false in SIM mode. */
+  adjustErg(deltaW: number): boolean {
+    if (!this.erg) return false;
+    // After a spiral, a button press also tells the controller the rider is back.
+    this.erg.resume();
+    this.setErg(this.erg.targetW + deltaW);
+    return true;
   }
 
   setDifficulty(difficulty: number): void {
@@ -240,13 +309,26 @@ export class RideSession {
     s.heartRateBpm = inp.heartRateBpm;
     s.prevDistanceM = s.distanceM;
 
-    // The trainer keeps receiving the grade even when paused (no jolt on resume).
-    const command = this.trainer.update(dtS, {
-      gradePercent: s.gradePercent,
-      gearRatio: this.gearbox?.gear.ratio ?? null,
-      neutralRatio: this.gearbox?.neutralRatio ?? 1,
-    });
-    if (command) s.trainerGradePercent = command.gradePercent;
+    // The trainer keeps receiving its command even when paused (no jolt on resume).
+    let command: TrainerCommand | null;
+    if (this.erg) {
+      const u = this.erg.update(dtS, {
+        cadenceRpm: inp.cadenceKnown ? inp.cadenceRpm : null,
+        paused: s.paused,
+      });
+      command = u.powerW === null ? null : { kind: 'erg', powerW: u.powerW };
+      s.ergCommandW = this.erg.commandW;
+      s.ergState = this.erg.state;
+      if (u.event === 'spiral') this.emit({ type: 'ergSpiral' });
+      else if (u.event === 'recovered') this.emit({ type: 'ergRecovered' });
+    } else {
+      command = this.trainer.update(dtS, {
+        gradePercent: s.gradePercent,
+        gearRatio: this.gearbox?.gear.ratio ?? null,
+        neutralRatio: this.gearbox?.neutralRatio ?? 1,
+      });
+      if (command) s.trainerGradePercent = command.gradePercent;
+    }
     if (s.paused) return { command, sample: null };
 
     this.powerWindow.push(s.powerW);
