@@ -141,6 +141,7 @@ Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de d�
 | 3.11 Spike **Zwift Click v2** | Connexion directe en Web Bluetooth au Zwift Click du développeur (protocole documenté par la communauté) ; conservé seulement si fiable, sinon BikeControl ou smartphone. |
 | 3.12 HUD v1.1 (reliquat 1.6) | Tuiles configurables, modes daltoniens ; tenues de l'avatar (reliquat 1.5). |
 | 3.13 Validation matérielle et tests (reliquats phase 1, ex-lot 2.11) | Dès la livraison du trainer (déplacé de la phase 2 le 2026-11-04 : pas de trainer pour le moment) : sortie de 3 h sur la boucle du col **avec le nouveau rendu**, import `.fit` sur Strava et Garmin Connect, test sur 2 trainers, réglage du gain S1 ; tests E2E Playwright des parcours principaux. |
+| 3.14 **Interface v2** (style Zwift / MyWoosh) | Refonte visuelle de l'interface, placée en fin de phase 3 pour partir des fonctions réellement livrées (séances, ERG, commandes, tuiles configurables du lot 3.12). Menu principal et écrans de choix (monde, parcours, séance) soignés ; HUD retravaillé (jauges de puissance et de zones, bandeau d'intervalle animé, profil du tour plus lisible, transitions) ; écran de fin de sortie avec résumé et records ; thème et identité visuelle cohérents ([09](09-ux-ui.md)). Maquettes d'abord, validées avant le code. |
 
 **Critères de sortie** : 5 à 10 testeurs bêta roulent chaque semaine ; aucun bug bloquant ouvert.
 
