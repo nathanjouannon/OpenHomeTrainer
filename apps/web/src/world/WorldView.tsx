@@ -8,7 +8,6 @@ import {
   CanvasTexture,
   Color,
   DoubleSide,
-  LOD,
   type Material,
   Mesh,
   MeshStandardMaterial,
@@ -48,6 +47,9 @@ import { Settlements3D, Traffic } from './Settlements3D';
 import {
   buildChunkGeometry,
   CHUNKS_PER_SIDE,
+  chunkDistanceM,
+  chunkHasRoad,
+  chunkLod,
   groundSampler,
   LOD_STEPS,
   terrainDetailTexture,
@@ -70,7 +72,6 @@ import {
   type WorldData,
 } from './world-data';
 
-const LOD_DISTANCES_M = [0, 1300, 2800];
 /** Same seed as the trees, so that the forest floor lies under the forests. */
 const FOREST_SEED = 7;
 /** Trees thin out between these altitudes (see placeTrees), and so does their floor. */
@@ -82,6 +83,8 @@ export interface BuiltWorld {
   base: number;
   terrainSizeM: number;
   chunks: BufferGeometry[][];
+  /** Per chunk: a road crosses it (it never drops to the coarsest level). */
+  chunkHasRoad: boolean[];
   roads: RoadSurfaces;
   /** Height of the asphalt of each route above its altitude, by route id (m). */
   asphaltLift: ReadonlyMap<string, number>;
@@ -125,8 +128,10 @@ export async function buildWorldScene(
     valueNoise2d(11),
   );
   const chunks: BufferGeometry[][] = [];
+  const hasRoad: boolean[] = [];
   for (let r = 0; r < CHUNKS_PER_SIDE; r++) {
     for (let c = 0; c < CHUNKS_PER_SIDE; c++) {
+      hasRoad.push(chunkHasRoad(t, r, c));
       chunks.push(
         LOD_STEPS.map((step) => buildChunkGeometry(t, normals, r, c, step, base, water, splat)),
       );
@@ -184,6 +189,7 @@ export async function buildWorldScene(
     base,
     terrainSizeM: t.sizeM,
     chunks,
+    chunkHasRoad: hasRoad,
     roads,
     asphaltLift: new Map(routes.map((r, i) => [r.id, asphaltLiftM(i)])),
     roadside: roadsideInstances(layout, world.routes, t, base),
@@ -546,26 +552,41 @@ function useTerrainMaterials(
 }
 
 function Terrain({ built, material }: { built: BuiltWorld; material: Material }) {
-  const lods = useMemo(
+  const terrainSizeM = built.terrainSizeM;
+  const chunks = useMemo(
     () =>
-      built.chunks.map((levels) => {
-        const lod = new LOD();
-        levels.forEach((geometry, i) => {
+      built.chunks.map((levels) =>
+        levels.map((geometry) => {
           const mesh = new Mesh(geometry, material);
           // The terrain receives shadows but casts none (cascades only reach ~200 m).
           mesh.receiveShadow = true;
           // The planar reflection of the lake shows the terrain.
           mesh.layers.enable(REFLECTED_LAYER);
-          lod.addLevel(mesh, LOD_DISTANCES_M[i] ?? 0);
-        });
-        return lod;
-      }),
+          mesh.visible = false;
+          return mesh;
+        }),
+      ),
     [built, material],
   );
+  const current = useMemo(() => new Int8Array(built.chunks.length).fill(-1), [built]);
+  // One level per chunk, chosen from the distance to the chunk itself (lot 2.14).
+  useFrame(({ camera }) => {
+    chunks.forEach((levels, i) => {
+      const row = Math.floor(i / CHUNKS_PER_SIDE);
+      const col = i % CHUNKS_PER_SIDE;
+      const d = chunkDistanceM(terrainSizeM, row, col, camera.position.x, camera.position.z);
+      const level = chunkLod(d, built.chunkHasRoad[i] === true, current[i]);
+      if (level === current[i]) return;
+      levels.forEach((mesh, k) => {
+        mesh.visible = k === level;
+      });
+      current[i] = level;
+    });
+  });
   return (
     <>
-      {lods.map((lod) => (
-        <primitive key={lod.uuid} object={lod} />
+      {chunks.flat().map((mesh) => (
+        <primitive key={mesh.uuid} object={mesh} />
       ))}
     </>
   );

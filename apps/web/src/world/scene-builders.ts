@@ -16,6 +16,62 @@ import { cellSizeM, mulberry32, type Terrain } from './world-data';
 export const CHUNKS_PER_SIDE = 8;
 export const LOD_STEPS = [1, 2, 4] as const;
 
+/**
+ * Distances (m, camera to the nearest point of a chunk) from which a chunk is
+ * drawn with the next, coarser grid step. Chunks crossed by a road never use
+ * the coarsest step: its blocks of 40 m sink the ground up to 30 m under the
+ * asphalt and the plants (lot 2.14, docs/16 §6).
+ */
+export const LOD_DISTANCES_M = [1300, 2800] as const;
+export const ROAD_LOD_DISTANCES_M = [2500] as const;
+/** A chunk changes level only this far (fraction) past its threshold. */
+const LOD_HYSTERESIS = 0.05;
+
+/**
+ * Index in LOD_STEPS of the level to draw a chunk at, `distanceM` from the
+ * camera. `current` (the level drawn now) adds a small hysteresis.
+ */
+export function chunkLod(distanceM: number, hasRoad: boolean, current?: number): number {
+  const limits = hasRoad ? ROAD_LOD_DISTANCES_M : LOD_DISTANCES_M;
+  let level = 0;
+  for (let i = 0; i < limits.length; i++) {
+    const limit = limits[i] as number;
+    // Already at (or past) the coarser level: stay there until clearly closer.
+    const margin = current !== undefined && current > i ? 1 - LOD_HYSTERESIS : 1;
+    if (distanceM >= limit * margin) level = i + 1;
+  }
+  return level;
+}
+
+/** Distance (m) from a point to a chunk, in the horizontal plane (0 if inside). */
+export function chunkDistanceM(
+  terrainSizeM: number,
+  chunkRow: number,
+  chunkCol: number,
+  sceneX: number,
+  sceneZ: number,
+): number {
+  const chunkM = terrainSizeM / CHUNKS_PER_SIDE;
+  const x0 = -terrainSizeM / 2 + chunkCol * chunkM;
+  const z0 = -terrainSizeM / 2 + chunkRow * chunkM;
+  const dx = Math.max(x0 - sceneX, 0, sceneX - (x0 + chunkM));
+  const dz = Math.max(z0 - sceneZ, 0, sceneZ - (z0 + chunkM));
+  return Math.hypot(dx, dz);
+}
+
+/** Whether a road crosses (or runs within a grid cell of) the chunk. */
+export function chunkHasRoad(t: Terrain, chunkRow: number, chunkCol: number): boolean {
+  if (!t.nearRoad) return false;
+  const s = t.samples;
+  const cells = (s - 1) / CHUNKS_PER_SIDE;
+  for (let r = chunkRow * cells; r <= (chunkRow + 1) * cells; r++) {
+    for (let c = chunkCol * cells; c <= (chunkCol + 1) * cells; c++) {
+      if (t.nearRoad[r * s + c]) return true;
+    }
+  }
+  return false;
+}
+
 /** Per-sample normals of the whole heightmap (no seams between chunks). */
 export function terrainNormals(t: Terrain): Float32Array {
   const s = t.samples;
