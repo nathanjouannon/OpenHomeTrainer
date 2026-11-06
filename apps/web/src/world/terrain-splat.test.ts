@@ -86,3 +86,27 @@ describe('computeSplatMap', () => {
     expect(at(1)[TERRAIN_LAYERS.indexOf('grass')]).toBeGreaterThan(200);
   });
 });
+
+describe('mountain ground (lot 2.14)', () => {
+  const at = (altitudeM: number) => terrainSplat({ ...base, altitudeM, noiseA: 0.3, noiseB: 0.5 });
+
+  it('keeps the valley grassy and the high roads bare', () => {
+    expect(main(at(500))).toBe('grass');
+    const soft = (w: Float32Array) => weight(w, 'grass') + weight(w, 'meadow');
+    expect(soft(at(500))).toBeGreaterThan(0.8);
+    expect(weight(at(1050), 'grass')).toBe(0);
+    expect(soft(at(1050))).toBeLessThan(0.6);
+    expect(weight(at(1050), 'scree')).toBeGreaterThan(0.4);
+  });
+
+  it('replaces the grass progressively, with no jump', () => {
+    const soft = (z: number) => weight(at(z), 'grass') + weight(at(z), 'meadow');
+    let prev = soft(500);
+    for (let z = 550; z <= 1100; z += 50) {
+      const v = soft(z);
+      expect(v).toBeLessThanOrEqual(prev + 1e-6);
+      expect(prev - v).toBeLessThan(0.25);
+      prev = v;
+    }
+  });
+});

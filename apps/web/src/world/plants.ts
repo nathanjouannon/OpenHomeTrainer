@@ -369,6 +369,18 @@ export interface GrassSource {
   mask: Uint8Array;
   roads: RoadIndex;
   spans: readonly VillageSpan[];
+  /** Lake level (m): no plant grows in or at the very edge of the water. */
+  waterLevelM?: number | null;
+}
+
+/** Altitudes (m) between which the grass fades out, replaced by mountain ground. */
+export const ALPINE_GRASS_M = [600, 1000] as const;
+/** Plants stay this far above the lake level (m). */
+export const WATER_MARGIN_M = 0.5;
+
+/** Share of the grass left at an altitude, 1 in the valley, 0 on the high roads. */
+export function alpineGrassShare(altitudeM: number): number {
+  return 1 - smoothstep(ALPINE_GRASS_M[0], ALPINE_GRASS_M[1], altitudeM);
 }
 
 export interface GrassTileOptions {
@@ -469,7 +481,11 @@ export function generateGrassTile(
         terrainHeightAt(t, x + 1.5, y) - terrainHeightAt(t, x - 1.5, y),
         terrainHeightAt(t, x, y + 1.5) - terrainHeightAt(t, x, y - 1.5),
       ) / 3;
-    let p = maskAt(src.mask, t, x, y) * (1 - smoothstep(0.5, 0.85, slope));
+    const ground = terrainHeightAt(t, x, y);
+    // Nothing grows in the lake, and the grass thins out with the altitude.
+    if (src.waterLevelM != null && ground < src.waterLevelM + WATER_MARGIN_M) continue;
+    let p =
+      maskAt(src.mask, t, x, y) * (1 - smoothstep(0.5, 0.85, slope)) * alpineGrassShare(ground);
     if (p <= 0) continue;
     let heightScale = 1;
     let color = 0;
@@ -492,7 +508,7 @@ export function generateGrassTile(
       color = 1;
     }
     if (rand() > p) continue;
-    const z = terrainHeightAt(t, x, y) - src.base;
+    const z = ground - src.base;
     // Slightly sunk, so that the roots never float on the bilinear ground.
     const sink = 0.04;
     const scale = (0.7 + 0.6 * rand()) * heightScale;

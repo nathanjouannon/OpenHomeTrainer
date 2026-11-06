@@ -181,6 +181,7 @@ export async function buildWorldScene(
       terrain: t,
       base,
       mask: grassMask(splat, t.samples),
+      waterLevelM: water,
       roads: roadIndex,
       spans: settlements.spans,
     },

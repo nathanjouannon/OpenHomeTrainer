@@ -1,6 +1,7 @@
 import { buildLoopRoute } from '@hrt/route-engine';
 import { describe, expect, it } from 'vitest';
 import {
+  alpineGrassShare,
   collectTiers,
   createTierBuffers,
   type GrassSource,
@@ -317,5 +318,49 @@ describe('placeShrubs', () => {
     expect(placeShrubs(t, roads, open, null, 50, () => true)).toHaveLength(0);
     // Water above the ground everywhere.
     expect(placeShrubs(t, roads, open, 600, 50, () => false)).toHaveLength(0);
+  });
+});
+
+describe('grass, water and altitude (lot 2.14)', () => {
+  const flatAt = (z: number): Terrain => ({
+    sizeM: SIZE,
+    samples: SAMPLES,
+    heights: new Float32Array(SAMPLES * SAMPLES).fill(z),
+    minElevationM: z,
+  });
+  const count = (z: number, waterLevelM: number | null) => {
+    const t = flatAt(z);
+    const src: GrassSource = {
+      terrain: t,
+      base: 400,
+      mask: grassMask(null, t.samples),
+      roads: new RoadIndex([square]),
+      spans: [],
+      waterLevelM,
+    };
+    const matrices = new Float32Array(16 * 600);
+    const colors = new Float32Array(3 * 600);
+    return generateGrassTile(
+      src,
+      { kind: 'grass', density: 3, x0: 24, y0: 36, sizeM: 12 },
+      matrices,
+      colors,
+    );
+  };
+
+  it('grows nothing in the lake or at its very edge', () => {
+    expect(count(445, 444.6)).toBe(0);
+    expect(count(445.05, 444.6)).toBe(0);
+    expect(count(446, 444.6)).toBeGreaterThan(20);
+    expect(count(445, null)).toBeGreaterThan(20);
+  });
+
+  it('thins the grass out with the altitude, down to none on the high roads', () => {
+    expect(alpineGrassShare(500)).toBe(1);
+    expect(alpineGrassShare(1000)).toBe(0);
+    expect(alpineGrassShare(800)).toBeCloseTo(0.5, 5);
+    expect(count(1000, null)).toBe(0);
+    expect(count(800, null)).toBeLessThan(count(500, null));
+    expect(count(800, null)).toBeGreaterThan(0);
   });
 });
