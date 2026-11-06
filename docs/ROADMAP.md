@@ -10,11 +10,12 @@ Les estimations sont en **semaines de développement pour 1 développeur à plei
 Phase 0  Fondations & spikes techniques        ██                 1–2 sem.   ✅
 Phase 1  MVP solo — Monde virtuel              █████████          7–9 sem.   ✅ jalon M1 : MVP (clôturée le 2026-11-03)
 Phase 2  Rendu réaliste                        ███████            5–7 sem.   ← jalon M2 : monde crédible
-Phase 3  Entraînement, vitesses virt., comptes █████████          6–9 sem.   ← jalon M3 : bêta privée
+Phase 3  Entraînement, vitesses virt., commandes █████████        6–9 sem.   ← jalon M3 : bêta privée
 Phase 4  Mondes réels (cols alpins)            ████████████       8–12 sem.  ← jalon M4 : monde fidèle
 Phase 5  Mode monde réel (bêta)                █████████          6–9 sem.   ← jalon M5 : mode B
-Phase 6  Multijoueur & social                  ████████           6–8 sem.   ← jalon M6 : bêta publique
+Phase 6  Multijoueur & social (dernier développé) ████████        6–8 sem.   ← jalon M6 : bêta publique
 Phase 7  Contenu, polish, plateformes          continu
+Phase 8  Segments et Strava                     ███                2–3 sem.   ← tout à la fin
 ```
 
 Principe directeur : **chaque phase se termine par quelque chose de jouable sur un vrai home trainer.**
@@ -124,17 +125,15 @@ Un test automatique simule déjà 6 h de sortie (tours, échantillons, pas de d�
 
 ---
 
-## Phase 3 — Entraînement, vitesses virtuelles, comptes et intégrations (6–9 sem.) → **Jalon M3 : bêta privée**
+## Phase 3 — Entraînement, vitesses virtuelles et commandes (6–9 sem.) → **Jalon M3 : bêta privée**
 
 | Lot | Contenu |
 |---|---|
 | 3.1 Mode ERG | Puissance cible, transitions douces entre intervalles, gestion du « spiral of death » (cadence trop basse). |
 | 3.2 Séances | Éditeur simple, bibliothèque, import `.zwo` / `.erg` / `.mrc`, affichage du graphe de séance. |
-| 3.3 Backend v1 (local) | API Fastify + PostgreSQL lancés en local (Docker Compose) ; comptes ; synchronisation des sorties et du profil ; fichiers sur disque local (ou MinIO). |
-| 3.4 Strava | OAuth et upload automatique. |
-| 3.5 Monde v1.1 | 2 à 3 boucles de plus, segments chronométrés, record personnel par segment. |
+| 3.3 Serveur local minimal (**réalisé en fin de phase 3, juste avant 3.14**, décision du 2026-11-06) | Serveur Fastify local dans `apps/api`, **uniquement pour les commandes des vitesses virtuelles** (relais WebSocket de la télécommande smartphone du lot 3.10, base du relais OpenBikeControl du lot 5.7). Ni PostgreSQL, ni Docker, ni comptes, ni synchronisation : les données restent locales (ADR 0005). Les comptes et la base reviennent avec le multijoueur (phase 6). |
+| 3.5 Segments | Segments chronométrés, record personnel par segment. Les boucles supplémentaires du lot 3.5 d'origine sont abandonnées : le lot 2.15 (boucles dans les deux sens) a déjà doublé leur nombre. |
 | 3.6 Fantômes | Rouler contre une de ses sorties précédentes ou contre son **meilleur tour** sur la boucle. |
-| 3.7 PWA | Installable, cache des assets hors ligne. |
 | 3.8 **Vitesses virtuelles v1.1** | Stratégie S3 (ERG piloté par le rapport) en expérimental, transmission personnalisée (plateaux et cassette libres), rapport physique Cog renseigné. Voir [15](15-vitesses-virtuelles-et-commandes.md). |
 | 3.9 **Hub de commandes** | Package `@hrt/controls` : clavier, manettes (Gamepad API), télécommandes appairées au système, **OpenBikeControl en Bluetooth** (boutons, App Information, retour haptique), écran de mapping, profils ; test avec BikeControl en passerelle si disponible et en mode clavier. |
 | 3.10 **Télécommande smartphone** | Page compagnon via QR code (gros boutons vitesse +/−, pause, caméra), WebSocket vers le serveur local. Contrôleur gratuit et fiable posé sur le guidon. |
@@ -241,6 +240,8 @@ Points à trancher avant le lot 4.8 (voir [13](13-questions-ouvertes.md), Q18 à
 
 ## Phase 6 — Multijoueur et social (6–8 sem.) → **Jalon M6 : bêta publique**
 
+**Dernier point développé** (décision du 2026-11-06). C'est ici que reviennent les comptes, la base de données et la synchronisation entre appareils (ancien périmètre du lot 3.3).
+
 Voir [08](08-multijoueur.md).
 
 | Lot | Contenu |
@@ -269,6 +270,17 @@ Voir [08](08-multijoueur.md).
 
 ---
 
+## Phase 8 — Segments et Strava (2–3 sem.)
+
+Placée toute à la fin le 2026-11-06 (anciens lots 3.4 et 3.5) : rien n'en dépend, et l'export `.fit` manuel (lot 1.7) couvre le besoin Strava d'ici là.
+
+| Lot | Contenu |
+|---|---|
+| 8.1 instalation |  Installable, cache des assets hors ligne. |
+| 8.2 Strava | OAuth et upload automatique de la sortie à la fin de la séance. L'échange du code OAuth garde le secret client côté serveur : il s'appuie sur le serveur local du lot 3.3, étendu pour l'occasion (jetons stockés localement). |
+
+---
+
 ## Jalons récapitulatifs
 
 | Jalon | Contenu | Fin estimée (cumul plein temps) |
@@ -276,7 +288,7 @@ Voir [08](08-multijoueur.md).
 | M0 | Spikes validés | S+2 ✅ |
 | **M1** | **MVP monde virtuel jouable et exportable, avec vitesses virtuelles au clavier** | S+11 ✅ (2026-11-03) |
 | M2 | Rendu réaliste : lumière, ombres, matières PBR, végétation, WebGPU | S+18 |
-| M3 | Bêta privée avec ERG, commandes (smartphone, OpenBikeControl, Zwift Click si possible), comptes, Strava | S+27 |
+| M3 | Bêta privée avec ERG, commandes (smartphone, OpenBikeControl, Zwift Click si possible), serveur local minimal | S+27 |
 | **M4** | **Premiers mondes reconstitués (cols alpins) : choix monde → parcours, aller-retour enchaîné** | S+39 |
 | M5 | Mode monde réel en bêta | S+48 |
 | M6 | Multijoueur (réseau local tant qu'il n'y a pas d'hébergement) | S+56 |
