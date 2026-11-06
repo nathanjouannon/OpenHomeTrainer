@@ -16,6 +16,7 @@ const WorldSpikePage = lazy(() => import('./spikes/world/WorldSpikePage'));
 const BenchPage = lazy(() => import('./bench/BenchPage'));
 const BikeViewPage = lazy(() => import('./bench/BikeViewPage'));
 const HouseViewPage = lazy(() => import('./bench/HouseViewPage'));
+const CarViewPage = lazy(() => import('./bench/CarViewPage'));
 
 export function App() {
   const t = useT();
@@ -61,6 +62,12 @@ export function App() {
       return (
         <Suspense fallback={loading}>
           <BikeViewPage />
+        </Suspense>
+      );
+    case 'cars':
+      return (
+        <Suspense fallback={loading}>
+          <CarViewPage />
         </Suspense>
       );
     case 'houses':

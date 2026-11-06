@@ -16,11 +16,13 @@ import {
   Vector3,
 } from 'three';
 import { buildBuildings, createBuildingMaterials } from './building-builders';
+import { buildCar } from './car-builders';
+import { pickCarModel } from './car-fleet';
+import { CAR_SPECS } from './car-geometry';
 import { NearShadows } from './NearShadows';
 import {
   CAR_COLORS,
   CLOTHES_COLORS,
-  carGeometry,
   lampGeometry,
   PEDESTRIAN_HIP_M,
   PEDESTRIAN_SHOULDER_M,
@@ -31,6 +33,7 @@ import {
 import { sidewalkTexture } from './road-builders';
 import { toScene } from './scene-builders';
 import {
+  type ParkedCar,
   type Prop,
   ROAD_HALF_WIDTH_M,
   type Settlements,
@@ -87,13 +90,11 @@ export function Settlements3D({
     () => ({
       ...createBuildingMaterials(),
       painted: new MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }),
-      car: new MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 }),
     }),
     [],
   );
   const geo = useMemo(
     () => ({
-      car: carGeometry(),
       lamp: lampGeometry(),
       // Unit pad, its top at y = 0: scaled to each pad, its sides go down into the ground.
       pad: new BoxGeometry(1, 1, 1).translate(0, -0.5, 0),
@@ -130,10 +131,7 @@ export function Settlements3D({
     mesh.computeBoundingSphere();
   }, [s, base]);
   const lamps = useRef<InstancedMesh>(null);
-  const cars = useRef<InstancedMesh>(null);
-  const carColor = useMemo(() => (i: number) => s.parkedCars[i]?.color ?? 0, [s]);
   useInstances(lamps, s.lamps, base);
-  useInstances(cars, s.parkedCars, base, CAR_COLORS, carColor);
 
   return (
     <>
@@ -154,13 +152,10 @@ export function Settlements3D({
           receiveShadow
         />
       )}
-      {s.parkedCars.length > 0 && (
-        <instancedMesh ref={cars} args={[geo.car, mats.car, s.parkedCars.length]} receiveShadow />
-      )}
+      <ParkedCars cars={s.parkedCars} base={base} shadowRadiusM={shadowRadiusM} />
       {shadowRadiusM !== null && (
         <>
           <NearShadows source={lamps} geometry={geo.lamp} radiusM={shadowRadiusM} max={256} />
-          <NearShadows source={cars} geometry={geo.car} radiusM={shadowRadiusM} max={256} />
         </>
       )}
       {s.signs.map((sign) => (
@@ -342,6 +337,77 @@ function Pedestrians({
   );
 }
 
+/** Material of the cars: instance colour = paint, vertex colours = glass, tyres, lights. */
+function useCarMaterial() {
+  return useMemo(
+    () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 }),
+    [],
+  );
+}
+
+/** The parked cars of one model: one InstancedMesh, and its shadow copies. */
+function ParkedModel({
+  geometry,
+  material,
+  cars,
+  base,
+  shadowRadiusM,
+}: {
+  geometry: BufferGeometry;
+  material: MeshStandardMaterial;
+  cars: readonly ParkedCar[];
+  base: number;
+  shadowRadiusM: number | null;
+}) {
+  const mesh = useRef<InstancedMesh>(null);
+  const colorOf = useMemo(() => (i: number) => cars[i]?.color ?? 0, [cars]);
+  useInstances(mesh, cars, base, CAR_COLORS, colorOf);
+  return (
+    <>
+      <instancedMesh ref={mesh} args={[geometry, material, cars.length]} receiveShadow />
+      {shadowRadiusM !== null && (
+        <NearShadows source={mesh} geometry={geometry} radiusM={shadowRadiusM} max={256} />
+      )}
+    </>
+  );
+}
+
+/** Parked cars, grouped by model (one InstancedMesh per model in use). */
+function ParkedCars({
+  cars,
+  base,
+  shadowRadiusM,
+}: {
+  cars: readonly ParkedCar[];
+  base: number;
+  shadowRadiusM: number | null;
+}) {
+  const material = useCarMaterial();
+  const groups = useMemo(() => {
+    const byModel = new Map<number, ParkedCar[]>();
+    for (const c of cars) byModel.set(c.model, [...(byModel.get(c.model) ?? []), c]);
+    return [...byModel.entries()].sort((a, b) => a[0] - b[0]);
+  }, [cars]);
+  const geometries = useMemo(
+    () => new Map(groups.map(([m]) => [m, buildCar((CAR_SPECS[m] as { id: string }).id)])),
+    [groups],
+  );
+  return (
+    <>
+      {groups.map(([model, list]) => (
+        <ParkedModel
+          key={model}
+          geometry={geometries.get(model) as BufferGeometry}
+          material={material}
+          cars={list}
+          base={base}
+          shadowRadiusM={shadowRadiusM}
+        />
+      ))}
+    </>
+  );
+}
+
 const TRAFFIC_CARS = 6;
 /** Pedestrians are drawn within this distance of the camera (m). */
 const PEDESTRIANS_VIEW_M = 500;
@@ -350,6 +416,43 @@ const PEDESTRIANS_VIEW_M = 500;
  * Oncoming cars in the left lane of the ridden route, spawned ahead of the
  * rider (slower through villages).
  */
+/** The oncoming cars of one model: one InstancedMesh, filled by `Traffic` every frame. */
+function TrafficModel({
+  model,
+  colors,
+  material,
+  register,
+}: {
+  model: number;
+  /** Paint index of each instance. */
+  colors: readonly number[];
+  material: MeshStandardMaterial;
+  register: (model: number, mesh: InstancedMesh | null) => void;
+}) {
+  const geometry = useMemo(() => buildCar((CAR_SPECS[model] as { id: string }).id), [model]);
+  const mesh = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    const c = new Color();
+    colors.forEach((paint, i) => {
+      m.setColorAt(i, c.set(CAR_COLORS[paint] ?? '#fff'));
+    });
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    register(model, m);
+    return () => register(model, null);
+  }, [model, colors, register]);
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[geometry, material, colors.length]}
+      frustumCulled={false}
+      castShadow
+      receiveShadow
+    />
+  );
+}
+
 export function Traffic({
   route,
   settlements,
@@ -364,35 +467,46 @@ export function Traffic({
   liftM: number;
   riderDistance: () => number;
 }) {
-  const geometry = useMemo<BufferGeometry>(() => carGeometry(), []);
-  const material = useMemo(
-    () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 }),
+  const material = useCarMaterial();
+  const meshes = useRef(new Map<number, InstancedMesh>());
+  const register = useMemo(
+    () => (model: number, mesh: InstancedMesh | null) => {
+      if (mesh) meshes.current.set(model, mesh);
+      else meshes.current.delete(model);
+    },
     [],
   );
-  const mesh = useRef<InstancedMesh>(null);
   const spans = useMemo(
     () => settlements.spans.filter((s) => s.routeId === route.id),
     [settlements, route],
   );
   const clock = useWorldClock();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: new cars when the route changes
   const cars = useMemo(
     () =>
-      Array.from({ length: TRAFFIC_CARS }, (_, i) => ({
-        d: riderDistance() + 300 + i * 450 + clock.random() * 200,
-        color: Math.floor(clock.random() * CAR_COLORS.length),
-      })),
+      Array.from({ length: TRAFFIC_CARS }, (_, i) => {
+        const d = riderDistance() + 300 + i * 450 + clock.random() * 200;
+        const altitude = route.sampleAt(((d % route.lengthM) + route.lengthM) % route.lengthM).z;
+        return {
+          d,
+          color: Math.floor(clock.random() * CAR_COLORS.length),
+          model: pickCarModel(altitude, false, clock.random),
+        };
+      }),
     [route, riderDistance, clock],
   );
-  const tmp = useMemo(() => ({ o: new Object3D(), p: emptyRoutePoint() }), []);
-
-  useLayoutEffect(() => {
-    const c = new Color();
+  // One mesh per model in use; each car has a slot in the mesh of its model.
+  const { groups, slots } = useMemo(() => {
+    const byModel = new Map<number, number[]>();
+    const slotOf: number[] = [];
     cars.forEach((car, i) => {
-      mesh.current?.setColorAt(i, c.set(CAR_COLORS[car.color] ?? '#fff'));
+      const list = byModel.get(car.model) ?? [];
+      slotOf[i] = list.length;
+      list.push(car.color);
+      byModel.set(car.model, list);
     });
-    if (mesh.current?.instanceColor) mesh.current.instanceColor.needsUpdate = true;
+    return { groups: [...byModel.entries()], slots: slotOf };
   }, [cars]);
+  const tmp = useMemo(() => ({ o: new Object3D(), p: emptyRoutePoint() }), []);
 
   useFrame((_, delta) => {
     const dt = Math.min(clock.step(delta), 0.1);
@@ -413,18 +527,22 @@ export function Traffic({
       toScene(x, y, p.z + liftM, base, tmp.o.position);
       tmp.o.rotation.set(0, yawToScene(p.heading + Math.PI), 0);
       tmp.o.updateMatrix();
-      mesh.current?.setMatrixAt(i, tmp.o.matrix);
+      meshes.current.get(car.model)?.setMatrixAt(slots[i] ?? 0, tmp.o.matrix);
     });
-    if (mesh.current) mesh.current.instanceMatrix.needsUpdate = true;
+    for (const m of meshes.current.values()) m.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[geometry, material, TRAFFIC_CARS]}
-      frustumCulled={false}
-      castShadow
-      receiveShadow
-    />
+    <>
+      {groups.map(([model, colors]) => (
+        <TrafficModel
+          key={model}
+          model={model}
+          colors={colors}
+          material={material}
+          register={register}
+        />
+      ))}
+    </>
   );
 }

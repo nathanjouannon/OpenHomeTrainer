@@ -9,6 +9,7 @@
 - Les noms de lieux réels (cols, villes) sont utilisables ; les marques d'événements (logos de courses, maillots distinctifs) ne le sont pas.
 - Les noms de marques de matériel (Wahoo, Tacx, Zwift Click…) peuvent être cités de façon descriptive pour indiquer la compatibilité, sans logo ni suggestion de partenariat.
 - **Vélo du monde virtuel (lot 2.12)** : le vélo reproduit celui du développeur (SCOTT Addict RC, Shimano Ultegra, Garmin, CeramicSpeed) ; les formes et les couleurs sont refaites dans le code. Seuls les lettrages SCOTT (tube diagonal) et ULTEGRA (manivelles) sont dessinés, en décalcomanies désactivables (option `logos` de `buildBike`). Usage personnel et local : sans objet. **À désactiver, ou à remplacer par un vélo générique, avant toute diffusion de l'application** (bêta ouverte, phase 3 et suivantes).
+- **Voitures du monde virtuel (lot 2.17)** : 14 modèles de voitures reconnaissables (Renault, Peugeot, Volkswagen, Fiat, Ford, Škoda, Dacia, Land Rover, Toyota, Citroën), dont les formes sont refaites dans le code d'après des cotes publiques et des photos ; aucune texture ni modèle repris. Les badges de marque de la calandre et du hayon sont de petites formes dessinées (option `logos` de `buildCar`, active par défaut). Usage personnel et local : sans objet. **À désactiver, ou à remplacer par des silhouettes génériques, avant toute diffusion de l'application**, comme le vélo.
 
 ## 2. Données géographiques et imagerie
 

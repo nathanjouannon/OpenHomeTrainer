@@ -12,6 +12,8 @@ import {
   pickHouseStyle,
   STYLE_DIMS,
 } from './building-styles';
+import { pickCarModel } from './car-fleet';
+import { CAR_SPECS } from './car-geometry';
 import { mulberry32, type Terrain, terrainHeightAt } from './world-data';
 
 export interface VillageDef {
@@ -28,6 +30,8 @@ export const SIDEWALK_HEIGHT_M = 0.14;
 /** Footprint of a parked car (`carGeometry`), m. */
 export const CAR_LENGTH_M = 4.1;
 export const CAR_WIDTH_M = 1.8;
+/** Longest car parked in a village (its pad is `CAR_LENGTH_M` + 1.2 m long). */
+const VILLAGE_CAR_MAX_LENGTH_M = 4.8;
 /** Steepest plot a car is parked on: height spread under its four corners (m). */
 const CAR_MAX_TILT_M = 0.4;
 /** Highest a parking pad stands above the ground under it (m). */
@@ -91,6 +95,8 @@ export interface Prop {
 
 export interface ParkedCar extends Prop {
   color: number;
+  /** Index in `CAR_SPECS` (shape of the car). */
+  model: number;
   /** Nose-up angle (rad), on a sloping parking pad. */
   pitch?: number;
 }
@@ -408,6 +414,8 @@ export function generateSettlements(
   const rand = mulberry32(seed);
   // Styles and garden choices have their own stream: the layout draws stay the same.
   const styleRand = mulberry32(seed + 2016);
+  // Car models too: the layout and style draws stay the same.
+  const carRand = mulberry32(seed + 2017);
   const grid = new Grid(terrain.sizeM);
   // Road corridors: nothing is built on the roads, shoulders and sidewalks.
   for (const r of routes) {
@@ -519,14 +527,16 @@ export function generateSettlements(
   // the roads and their verges, of the buildings and of the other cars (exact
   // footprints: the 4 m grid is too coarse for a car).
   const tryCar = (x: number, y: number, yaw: number, color: number): boolean => {
+    const model = pickCarModel(terrainHeightAt(terrain, x, y), true, carRand);
+    const spec = CAR_SPECS[model] as (typeof CAR_SPECS)[number];
     // Yaw is a heading: the car's length runs along it (the depth of the footprint).
-    const car = { x, y, yaw, w: CAR_WIDTH_M, d: CAR_LENGTH_M };
+    const car = { x, y, yaw, w: spec.widthM + 0.1, d: spec.lengthM };
     if (footprintCorners(car).some(([px, py]) => roadDistance.at(px, py) < CAR_ROAD_CLEARANCE_M)) {
       return false;
     }
     const ground = groundUnder(car);
     if (!ground || ground[1] - ground[0] > CAR_MAX_TILT_M || !clear(car)) return false;
-    park(car, { x, y, z: terrainHeightAt(terrain, x, y), yaw, color });
+    park(car, { x, y, z: terrainHeightAt(terrain, x, y), yaw, color, model });
     return true;
   };
 
@@ -538,6 +548,7 @@ export function generateSettlements(
     flip: boolean,
     color: number,
   ): boolean => {
+    const model = pickCarModel(route.sampleAt(along).z, false, carRand, VILLAGE_CAR_MAX_LENGTH_M);
     const p = lateral(route, along, side * ((PAD_INNER_M + PAD_OUTER_M) / 2));
     const pad = {
       x: p.x,
@@ -567,6 +578,7 @@ export function generateSettlements(
       yaw: c.heading + (flip ? Math.PI : 0),
       pitch: flip ? -pitch : pitch,
       color,
+      model,
     });
     return true;
   };

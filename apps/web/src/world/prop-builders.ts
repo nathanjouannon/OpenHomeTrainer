@@ -9,10 +9,8 @@ import {
   CapsuleGeometry,
   Color,
   CylinderGeometry,
-  ExtrudeGeometry,
   LatheGeometry,
   RepeatWrapping,
-  Shape,
   SphereGeometry,
   SRGBColorSpace,
   Vector2,
@@ -129,7 +127,7 @@ export function roofTexture(): CanvasTexture {
   return texture(c);
 }
 
-function paint(g: BufferGeometry, hex: string): BufferGeometry {
+export function paint(g: BufferGeometry, hex: string): BufferGeometry {
   const geometry = g.index ? g.toNonIndexed() : g;
   const c = new Color(hex);
   const n = geometry.getAttribute('position').count;
@@ -140,120 +138,12 @@ function paint(g: BufferGeometry, hex: string): BufferGeometry {
   return geometry;
 }
 
-const merge = (parts: BufferGeometry[]) => {
+export const merge = (parts: BufferGeometry[]) => {
   const g = mergeGeometries(parts);
   if (!g) throw new Error('Could not merge geometries');
   g.computeBoundingSphere();
   return g;
 };
-
-/** A thin box from `a` to `b` (scene points, same x), `w` wide across X and `t` thick. */
-function strut(a: [number, number, number], b: [number, number, number], w: number, t: number) {
-  const len = Math.hypot(b[1] - a[1], b[2] - a[2]);
-  return new BoxGeometry(w, t, len)
-    .rotateX(-Math.atan2(b[1] - a[1], b[2] - a[2]))
-    .translate(a[0], (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
-}
-
-/**
- * A side profile (x along the car, forward +; y up) extruded across the car,
- * `width` wide with rounded edges, centred on X = 0, length along +Z.
- */
-function extrudeShape(shape: Shape, width: number, round: number) {
-  return new ExtrudeGeometry(shape, {
-    depth: width - 2 * round,
-    bevelEnabled: round > 0,
-    bevelThickness: round,
-    bevelSize: round,
-    bevelSegments: 1,
-    curveSegments: 5,
-  })
-    .rotateY(-Math.PI / 2)
-    .translate(width / 2 - round, 0, 0);
-}
-
-function profile(points: readonly [number, number][]): Shape {
-  const shape = new Shape();
-  points.forEach(([x, y], k) => {
-    if (k === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  });
-  shape.closePath();
-  return shape;
-}
-
-/**
- * Small hatchback (4.05 x 1.76 m), length along +Z (forward): body with wheel
- * arches, glasshouse, pillars and roof, bumpers, lights, mirrors, wheels with
- * rims. White parts take the instance colour; glass, tyres, trims and lights
- * keep their own (vertex colours multiply).
- */
-export function carGeometry(): BufferGeometry {
-  const wheelbase = 2.5;
-  const wheelR = 0.31;
-  const arch = 0.37;
-  // Lower body, front at +x: sills with the two wheel arches, nose, bonnet, waist, tailgate.
-  const body = new Shape();
-  body.moveTo(-1.98, 0.24);
-  for (const ax of [-wheelbase / 2, wheelbase / 2]) {
-    body.lineTo(ax - arch * Math.cos(0.19), 0.24);
-    body.absarc(ax, wheelR, arch, Math.PI - 0.19, 0.19, true);
-  }
-  body.lineTo(1.98, 0.24);
-  body.lineTo(2.04, 0.44);
-  body.lineTo(1.98, 0.66);
-  body.lineTo(1.1, 0.86);
-  body.lineTo(-1.7, 0.96);
-  body.lineTo(-1.97, 0.94);
-  body.lineTo(-2.03, 0.46);
-  body.closePath();
-  // Glasshouse: windscreen, side windows and rear window in one tinted volume.
-  const glass = profile([
-    [1.16, 0.84],
-    [0.32, 1.37],
-    [-1.22, 1.39],
-    [-1.86, 0.93],
-  ]);
-  const side = (x: number) => [
-    // A, B and C pillars.
-    strut([x, 0.88, 1.12], [x, 1.37, 0.33], 0.05, 0.08),
-    new BoxGeometry(0.05, 0.5, 0.12).translate(x, 1.14, -0.42),
-    strut([x, 1.39, -1.22], [x, 0.95, -1.84], 0.05, 0.16),
-    // Mirror.
-    new BoxGeometry(0.16, 0.1, 0.12).translate(x * 1.22, 0.98, 1.02),
-  ];
-  const wheels = [-0.79, 0.79].flatMap((x) =>
-    [-wheelbase / 2, wheelbase / 2].flatMap((z) => [
-      paint(
-        new CylinderGeometry(wheelR, wheelR, 0.2, 10).rotateZ(Math.PI / 2).translate(x, wheelR, z),
-        '#151515',
-      ),
-      paint(
-        new CylinderGeometry(0.19, 0.19, 0.205, 7).rotateZ(Math.PI / 2).translate(x, wheelR, z),
-        '#a9adb3',
-      ),
-    ]),
-  );
-  return merge([
-    paint(extrudeShape(body, 1.76, 0.07), '#ffffff'),
-    paint(extrudeShape(glass, 1.5, 0.04), '#1f262d'),
-    // Roof panel over the glasshouse.
-    paint(new BoxGeometry(1.5, 0.05, 1.5).translate(0, 1.4, -0.45), '#ffffff'),
-    ...[-0.76, 0.76].flatMap((x) => side(x).map((g) => paint(g, '#ffffff'))),
-    // Bumpers and sill trim.
-    paint(new BoxGeometry(1.74, 0.16, 0.12).translate(0, 0.33, 2.0), '#2a2d31'),
-    paint(new BoxGeometry(1.74, 0.16, 0.12).translate(0, 0.35, -2.0), '#2a2d31'),
-    paint(new BoxGeometry(1.79, 0.06, 1.6).translate(0, 0.27, 0), '#2a2d31'),
-    // Head and tail lights, number plates.
-    paint(new BoxGeometry(0.34, 0.1, 0.06).translate(-0.6, 0.62, 2.0), '#fff6d8'),
-    paint(new BoxGeometry(0.34, 0.1, 0.06).translate(0.6, 0.62, 2.0), '#fff6d8'),
-    paint(new BoxGeometry(0.26, 0.14, 0.05).translate(-0.66, 0.8, -1.99), '#b00000'),
-    paint(new BoxGeometry(0.26, 0.14, 0.05).translate(0.66, 0.8, -1.99), '#b00000'),
-    paint(new BoxGeometry(0.5, 0.11, 0.02).translate(0, 0.42, 2.07), '#f4f4f4'),
-    paint(new BoxGeometry(0.5, 0.11, 0.02).translate(0, 0.55, -2.04), '#f4f4f4'),
-    ...wheels,
-  ]);
-}
 
 /** Trousers of the pedestrians (instance colours of the legs). */
 export const TROUSERS_COLORS = ['#2c3340', '#3b4a6b', '#6b5b45', '#222222', '#55606e', '#8a7b62'];
