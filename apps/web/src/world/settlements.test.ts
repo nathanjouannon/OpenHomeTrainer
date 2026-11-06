@@ -167,6 +167,31 @@ describe.runIf(existsSync(resolve(WORLD_DIR, 'world.json')))('settlements of wor
     }
   });
 
+  // Lot 2.16: plain-land houses below, chalets from the pass village up.
+  it('picks the style of each building from its altitude', () => {
+    let chalets = 0;
+    let plain = 0;
+    for (const b of s.buildings) {
+      const chalet = b.style.startsWith('chalet') || b.style === 'barn-alpine';
+      if (b.z > 800) expect(chalet, `${b.style} at ${b.z.toFixed(0)} m`).toBe(true);
+      if (b.z < 540) expect(chalet, `${b.style} at ${b.z.toFixed(0)} m`).toBe(false);
+      if (chalet) chalets++;
+      else plain++;
+    }
+    expect(chalets).toBeGreaterThan(10);
+    expect(plain).toBeGreaterThan(50);
+    expect(new Set(s.buildings.map((b) => b.style)).size).toBeGreaterThanOrEqual(12);
+  });
+
+  it('puts gardens only on level plots, with their fence down to the ground', () => {
+    const lots = s.buildings.filter((b) => b.lot);
+    expect(lots.length).toBeGreaterThan(15);
+    for (const b of lots) {
+      expect(Math.abs(b.z - (b.lot?.roadZ ?? 0))).toBeLessThanOrEqual(1.2);
+      expect((b.lot?.roadZ ?? 0) - (b.lot?.groundM ?? 0)).toBeLessThanOrEqual(1.5);
+    }
+  });
+
   it('stands every building on its ground (floor above it, foundations reaching it)', () => {
     for (const b of s.buildings) {
       expect(b.z).toBeGreaterThanOrEqual(b.groundM);

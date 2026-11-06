@@ -18,7 +18,6 @@ import {
   Vector2,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { Building } from './settlements';
 import { mulberry32 } from './world-data';
 
 export const WALL_COLORS = [
@@ -53,17 +52,8 @@ export const CLOTHES_COLORS = [
   '#c75f2a',
 ];
 
-const BAY_W = 3.2;
-const FLOOR_H = 3;
-/** The plinth goes this far under the lowest ground (bilinear vs mesh terrain). */
-const PLINTH_BURY_M = 0.6;
-/** Plinth colour: the wall colour, darker (stone or rendered base). */
-const PLINTH_SHADE = 0.68;
-/** Top of the plain band of a facade row (the window frame starts at 0.29 of the row). */
-const PLINTH_V = 0.25;
-
 /** Flat-shaded geometry from triangles (positions, uvs, colours). */
-class MeshBuilder {
+export class MeshBuilder {
   readonly pos: number[] = [];
   readonly uv: number[] = [];
   readonly col: number[] = [];
@@ -99,140 +89,7 @@ class MeshBuilder {
   }
 }
 
-/**
- * All buildings merged into three meshes (house walls, barn walls, roofs):
- * three draw calls whatever the number of buildings.
- */
-export function buildBuildings(buildings: readonly Building[], base: number) {
-  const walls = new MeshBuilder();
-  const barns = new MeshBuilder();
-  const roofs = new MeshBuilder();
-  const color = new Color();
-  const plinth = new Color();
-  for (const b of buildings) {
-    const rx = Math.cos(b.yaw);
-    const ry = -Math.sin(b.yaw);
-    const fx = Math.sin(b.yaw);
-    const fy = Math.cos(b.yaw);
-    // Local (a: along the width, to the right of the facade; f: towards the road; h: height).
-    const P = (a: number, f: number, h: number) => [
-      b.x + rx * a + fx * f,
-      b.z - base + h,
-      -(b.y + ry * a + fy * f),
-    ];
-    const W = b.width / 2;
-    const D = b.depth / 2;
-    const H = b.wallHeight;
-    // A whole number of window rows between the floor and the eave: a fixed
-    // 3 m row left the top windows cut by the roof (docs/16 §2).
-    const rowH = H / Math.max(1, Math.round(H / FLOOR_H));
-    // A blank plinth from the floor down into the lowest ground under the
-    // walls, so that no house floats or shows windows below the ground.
-    const foot = Math.min(-0.3, b.groundM - b.z - PLINTH_BURY_M);
-    const target = b.kind === 'barn' ? barns : walls;
-    color.set(WALL_COLORS[b.wallTint % WALL_COLORS.length] ?? '#ffffff');
-    if (b.kind === 'barn') color.lerp(new Color('#ffffff'), 0.5);
-    plinth.copy(color).multiplyScalar(PLINTH_SHADE);
-    // Four walls, counter-clockwise seen from outside.
-    const corners: [number, number][] = [
-      [-W, D],
-      [W, D],
-      [W, -D],
-      [-W, -D],
-    ];
-    for (let i = 0; i < 4; i++) {
-      const [a0, f0] = corners[i] as [number, number];
-      const [a1, f1] = corners[(i + 1) % 4] as [number, number];
-      const len = Math.hypot(a1 - a0, f1 - f0) / BAY_W;
-      // Wound so that the normal points outwards.
-      target.quad(
-        P(a1, f1, 0),
-        P(a0, f0, 0),
-        P(a0, f0, H),
-        P(a1, f1, H),
-        [
-          [0, 0],
-          [len, 0],
-          [len, H / rowH],
-          [0, H / rowH],
-        ],
-        color,
-      );
-      // The plinth samples the plain bottom of a row (no window there).
-      target.quad(
-        P(a1, f1, foot),
-        P(a0, f0, foot),
-        P(a0, f0, 0),
-        P(a1, f1, 0),
-        [
-          [0, 0.02],
-          [len, 0.02],
-          [len, PLINTH_V],
-          [0, PLINTH_V],
-        ],
-        plinth,
-      );
-    }
-    // Gables at both ends of the ridge (ridge parallel to the facade).
-    const R = b.roofHeight;
-    for (const side of [-1, 1]) {
-      const a = side * W;
-      const t1 = P(a, side === 1 ? D : -D, H);
-      const t2 = P(a, side === 1 ? -D : D, H);
-      const top = P(a, 0, H + R);
-      target.tri(
-        t1,
-        t2,
-        top,
-        [0, H / rowH],
-        [b.depth / BAY_W, H / rowH],
-        [b.depth / 2 / BAY_W, (H + R) / rowH],
-        color,
-      );
-    }
-    // Roof slopes with overhangs.
-    const o = 0.45;
-    const slope = Math.hypot(D + o, R + o * (R / D));
-    color.set(ROOF_COLORS[b.roofTint % ROOF_COLORS.length] ?? '#999999');
-    const eave = H - o * (R / D);
-    for (const side of [1, -1]) {
-      const fe = side * (D + o);
-      const quad = [
-        P(-W - o, fe, eave),
-        P(W + o, fe, eave),
-        P(W + o, 0, H + R),
-        P(-W - o, 0, H + R),
-      ];
-      const uvs = [
-        [0, 0],
-        [(b.width + 2 * o) / 1, 0],
-        [(b.width + 2 * o) / 1, slope / 1],
-        [0, slope / 1],
-      ];
-      if (side === 1)
-        roofs.quad(
-          quad[0] as number[],
-          quad[1] as number[],
-          quad[2] as number[],
-          quad[3] as number[],
-          uvs,
-          color,
-        );
-      else
-        roofs.quad(
-          quad[1] as number[],
-          quad[0] as number[],
-          quad[3] as number[],
-          quad[2] as number[],
-          uvs,
-          color,
-        );
-    }
-  }
-  return { walls: walls.build(), barns: barns.build(), roofs: roofs.build() };
-}
-
-function canvas(w: number, h: number) {
+export function canvas(w: number, h: number) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
@@ -241,68 +98,13 @@ function canvas(w: number, h: number) {
   return { c, ctx };
 }
 
-function texture(c: HTMLCanvasElement): CanvasTexture {
+export function texture(c: HTMLCanvasElement): CanvasTexture {
   const t = new CanvasTexture(c);
   t.wrapS = RepeatWrapping;
   t.wrapT = RepeatWrapping;
   t.colorSpace = SRGBColorSpace;
   t.anisotropy = 8;
   return t;
-}
-
-/** One 3.2 × 3 m bay of a rendered house front: window with wooden shutters. */
-export function facadeTexture(): CanvasTexture {
-  const S = 128;
-  const { c, ctx } = canvas(S, S);
-  const rand = mulberry32(51);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, S, S);
-  for (let i = 0; i < 1500; i++) {
-    const v = 225 + rand() * 30;
-    ctx.fillStyle = `rgb(${v},${v},${v - 4})`;
-    ctx.fillRect(rand() * S, rand() * S, 2, 2);
-  }
-  const px = S / BAY_W;
-  const wx = (BAY_W / 2 - 0.5) * px;
-  // Canvas y goes down; v = 0 is the bottom of the image.
-  const top = S - 2.4 * (S / FLOOR_H);
-  const h = 1.4 * (S / FLOOR_H);
-  ctx.fillStyle = '#e8e4da';
-  ctx.fillRect(wx - 4, top - 4, px + 8, h + 10);
-  ctx.fillStyle = '#2e3a44';
-  ctx.fillRect(wx, top, px, h);
-  ctx.fillStyle = 'rgba(160,190,210,0.35)';
-  ctx.fillRect(wx + 3, top + 3, px / 2 - 5, h / 2 - 4);
-  ctx.fillStyle = '#e8e4da';
-  ctx.fillRect(wx + px / 2 - 1.5, top, 3, h);
-  ctx.fillRect(wx, top + h / 2 - 1.5, px, 3);
-  // Shutters.
-  ctx.fillStyle = '#4f6e5a';
-  ctx.fillRect(wx - px * 0.5 - 2, top, px * 0.48, h);
-  ctx.fillRect(wx + px + 2, top, px * 0.48, h);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  for (let k = 0; k < 7; k++) {
-    ctx.fillRect(wx - px * 0.5 - 2, top + (k * h) / 7, px * 0.48, 1);
-    ctx.fillRect(wx + px + 2, top + (k * h) / 7, px * 0.48, 1);
-  }
-  return texture(c);
-}
-
-/** Vertical wooden planks with a dark band at the bottom. */
-export function barnTexture(): CanvasTexture {
-  const S = 128;
-  const { c, ctx } = canvas(S, S);
-  const rand = mulberry32(61);
-  for (let x = 0; x < S; x += 8) {
-    const v = 120 + rand() * 40;
-    ctx.fillStyle = `rgb(${v},${v * 0.78},${v * 0.55})`;
-    ctx.fillRect(x, 0, 8, S);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(x, 0, 1, S);
-  }
-  ctx.fillStyle = 'rgba(40,30,20,0.35)';
-  ctx.fillRect(0, S - 12, S, 12);
-  return texture(c);
 }
 
 /** Rows of roof tiles (1 m × 1 m tile). */

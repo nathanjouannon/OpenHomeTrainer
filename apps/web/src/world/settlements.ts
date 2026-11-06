@@ -2,6 +2,16 @@
 // Frame: x east, y north, z altitude. `yaw` is a heading (0 = north, clockwise).
 
 import type { Route } from '@hrt/route-engine';
+import {
+  type BuildingStyle,
+  chaletShare,
+  LOT_FRONT_MIN_M,
+  type Lot,
+  pickBarnStyle,
+  pickFence,
+  pickHouseStyle,
+  STYLE_DIMS,
+} from './building-styles';
 import { mulberry32, type Terrain, terrainHeightAt } from './world-data';
 
 export interface VillageDef {
@@ -40,6 +50,13 @@ const VILLAGE_CAR_OFFSET_M = ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M + 0.5 + CAR_WI
 const PAD_OUTER_M = VILLAGE_CAR_OFFSET_M + CAR_WIDTH_M / 2 + 0.6;
 const PAD_INNER_M = ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M;
 /** Top of the sidewalks and pads above the route altitude (`buildSidewalks`, checked by a test). */
+/** The fence line stands this far beyond the outer edge of the sidewalk (m). */
+const SIDEWALK_GAP_M = 0.35;
+/** Steepest lot: height between the street side and the house floor (m). */
+const LOT_MAX_RISE_M = 1.2;
+/** Deepest drop under the fence line (m). */
+const LOT_MAX_DROP_M = 1.5;
+const between = (r: readonly [number, number], u: number) => r[0] + (r[1] - r[0]) * u;
 export const PAD_TOP_M = SIDEWALK_HEIGHT_M + 0.04;
 
 export interface Building {
@@ -56,6 +73,10 @@ export interface Building {
   wallHeight: number;
   roofHeight: number;
   kind: 'house' | 'farmhouse' | 'barn';
+  /** Shape of the house (lot 2.16): plain-land house, chalet or barn. */
+  style: BuildingStyle;
+  /** Garden fence, gate and gravel path between the street and the house. */
+  lot?: Lot;
   /** Index in the colour palettes. */
   wallTint: number;
   roofTint: number;
@@ -385,6 +406,8 @@ export function generateSettlements(
   seed = 1234,
 ): Settlements {
   const rand = mulberry32(seed);
+  // Styles and garden choices have their own stream: the layout draws stay the same.
+  const styleRand = mulberry32(seed + 2016);
   const grid = new Grid(terrain.sizeM);
   // Road corridors: nothing is built on the roads, shoulders and sidewalks.
   for (const r of routes) {
@@ -435,6 +458,38 @@ export function generateSettlements(
     const building = { ...b, z, groundM: lo };
     buildings.push(building);
     return building;
+  };
+
+  /** Fence, gate and gravel path in front of a house, or undefined on a steep or sunken plot. */
+  const makeLot = (
+    b: Building,
+    fence: Lot['fence'],
+    frontM: number,
+    roadZ: number,
+  ): Lot | undefined => {
+    if (Math.abs(b.z - roadZ) > LOT_MAX_RISE_M) return undefined;
+    const fx = Math.sin(b.yaw);
+    const fy = Math.cos(b.yaw);
+    // Ground along the fence line, just beyond the facade.
+    let groundM = Number.POSITIVE_INFINITY;
+    for (const sa of [-1, -0.5, 0, 0.5, 1]) {
+      const a = sa * (b.width / 2 + 1.2);
+      const f = b.depth / 2 + frontM;
+      const x = b.x + fy * a + fx * f;
+      const y = b.y - fx * a + fy * f;
+      if (!dry(x, y)) return undefined;
+      groundM = Math.min(groundM, terrainHeightAt(terrain, x, y));
+    }
+    if (roadZ - groundM > LOT_MAX_DROP_M) return undefined;
+    const gate = styleRand() < 0.75;
+    return {
+      fence,
+      frontM,
+      gate,
+      gravel: gate && styleRand() < 0.8,
+      roadZ,
+      groundM,
+    };
   };
 
   // Parked cars stand on the ground (the terrain, sunk under the road level
@@ -530,9 +585,12 @@ export function generateSettlements(
     for (const side of [1, -1] as const) {
       let d = span.fromM + 6 + rand() * 8;
       while (d < span.toM - 6) {
-        const width = 7 + rand() * 6;
-        const depth = 7 + rand() * 5;
-        const setback = 1.5 + rand() * 4;
+        const style = pickHouseStyle(route.sampleAt(d % route.lengthM).z, styleRand);
+        const dims = STYLE_DIMS[style];
+        const width = between(dims.width, rand());
+        const depth = between(dims.depth, rand());
+        const fence = pickFence(style, styleRand);
+        const setback = fence ? LOT_FRONT_MIN_M + 0.35 + rand() * 2 : 1.5 + rand() * 4;
         const offset = ROAD_HALF_WIDTH_M + SIDEWALK_WIDTH_M + setback + depth / 2;
         const p = lateral(route, d + width / 2, side * offset);
         const yaw = p.heading - (side * Math.PI) / 2;
@@ -545,15 +603,19 @@ export function generateSettlements(
                   yaw,
                   width,
                   depth,
-                  wallHeight: 5 + rand() * 3.5,
-                  roofHeight: 2 + rand() * 1.5,
+                  wallHeight: between(dims.wallHeight, rand()),
+                  roofHeight: between(dims.roofHeight, rand()),
                   kind: 'house',
+                  style,
                   wallTint: Math.floor(rand() * 8),
                   roofTint: Math.floor(rand() * 4),
                 },
                 p.z,
               )
             : null;
+        if (placed && fence) {
+          placed.lot = makeLot(placed, fence, setback - SIDEWALK_GAP_M, p.z + SIDEWALK_HEIGHT_M);
+        }
         // A car beside some houses, in the gap after the house, beyond the verge;
         // the next house leaves it room.
         let parkedUntil = 0;
@@ -603,6 +665,8 @@ export function generateSettlements(
       const offset = 22 + rand() * 30;
       const p = lateral(route, d % route.lengthM, side * offset);
       const yaw = p.heading - (side * Math.PI) / 2 + (rand() - 0.5) * 0.4;
+      const altitude = route.sampleAt(d % route.lengthM).z;
+      const alpine = styleRand() < chaletShare(altitude);
       const house = tryBuilding(
         {
           x: p.x,
@@ -613,6 +677,7 @@ export function generateSettlements(
           wallHeight: 6 + rand() * 2,
           roofHeight: 2.5 + rand(),
           kind: 'farmhouse',
+          style: alpine ? 'chalet-classic' : 'gable',
           wallTint: Math.floor(rand() * 8),
           roofTint: Math.floor(rand() * 4),
         },
@@ -631,6 +696,7 @@ export function generateSettlements(
           wallHeight: 6 + rand() * 2,
           roofHeight: 3,
           kind: 'barn',
+          style: pickBarnStyle(altitude, styleRand),
           wallTint: Math.floor(rand() * 8),
           roofTint: 3,
         },

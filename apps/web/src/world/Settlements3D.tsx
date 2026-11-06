@@ -15,19 +15,16 @@ import {
   PlaneGeometry,
   Vector3,
 } from 'three';
+import { buildBuildings, createBuildingMaterials } from './building-builders';
 import { NearShadows } from './NearShadows';
 import {
-  barnTexture,
-  buildBuildings,
   CAR_COLORS,
   CLOTHES_COLORS,
   carGeometry,
-  facadeTexture,
   lampGeometry,
   PEDESTRIAN_HIP_M,
   PEDESTRIAN_SHOULDER_M,
   pedestrianGeometries,
-  roofTexture,
   TROUSERS_COLORS,
   villageSignTexture,
 } from './prop-builders';
@@ -88,24 +85,7 @@ export function Settlements3D({
   const built = useMemo(() => buildBuildings(s.buildings, base), [s, base]);
   const mats = useMemo(
     () => ({
-      walls: new MeshStandardMaterial({
-        map: facadeTexture(),
-        vertexColors: true,
-        roughness: 0.9,
-        side: DoubleSide,
-      }),
-      barns: new MeshStandardMaterial({
-        map: barnTexture(),
-        vertexColors: true,
-        roughness: 0.95,
-        side: DoubleSide,
-      }),
-      roofs: new MeshStandardMaterial({
-        map: roofTexture(),
-        vertexColors: true,
-        roughness: 0.8,
-        side: DoubleSide,
-      }),
+      ...createBuildingMaterials(),
       painted: new MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }),
       car: new MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 }),
     }),
@@ -157,9 +137,12 @@ export function Settlements3D({
 
   return (
     <>
-      <mesh geometry={built.walls} material={mats.walls} castShadow receiveShadow />
-      <mesh geometry={built.barns} material={mats.barns} castShadow receiveShadow />
+      <mesh geometry={built.plaster} material={mats.plaster} castShadow receiveShadow />
+      <mesh geometry={built.wood} material={mats.wood} castShadow receiveShadow />
+      <mesh geometry={built.stone} material={mats.stone} castShadow receiveShadow />
       <mesh geometry={built.roofs} material={mats.roofs} castShadow receiveShadow />
+      <mesh geometry={built.plain} material={mats.plain} castShadow receiveShadow />
+      <mesh geometry={built.fence} material={mats.fence} receiveShadow />
       {s.lamps.length > 0 && (
         <instancedMesh ref={lamps} args={[geo.lamp, mats.painted, s.lamps.length]} />
       )}

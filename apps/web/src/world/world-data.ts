@@ -217,7 +217,10 @@ export function occupancy(
     }
   };
   // No tree through a roof, a car or a village sidewalk.
-  for (const b of built?.buildings ?? []) block(b.x, b.y, Math.max(b.width, b.depth) / 2 + 2);
+  for (const b of built?.buildings ?? []) {
+    // A decorated house also keeps its garden (fence, gravel path) clear of trees.
+    block(b.x, b.y, Math.max(b.width, b.depth) / 2 + 2 + (b.lot ? b.lot.frontM : 0));
+  }
   for (const c of built?.parkedCars ?? []) block(c.x, c.y, 3);
   for (const span of built?.spans ?? []) {
     const route = world.routes.get(span.routeId);
