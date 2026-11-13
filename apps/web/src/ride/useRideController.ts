@@ -8,7 +8,7 @@ import { type RideHeader, RideSaver } from '@hrt/recorder';
 import type { Route } from '@hrt/route-engine';
 import type { Workout } from '@hrt/workouts';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { attachInputs, controlsHub, obcControllers } from '../controls/runtime';
+import { attachInputs, controlsHub, obcControllers, remoteLink } from '../controls/runtime';
 import { FixedStepLoop } from '../sim/fixed-step-loop';
 import { deviceHub, type Role } from '../store/devices';
 import { rideStore } from '../store/rides';
@@ -177,10 +177,12 @@ export function useRideController(
       dispatcher.on('shiftUp', (source) => {
         session.shift(1);
         if (source === 'obc') obcControllers.buzzAll();
+        if (source === 'remote') remoteLink.buzz();
       }),
       dispatcher.on('shiftDown', (source) => {
         session.shift(-1);
         if (source === 'obc') obcControllers.buzzAll();
+        if (source === 'remote') remoteLink.buzz();
       }),
       dispatcher.on('shiftFrontUp', () => session.shift(1, 'front')),
       dispatcher.on('shiftFrontDown', () => session.shift(-1, 'front')),

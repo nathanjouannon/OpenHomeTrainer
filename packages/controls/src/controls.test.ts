@@ -11,7 +11,11 @@ import {
   ObcButtonTracker,
   type Profile,
   parseButtonState,
+  parseHostMessage,
+  parsePhoneMessage,
   parseProfile,
+  REMOTE_BUTTONS,
+  RemoteButtonTracker,
   type Timers,
   withBinding,
   withoutBinding,
@@ -300,5 +304,44 @@ describe('GamepadTracker', () => {
     expect(t.poll([])).toEqual([
       { source: 'gamepad', deviceId: '0:Xbox', control: 'button:0', type: 'release' },
     ]);
+  });
+});
+
+describe('smartphone remote (lot 3.10)', () => {
+  it('reads only well-formed phone messages', () => {
+    expect(parsePhoneMessage('{"t":"press","b":"shiftUp"}')).toEqual({ t: 'press', b: 'shiftUp' });
+    expect(parsePhoneMessage('{"t":"press","b":"format"}')).toBeNull();
+    expect(parsePhoneMessage('{"t":"buzz"}')).toBeNull();
+    expect(parsePhoneMessage('nope')).toBeNull();
+    expect(parsePhoneMessage('[1]')).toBeNull();
+  });
+
+  it('every remote button has an action in the default profile', () => {
+    const p = defaultProfile();
+    for (const b of REMOTE_BUTTONS) {
+      expect(p.bindings.some((x) => x.source === 'remote' && x.control === `button:${b}`)).toBe(
+        true,
+      );
+    }
+  });
+
+  it('turns a phone press into the bound action and releases it when the phone leaves', () => {
+    const hub = new InputHub({ profile: defaultProfile() });
+    const seen: string[] = [];
+    hub.on('shiftUp', (s) => seen.push(s));
+    const tracker = new RemoteButtonTracker();
+    for (const e of tracker.update({ t: 'press', b: 'shiftUp', r: 'a' })) hub.handle(e);
+    expect(seen).toEqual(['remote']);
+    expect(tracker.update({ t: 'press', b: 'shiftUp', r: 'a' })).toEqual([]);
+    const released = tracker.update({ t: 'left', r: 'a' });
+    expect(released).toHaveLength(1);
+    expect(released[0]?.type).toBe('release');
+    expect(tracker.reset()).toEqual([]);
+  });
+
+  it('parses what the relay sends to the game', () => {
+    expect(parseHostMessage('{"t":"left","r":"x"}')).toEqual({ t: 'left', r: 'x' });
+    expect(parseHostMessage('{"t":"press","b":"pause"}')).toBeNull();
+    expect(parseHostMessage('{"t":"peers","remotes":2}')).toEqual({ t: 'peers', remotes: 2 });
   });
 });

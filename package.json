@@ -7,7 +7,7 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "turbo run dev --filter=@hrt/web",
+    "dev": "turbo run dev --filter=@hrt/web --filter=@hrt/api",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

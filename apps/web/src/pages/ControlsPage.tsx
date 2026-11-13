@@ -10,8 +10,15 @@ import {
   withBinding,
   withoutBinding,
 } from '@hrt/controls';
+import QRCode from 'qrcode';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { attachInputs, controlsHub, gamepads, obcControllers } from '../controls/runtime';
+import {
+  attachInputs,
+  controlsHub,
+  gamepads,
+  obcControllers,
+  remoteLink,
+} from '../controls/runtime';
 import { type MessageKey, useT } from '../i18n';
 import {
   createProfile,
@@ -40,6 +47,19 @@ const OBC_NAMES: Record<number, string> = {
   68: 'HUD',
 };
 
+const REMOTE_NAMES: Record<string, string> = {
+  shiftUp: 'Shift +',
+  shiftDown: 'Shift −',
+  shiftFrontUp: 'Front +',
+  shiftFrontDown: 'Front −',
+  ergUp: 'ERG +',
+  ergDown: 'ERG −',
+  pause: 'Pause',
+  cameraNext: 'Camera',
+  lap: 'Lap',
+  intervalNext: 'Next',
+};
+
 const KEY_NAMES: Record<string, string> = {
   ' ': 'Space',
   arrowup: '↑',
@@ -54,6 +74,7 @@ export function controlLabel(b: Pick<Binding, 'source' | 'control'>): string {
   if (b.source === 'keyboard' && kind === 'key') {
     return KEY_NAMES[id] ?? (id.length === 1 ? id.toUpperCase() : id);
   }
+  if (b.source === 'remote') return REMOTE_NAMES[id] ?? id;
   if (b.source === 'obc') {
     const name = OBC_NAMES[Number.parseInt(id, 16)];
     return name ? `${id} ${name}` : id;
@@ -61,13 +82,103 @@ export function controlLabel(b: Pick<Binding, 'source' | 'control'>): string {
   return `#${id}`;
 }
 
-const SOURCE_ICON = { keyboard: '⌨', gamepad: '🎮', obc: '🚲' } as const;
+const SOURCE_ICON = { keyboard: '⌨', gamepad: '🎮', obc: '🚲', remote: '📱' } as const;
 const ACTION_KEY = (a: ControlAction) => `controls.action.${a}` as MessageKey;
 
 function useObcControllers() {
   return useSyncExternalStore(
     (cb) => obcControllers.onChange(cb),
     () => obcControllers.list,
+  );
+}
+
+function useRemote() {
+  return useSyncExternalStore(
+    (cb) => remoteLink.onChange(cb),
+    () => remoteLink.state,
+  );
+}
+
+/** QR code of an address, drawn as an image (no HTML injection). */
+function QrCode({ text }: { text: string }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let alive = true;
+    QRCode.toDataURL(text, { margin: 2, width: 220 }).then(
+      (url) => alive && setSrc(url),
+      () => alive && setSrc(''),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [text]);
+  return src ? <img src={src} width={220} height={220} alt={text} className="qr" /> : null;
+}
+
+function RemoteSection() {
+  const t = useT();
+  const remote = useRemote();
+  const [chosen, setChosen] = useState(0);
+  const on = remote.status !== 'off';
+  const base = remote.urls[Math.min(chosen, remote.urls.length - 1)];
+  const phoneUrl = base ? remoteLink.phoneUrl(base) : null;
+  return (
+    <section className="settings">
+      <h2>{t('controls.remote')}</h2>
+      <p className="muted">{t('controls.remoteHelp')}</p>
+      <label>
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => remoteLink.setEnabled(e.target.checked)}
+        />{' '}
+        {t('controls.remoteEnable')}
+      </label>
+      {on && (
+        <>
+          <p>
+            <strong>{t('controls.remoteStatus')} : </strong>
+            {t(`controls.remote.${remote.status}` as MessageKey)}
+            {remote.phones > 0 && ` (${remote.phones})`}
+          </p>
+          {remote.status === 'unavailable' && (
+            <p className="muted">
+              {t('controls.remoteStart')} <code>pnpm --filter @hrt/api dev</code>
+            </p>
+          )}
+          {phoneUrl && (
+            <div className="row">
+              <QrCode text={phoneUrl} />
+              <div>
+                <p>{t('controls.remoteScan')}</p>
+                <p>
+                  <code>{phoneUrl}</code>
+                </p>
+                {remote.urls.length > 1 && (
+                  <label>
+                    {t('controls.remoteNetwork')}{' '}
+                    <select value={chosen} onChange={(e) => setChosen(Number(e.target.value))}>
+                      {remote.urls.map((u, i) => (
+                        <option key={u} value={i}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <p className="muted">{t('controls.remoteWifi')}</p>
+                <button type="button" onClick={() => remoteLink.regenerate()}>
+                  {t('controls.remoteRegenerate')}
+                </button>
+              </div>
+            </div>
+          )}
+          {remote.status !== 'unavailable' && remote.status !== 'connecting' && !phoneUrl && (
+            <p className="muted">{t('controls.remoteNoNetwork')}</p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -215,6 +326,8 @@ export function ControlsPage() {
           {last ? `${SOURCE_ICON[last.source]} ${controlLabel(last)}` : '—'}
         </p>
       </section>
+
+      <RemoteSection />
 
       <section className="settings">
         <h2>{t('controls.mapping')}</h2>

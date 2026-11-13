@@ -258,7 +258,7 @@ const fr = {
   'dev.free.help':
     'Glisser : orienter · ZQSD / flèches : avancer · Espace / Maj : monter / descendre · molette : vitesse · G : quitter · H : masquer',
   'home.controls': 'Commandes',
-  'home.controlsHint': 'Clavier, manette, OpenBikeControl, profils',
+  'home.controlsHint': 'Clavier, manette, OpenBikeControl, smartphone, profils',
   'controls.title': 'Commandes',
   'controls.intro':
     'Associe des touches, des boutons de manette ou un contrôleur OpenBikeControl aux actions de la sortie. Les commandes ne fonctionnent que si l’onglet a le focus.',
@@ -284,6 +284,24 @@ const fr = {
   'controls.pairFailed': 'Connexion impossible au contrôleur.',
   'controls.buzz': 'Faire vibrer',
   'controls.lastInput': 'Dernière entrée reçue',
+  'controls.remote': 'Télécommande smartphone',
+  'controls.remoteHelp':
+    'Utilise ton téléphone comme contrôleur posé sur le guidon : gros boutons de vitesse, ERG, pause et caméra. Il faut le relais local (lancé avec pnpm dev) et le téléphone sur le même Wi-Fi que l’ordinateur.',
+  'controls.remoteEnable': 'Activer la télécommande',
+  'controls.remoteStatus': 'État',
+  'controls.remote.off': 'Désactivée',
+  'controls.remote.connecting': 'Recherche du relais…',
+  'controls.remote.unavailable': 'Relais local introuvable',
+  'controls.remote.waiting': 'Relais trouvé, en attente d’un téléphone',
+  'controls.remote.connected': 'Téléphone connecté',
+  'controls.remoteStart': 'Lance le relais avec',
+  'controls.remoteScan': 'Scanne ce code avec l’appareil photo du téléphone :',
+  'controls.remoteNetwork': 'Réseau',
+  'controls.remoteWifi':
+    'Le téléphone et l’ordinateur doivent être sur le même Wi-Fi. Si la page ne s’ouvre pas, vérifie que le pare-feu de l’ordinateur autorise le port 8787.',
+  'controls.remoteRegenerate': 'Nouveau code (déconnecte les téléphones appairés)',
+  'controls.remoteNoNetwork':
+    'Aucune adresse de réseau local trouvée : connecte l’ordinateur à un Wi-Fi ou à un réseau filaire.',
   'controls.mapping': 'Correspondances',
   'controls.assignType': 'Type d’appui pour la prochaine assignation',
   'controls.type.press': 'Appui',
@@ -580,7 +598,7 @@ const en: Record<MessageKey, string> = {
   'dev.free.help':
     'Drag: look · WASD / arrows: move · Space / Shift: up / down · wheel: speed · G: exit · H: hide',
   'home.controls': 'Controls',
-  'home.controlsHint': 'Keyboard, gamepad, OpenBikeControl, profiles',
+  'home.controlsHint': 'Keyboard, gamepad, OpenBikeControl, smartphone, profiles',
   'controls.title': 'Controls',
   'controls.intro':
     'Bind keys, gamepad buttons or an OpenBikeControl controller to ride actions. Controls only work while the tab has focus.',
@@ -604,6 +622,24 @@ const en: Record<MessageKey, string> = {
   'controls.pairFailed': 'Could not connect to the controller.',
   'controls.buzz': 'Vibrate',
   'controls.lastInput': 'Last input received',
+  'controls.remote': 'Smartphone remote',
+  'controls.remoteHelp':
+    'Use your phone as a controller on the handlebars: big shift, ERG, pause and camera buttons. It needs the local relay (started with pnpm dev) and the phone on the same Wi-Fi as the computer.',
+  'controls.remoteEnable': 'Enable the remote',
+  'controls.remoteStatus': 'Status',
+  'controls.remote.off': 'Off',
+  'controls.remote.connecting': 'Looking for the relay…',
+  'controls.remote.unavailable': 'Local relay not found',
+  'controls.remote.waiting': 'Relay found, waiting for a phone',
+  'controls.remote.connected': 'Phone connected',
+  'controls.remoteStart': 'Start the relay with',
+  'controls.remoteScan': 'Scan this code with the phone camera:',
+  'controls.remoteNetwork': 'Network',
+  'controls.remoteWifi':
+    'The phone and the computer must be on the same Wi-Fi. If the page does not open, check that the computer firewall allows port 8787.',
+  'controls.remoteRegenerate': 'New code (disconnects paired phones)',
+  'controls.remoteNoNetwork':
+    'No local network address found: connect the computer to Wi-Fi or a wired network.',
   'controls.mapping': 'Mapping',
   'controls.assignType': 'Press type for the next assignment',
   'controls.type.press': 'Press',

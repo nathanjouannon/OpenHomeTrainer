@@ -1,7 +1,7 @@
 import { type ControlAction, isControlAction } from './actions';
 import type { Binding, BindingType, InputSource, Profile } from './events';
 
-const SOURCES: readonly InputSource[] = ['keyboard', 'gamepad', 'obc'];
+const SOURCES: readonly InputSource[] = ['keyboard', 'gamepad', 'obc', 'remote'];
 const TYPES: readonly BindingType[] = ['press', 'long_press', 'double_press'];
 const SHIFT_REPEAT_MS = 250;
 
@@ -101,13 +101,35 @@ export const OBC_SUPPORTED_BUTTONS: readonly number[] = [
   0x01, 0x02, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x3c, 0x40, 0x44,
 ];
 
+const rem = (button: string, action: ControlAction, repeat = false): Binding => ({
+  source: 'remote',
+  control: `button:${button}`,
+  type: 'press',
+  action,
+  ...(repeat ? { repeatMs: SHIFT_REPEAT_MS } : {}),
+});
+
+/** Buttons of the smartphone companion page (lot 3.10); the names match REMOTE_BUTTONS. */
+const REMOTE: Binding[] = [
+  rem('shiftUp', 'shiftUp', true),
+  rem('shiftDown', 'shiftDown', true),
+  rem('shiftFrontUp', 'shiftFrontUp'),
+  rem('shiftFrontDown', 'shiftFrontDown'),
+  rem('ergUp', 'ergUp', true),
+  rem('ergDown', 'ergDown', true),
+  rem('pause', 'pause'),
+  rem('cameraNext', 'cameraNext'),
+  rem('lap', 'lap'),
+  rem('intervalNext', 'intervalNext'),
+];
+
 export const DEFAULT_PROFILE_ID = 'default';
 
 export function defaultProfile(): Profile {
   return {
     id: DEFAULT_PROFILE_ID,
     name: 'Default',
-    bindings: [...KEYBOARD, ...GAMEPAD, ...OBC].map((b) => ({ ...b })),
+    bindings: [...KEYBOARD, ...GAMEPAD, ...OBC, ...REMOTE].map((b) => ({ ...b })),
   };
 }
 

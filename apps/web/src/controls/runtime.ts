@@ -5,6 +5,7 @@ import { getControls, onControlsChange } from '../store/controls';
 import { GamepadPoller } from './gamepad';
 import { bindKeyboard } from './keyboard';
 import { createObcRegistry } from './obc-device';
+import { RemoteLink } from './remote';
 
 export const controlsHub = new InputHub({ profile: getControls().active });
 
@@ -20,6 +21,7 @@ onControlsChange(() => {
 
 export const gamepads = new GamepadPoller(controlsHub);
 export const obcControllers = createObcRegistry(controlsHub);
+export const remoteLink = new RemoteLink(controlsHub);
 
 let users = 0;
 let stop: (() => void) | null = null;
@@ -32,6 +34,7 @@ export function attachInputs(): () => void {
   if (users++ === 0 && typeof window !== 'undefined') {
     const offKeys = bindKeyboard(controlsHub, window);
     gamepads.start();
+    remoteLink.resume();
     stop = () => {
       offKeys();
       gamepads.stop();
