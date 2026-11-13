@@ -168,3 +168,43 @@ export class Gearbox {
     return `${g.chainring}×${g.cog}`;
   }
 }
+
+// ---- Custom drivetrain (lot 3.8) ----
+
+export const MIN_TEETH = 8;
+export const MAX_TEETH = 70;
+export const MAX_CHAINRINGS = 3;
+export const MAX_COGS = 16;
+
+/** Teeth counts typed by the rider ("50, 34" or "11 12 13"): sorted, distinct, or null if invalid. */
+export function parseTeeth(text: string, maxCount: number): number[] | null {
+  const parts = text.split(/[\s,;/]+/).filter(Boolean);
+  if (parts.length === 0 || parts.length > maxCount) return null;
+  const teeth = parts.map(Number);
+  if (teeth.some((n) => !Number.isInteger(n) || n < MIN_TEETH || n > MAX_TEETH)) return null;
+  return [...new Set(teeth)].sort((a, b) => a - b);
+}
+
+export interface CustomDrivetrain {
+  chainrings: number[];
+  cassette: number[];
+}
+
+/** Drivetrain from the rider's own chainrings and cassette. */
+export function customDrivetrain(custom: CustomDrivetrain): DrivetrainConfig {
+  return {
+    chainrings: custom.chainrings,
+    cassette: custom.cassette,
+    wheelCircumferenceM: WHEEL_700x25_M,
+  };
+}
+
+/**
+ * Ratio of the gear really engaged on the trainer: its chainring over its
+ * single cog (Zwift Cog: one fixed cog, so the ratio comes from the chainring
+ * of the bike). Null when either is unknown.
+ */
+export function physicalRatio(chainring: number | null, cog: number | null): number | null {
+  if (!chainring || !cog || chainring <= 0 || cog <= 0) return null;
+  return chainring / cog;
+}

@@ -12,5 +12,8 @@
   },
   "dependencies": {
     "@hrt/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@hrt/physics": "workspace:*"
   }
 }

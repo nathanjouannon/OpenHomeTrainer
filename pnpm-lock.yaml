@@ -106,6 +106,10 @@ importers:
       '@hrt/shared':
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      '@hrt/physics':
+        specifier: workspace:*
+        version: link:../physics
 
   packages/physics:
     dependencies:
