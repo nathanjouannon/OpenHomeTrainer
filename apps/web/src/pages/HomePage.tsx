@@ -59,6 +59,10 @@ export function HomePage() {
           <strong>{t('home.workouts')}</strong>
           <span>{t('home.workoutsHint')}</span>
         </a>
+        <a href="#/controls">
+          <strong>{t('home.controls')}</strong>
+          <span>{t('home.controlsHint')}</span>
+        </a>
         <a href="#/rides">
           <strong>{t('home.history')}</strong>
           <span>

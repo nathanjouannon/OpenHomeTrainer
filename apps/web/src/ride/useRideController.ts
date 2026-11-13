@@ -8,12 +8,12 @@ import { type RideHeader, RideSaver } from '@hrt/recorder';
 import type { Route } from '@hrt/route-engine';
 import type { Workout } from '@hrt/workouts';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { attachInputs, controlsHub, obcControllers } from '../controls/runtime';
 import { FixedStepLoop } from '../sim/fixed-step-loop';
 import { deviceHub, type Role } from '../store/devices';
 import { rideStore } from '../store/rides';
 import { getSegmentBest, recordSegmentEffort } from '../store/segments';
 import { CDA_BY_BIKE, getSettings } from '../store/settings';
-import { ActionDispatcher } from './actions';
 import type { Ghost } from './ghost';
 import { ERG_STEP_W, type ReadingSource, type RideEvent, RideSession } from './ride-session';
 
@@ -68,6 +68,9 @@ function commandSender() {
   return send;
 }
 
+/** The one hub of the application: keyboard, gamepads and controllers all end here. */
+const dispatcher = controlsHub;
+
 export function useRideController(
   route: Route,
   worldId: string,
@@ -75,7 +78,6 @@ export function useRideController(
   workout: Workout | null = null,
   ghost: Ghost | null = null,
 ) {
-  const dispatcher = useMemo(() => new ActionDispatcher(), []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
   const [finished, setFinished] = useState<RideHeader | null>(null);
@@ -170,8 +172,16 @@ export function useRideController(
   useEffect(() => {
     const offs = [
       dispatcher.on('pause', () => session.togglePause()),
-      dispatcher.on('shiftUp', () => session.shift(1)),
-      dispatcher.on('shiftDown', () => session.shift(-1)),
+      dispatcher.on('pauseOn', () => session.pause()),
+      dispatcher.on('resume', () => session.resume()),
+      dispatcher.on('shiftUp', (source) => {
+        session.shift(1);
+        if (source === 'obc') obcControllers.buzzAll();
+      }),
+      dispatcher.on('shiftDown', (source) => {
+        session.shift(-1);
+        if (source === 'obc') obcControllers.buzzAll();
+      }),
       dispatcher.on('shiftFrontUp', () => session.shift(1, 'front')),
       dispatcher.on('shiftFrontDown', () => session.shift(-1, 'front')),
       dispatcher.on('lap', () => session.manualLap()),
@@ -187,12 +197,12 @@ export function useRideController(
         else void document.documentElement.requestFullscreen().catch(() => undefined);
       }),
     ];
-    const offKeys = dispatcher.bindKeyboard(window);
+    const offInputs = attachInputs();
     return () => {
       for (const off of offs) off();
-      offKeys();
+      offInputs();
     };
-  }, [dispatcher, session]);
+  }, [session]);
 
   const onEvent = useRef<(e: RideEvent) => void>(() => undefined);
   useEffect(() => session.on((e) => onEvent.current(e)), [session]);

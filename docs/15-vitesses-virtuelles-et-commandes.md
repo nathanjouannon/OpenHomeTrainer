@@ -188,6 +188,8 @@ Le choix final de la stratégie par défaut se fera après des essais sur au moi
 
 ### 4.5 Protocole OpenBikeControl (résumé de la spécification MIT)
 
+> Vérifié sur `PROTOCOL.md` et `BLE.md` le 2026-11-13 : UUID, formats des trois messages et ids de boutons conformes à ce résumé. Points ajoutés par la spécification : un contrôleur peut envoyer **plusieurs actions pour un même bouton** (ex. vitesse + difficulté + valider dans un seul message) ; l'application doit ignorer les ids qu'elle ne gère pas ; App Information liste les boutons gérés (`0` = tous). Notre choix : si vitesse et difficulté arrivent dans le même message, on garde la vitesse (`ObcButtonTracker`).
+
 **Bluetooth**
 
 | Élément | UUID | Propriétés | Rôle |

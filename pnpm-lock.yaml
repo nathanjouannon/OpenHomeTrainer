@@ -35,6 +35,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@hrt/controls':
+        specifier: workspace:*
+        version: link:../../packages/controls
       '@hrt/devices':
         specifier: workspace:*
         version: link:../../packages/devices

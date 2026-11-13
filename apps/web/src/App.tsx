@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { useT } from './i18n';
+import { ControlsPage } from './pages/ControlsPage';
 import { DevicesPage } from './pages/DevicesPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { HomePage } from './pages/HomePage';
@@ -26,6 +27,8 @@ export function App() {
   switch (page) {
     case 'devices':
       return <DevicesPage />;
+    case 'controls':
+      return <ControlsPage />;
     case 'workouts':
       return <WorkoutsPage />;
     case 'routes':

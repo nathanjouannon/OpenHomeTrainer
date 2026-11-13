@@ -1,3 +1,4 @@
+import type { ControlAction } from '@hrt/controls';
 import { parseRouteId, type Route, withSegments } from '@hrt/route-engine';
 import type { Workout } from '@hrt/workouts';
 import { useEffect, useMemo, useState } from 'react';
@@ -5,7 +6,6 @@ import { formatDelta, formatDuration, formatter } from '../format';
 import { DevCameraPanel } from '../hud/DevCameraPanel';
 import { Hud, useLiveState } from '../hud/Hud';
 import { useT } from '../i18n';
-import type { RideAction } from '../ride/actions';
 import type { Ghost } from '../ride/ghost';
 import { loadGhost } from '../ride/ghost-loader';
 import { DEFAULT_WORKOUT_FTP_W } from '../ride/ride-session';
@@ -236,10 +236,16 @@ function RideRunning({
     const setCamera = (i: number) => updateSettings({ camera: CAMERA_MODES[i] ?? 'chase' });
     const offs = [
       ...([1, 2, 3, 4] as const).map((n) =>
-        dispatcher.on(`camera${n}` as RideAction, () => setCamera(n - 1)),
+        dispatcher.on(`camera${n}` as ControlAction, () => setCamera(n - 1)),
       ),
       dispatcher.on('cameraNext', () =>
         setCamera((CAMERA_MODES.indexOf(getSettings().camera) + 1) % CAMERA_MODES.length),
+      ),
+      dispatcher.on('cameraPrev', () =>
+        setCamera(
+          (CAMERA_MODES.indexOf(getSettings().camera) + CAMERA_MODES.length - 1) %
+            CAMERA_MODES.length,
+        ),
       ),
       dispatcher.on('toggleHud', () => setHudVisible((v) => !v)),
       dispatcher.on('cameraFree', () => setFree((v) => !v)),

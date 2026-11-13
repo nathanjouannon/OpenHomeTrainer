@@ -1077,3 +1077,54 @@ table.segments td.pb {
 .tile-ghost.ghost-behind .tile-value {
   color: #ff7a6e;
 }
+
+/* Controls hub (lot 3.9) */
+.plain {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.controls-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.controls-table th {
+  text-align: left;
+  font-weight: 600;
+  width: 30%;
+  padding: 0.35rem 0.5rem 0.35rem 0;
+}
+
+.controls-table td {
+  padding: 0.35rem 0;
+}
+
+.controls-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 0.35rem 0.25rem 0;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 0.9rem;
+}
+
+.chip button {
+  border: 0;
+  background: none;
+  padding: 0 0.2rem;
+  cursor: pointer;
+  color: var(--muted);
+}

@@ -96,7 +96,7 @@ export function encodeAppInfo(
   appId: string,
   appVersion: string,
   buttons: readonly number[],
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   const enc = new TextEncoder();
   const id = enc.encode(appId).slice(0, 32);
   const ver = enc.encode(appVersion).slice(0, 32);
@@ -129,7 +129,11 @@ export const HAPTIC_PATTERNS = {
 export type HapticPattern = keyof typeof HAPTIC_PATTERNS;
 
 /** Haptic command; `durationMs` 0 and `intensity` 0 mean the controller's defaults. */
-export function encodeHaptic(pattern: HapticPattern, durationMs = 0, intensity = 0): Uint8Array {
+export function encodeHaptic(
+  pattern: HapticPattern,
+  durationMs = 0,
+  intensity = 0,
+): Uint8Array<ArrayBuffer> {
   const units = Math.max(0, Math.min(255, Math.round(durationMs / 10)));
   return Uint8Array.of(
     MSG_HAPTIC,
