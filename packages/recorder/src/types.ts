@@ -54,6 +54,25 @@ export interface RideLap {
   stats: RideStats;
 }
 
+/** One timed segment ridden during the ride (lot 3.5). */
+export interface SegmentEffort {
+  segmentId: string;
+  name: { fr: string; en: string };
+  type: 'climb' | 'sprint' | 'other';
+  /** 1-based lap on which it was ridden. */
+  lap: number;
+  /** Riding time at the start and end of the segment, s. */
+  startS: number;
+  endS: number;
+  durationS: number;
+  lengthM: number;
+  /** Average power over the segment, W (null when no sample covers it). */
+  avgPowerW: number | null;
+  /** Personal best at the time (best of the earlier efforts), s; null for a first effort. */
+  previousBestS: number | null;
+  isPb: boolean;
+}
+
 export type RideStatus = 'recording' | 'finished';
 
 /** Ride header (stored apart from the samples). */
@@ -74,6 +93,8 @@ export interface RideHeader {
   stats: RideStats | null;
   laps: RideLap[];
   bestLapS: number | null;
+  /** Timed segments ridden (absent on rides recorded before lot 3.5). */
+  segments?: SegmentEffort[];
   /** Optional goal set before the start. */
   goal: { kind: 'duration' | 'distance' | 'laps'; value: number } | null;
 }

@@ -8,6 +8,7 @@ import {
   CanvasTexture,
   Color,
   DoubleSide,
+  type Group,
   type Material,
   Mesh,
   MeshStandardMaterial,
@@ -22,6 +23,7 @@ import { AerialPerspective, WorldSky } from './Atmosphere';
 import { type EnvironmentMap, loadAvatar, loadEnvironmentMap, loadTextureSlots } from './assets';
 import { AutoQuality, adaptProfile, autoLevel } from './auto-quality';
 import { FreeCamera, type FreeCameraProps } from './FreeCamera';
+import { GhostRider } from './GhostRider';
 import { FOG_COLOR, Lighting } from './Lighting';
 import { NEAR_SHADOWS_MARGIN_M } from './NearShadows';
 import { Vegetation, type VegetationData } from './Plants3D';
@@ -78,6 +80,8 @@ const FOREST_SEED = 7;
 const TREELINE_M = [1750, 1900] as const;
 /** The rider keeps to the right of the road. */
 const LANE_OFFSET_M = 1.3;
+/** The ghost rides a bit nearer the middle, so passing it is visible. */
+const GHOST_LANE_OFFSET_M = 0.6;
 
 export interface BuiltWorld {
   base: number;
@@ -211,6 +215,8 @@ export interface RideView {
   speedMs: number;
   cadenceRpm: number;
   powerW: number;
+  /** Where the ghost is (lot 3.6), absent without one. */
+  ghost?: { distanceM: number; prevDistanceM: number; finished: boolean } | null;
 }
 
 interface Props {
@@ -222,6 +228,8 @@ interface Props {
   /** Interpolation factor between the last two simulation steps. */
   alpha: () => number;
   camera: CameraMode;
+  /** Draws the ghost (lot 3.6) at `view().ghost`. */
+  ghost?: boolean;
   /** Dev mode: when set, the free camera replaces `camera`. */
   freeCamera?: Omit<FreeCameraProps, 'base'>;
   quality: Quality;
@@ -297,6 +305,7 @@ function Scene({
   alpha,
   camera,
   freeCamera,
+  ghost = false,
   quality,
   reduceMotion,
   onFrame,
@@ -306,6 +315,7 @@ function Scene({
 }) {
   const clock = useWorldClock();
   const rider = useRef<RiderHandle>(null);
+  const ghostGroup = useRef<Group>(null);
   const tmp = useMemo(
     () => ({
       p: emptyRoutePoint(),
@@ -335,6 +345,20 @@ function Scene({
     tmp.t += delta;
     const v = view();
     const d = v.prevDistanceM + (v.distanceM - v.prevDistanceM) * alpha();
+    const gg = ghostGroup.current;
+    if (gg) {
+      const gv = v.ghost;
+      gg.visible = !!gv && !gv.finished;
+      if (gv && gg.visible) {
+        const gd = gv.prevDistanceM + (gv.distanceM - gv.prevDistanceM) * alpha();
+        const gp = route.sampleAt(gd, tmp.p);
+        const ga = route.sampleAt(gd + 4, tmp.ahead);
+        riderPose(gp, ga, base, liftM, tmp.pos, tmp.dir, tmp.right, GHOST_LANE_OFFSET_M);
+        gg.position.copy(tmp.pos);
+        tmp.target.copy(tmp.pos).add(tmp.dir);
+        gg.lookAt(tmp.target);
+      }
+    }
     const p = route.sampleAt(d, tmp.p);
     const a = route.sampleAt(d + 4, tmp.ahead);
     riderPose(p, a, base, liftM, tmp.pos, tmp.dir, tmp.right);
@@ -403,6 +427,7 @@ function Scene({
       />
       <StartArch route={route} base={base} />
       <Rider ref={rider} avatar={built.avatar} />
+      {ghost && <GhostRider ref={ghostGroup} />}
       {freeCamera && (
         <FreeCamera
           {...freeCamera}
@@ -429,9 +454,10 @@ function riderPose(
   pos: Vector3,
   dir: Vector3,
   right: Vector3,
+  laneOffsetM = LANE_OFFSET_M,
 ) {
   right.set(Math.cos(p.heading), 0, Math.sin(p.heading));
-  toScene(p.x, p.y, p.z + liftM, base, pos).addScaledVector(right, LANE_OFFSET_M);
+  toScene(p.x, p.y, p.z + liftM, base, pos).addScaledVector(right, laneOffsetM);
   dir.set(ahead.x - p.x, ahead.z - p.z, -(ahead.y - p.y)).normalize();
 }
 

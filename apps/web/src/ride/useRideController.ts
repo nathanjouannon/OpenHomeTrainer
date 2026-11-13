@@ -2,7 +2,7 @@
 // incremental saving, wake lock and keyboard actions.
 
 import type { TrainerCommand } from '@hrt/drivetrain';
-import { roadDrivetrain } from '@hrt/drivetrain';
+import { customDrivetrain, roadDrivetrain } from '@hrt/drivetrain';
 import { DEFAULT_RIDER_PARAMS } from '@hrt/physics';
 import { type RideHeader, RideSaver } from '@hrt/recorder';
 import type { Route } from '@hrt/route-engine';
@@ -11,8 +11,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FixedStepLoop } from '../sim/fixed-step-loop';
 import { deviceHub, type Role } from '../store/devices';
 import { rideStore } from '../store/rides';
+import { getSegmentBest, recordSegmentEffort } from '../store/segments';
 import { CDA_BY_BIKE, getSettings } from '../store/settings';
 import { ActionDispatcher } from './actions';
+import type { Ghost } from './ghost';
 import { ERG_STEP_W, type ReadingSource, type RideEvent, RideSession } from './ride-session';
 
 export const APP_VERSION = '0.1.0-dev';
@@ -71,6 +73,7 @@ export function useRideController(
   worldId: string,
   goal: RideGoal | null,
   workout: Workout | null = null,
+  ghost: Ghost | null = null,
 ) {
   const dispatcher = useMemo(() => new ActionDispatcher(), []);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -90,7 +93,14 @@ export function useRideController(
         ftpW: p.ftpW,
       },
       workout,
-      drivetrain: s.virtualShifting ? roadDrivetrain(s.cassetteSpeeds) : null,
+      ghost,
+      segmentBest: (id) => getSegmentBest(route.id, id),
+      drivetrain: s.virtualShifting
+        ? s.customDrivetrain
+          ? customDrivetrain(s.customDrivetrain)
+          : roadDrivetrain(s.cassetteSpeeds)
+        : null,
+      strategy: s.shiftingStrategy,
       difficulty: s.difficulty,
       powerSource: s.powerSource,
       ride: {
@@ -108,7 +118,7 @@ export function useRideController(
       if (command) send(command);
     });
     return { session, loop };
-  }, [route, worldId, goal, workout]);
+  }, [route, worldId, goal, workout, ghost]);
 
   const pushToast = useRef((text: string, tone: Toast['tone'] = 'info') => {
     const id = ++toastId.current;
@@ -186,6 +196,16 @@ export function useRideController(
 
   const onEvent = useRef<(e: RideEvent) => void>(() => undefined);
   useEffect(() => session.on((e) => onEvent.current(e)), [session]);
+  // Personal records are kept as soon as a segment is done.
+  useEffect(
+    () =>
+      session.on((e) => {
+        if (e.type === 'segmentEnd') {
+          recordSegmentEffort(route.id, e.effort.segmentId, e.effort.durationS);
+        }
+      }),
+    [session, route],
+  );
 
   /** Ends the ride, saves it and returns its header. */
   const finish = async (): Promise<RideHeader> => {

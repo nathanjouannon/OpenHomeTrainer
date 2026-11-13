@@ -3,7 +3,8 @@ import { DEFAULT_RIDER_PARAMS } from '@hrt/physics';
 import { encodeRideFit } from '@hrt/recorder';
 import { buildLoopRoute } from '@hrt/route-engine';
 import { describe, expect, it } from 'vitest';
-import { RideSession, type RideSessionConfig } from './ride-session';
+import { Ghost } from './ghost';
+import { type RideEvent, RideSession, type RideSessionConfig } from './ride-session';
 
 const DT = 0.05;
 
@@ -246,5 +247,141 @@ describe('workout', () => {
     session.pause();
     ride(10, 200);
     expect(session.state.workout?.elapsedS).toBeCloseTo(3, 0);
+  });
+});
+
+describe('timed segments (lot 3.5)', () => {
+  const segRoute = buildLoopRoute({
+    id: 'seg-loop',
+    name: { fr: 'Seg', en: 'Seg' },
+    worldId: 'test',
+    controls: [
+      [0, 0],
+      [1000, 0],
+      [1000, 1000],
+      [0, 1000],
+    ],
+    elevationAt: () => 100,
+    segments: [
+      {
+        id: 'sprint-1',
+        name: { fr: 'Sprint 1', en: 'Sprint 1' },
+        type: 'sprint',
+        startM: 500,
+        endM: 1500,
+      },
+    ],
+  });
+  const make = (extra: Partial<RideSessionConfig> = {}) =>
+    makeSession({
+      route: segRoute,
+      ride: {
+        id: 'seg',
+        route: { id: segRoute.id, name: segRoute.meta.name, lengthM: segRoute.lengthM, loop: true },
+        worldId: 'test',
+        rider: { weightKg: 75, ftpW: 250 },
+        appVersion: 'test',
+        goal: null,
+      },
+      ...extra,
+    });
+
+  it('times the segment on each lap and records the efforts in the ride', () => {
+    const { session, ride } = make();
+    const events: RideEvent[] = [];
+    session.on((e) => events.push(e));
+    ride(15 * 60, 220);
+    const ends = events.filter((e) => e.type === 'segmentEnd');
+    expect(events.filter((e) => e.type === 'segmentStart').length).toBeGreaterThanOrEqual(2);
+    expect(ends.length).toBeGreaterThanOrEqual(2);
+    const [first, second] = ends.map((e) => (e.type === 'segmentEnd' ? e.effort : null));
+    expect(first?.previousBestS).toBeNull();
+    expect(first?.isPb).toBe(true);
+    // Steady power on a flat road: the second lap is within a second of the first.
+    expect(Math.abs((second?.durationS ?? 0) - (first?.durationS ?? 0))).toBeLessThan(1);
+    expect(second?.previousBestS).toBeCloseTo(first?.durationS ?? 0, 6);
+    expect(first?.avgPowerW).toBeCloseTo(220, 0);
+    const header = session.finish();
+    expect(header.segments?.length).toBe(ends.length);
+    expect(header.segments?.[0]?.lap).toBe(1);
+  });
+
+  it('compares with the stored personal best while riding', () => {
+    const { session, ride } = make({ segmentBest: () => 30 });
+    const events: RideEvent[] = [];
+    session.on((e) => events.push(e));
+    // Ride until inside the segment (500 m at ≈ 9 m/s).
+    ride(80, 220);
+    const live = session.state.segment;
+    expect(live?.id).toBe('sprint-1');
+    expect(live?.pbS).toBe(30);
+    expect(live?.deltaS).toBeGreaterThan(0); // 30 s for 1 km is far too fast
+    expect(live?.remainingM).toBeGreaterThan(0);
+    ride(5 * 60, 220);
+    const end = events.find((e) => e.type === 'segmentEnd');
+    expect(end?.type === 'segmentEnd' && end.effort.isPb).toBe(false);
+    expect(session.state.segment).toBeNull();
+  });
+});
+
+describe('ghost (lot 3.6)', () => {
+  // A ghost riding 2 m/s for 10 minutes.
+  const slow = new Ghost('ride', 'old', [0, 600], [0, 1200], false);
+
+  it('reports the gap to the ghost in metres and seconds', () => {
+    const { session, ride } = makeSession({ ghost: slow });
+    ride(60, 250); // a rider on 250 W is faster than 2 m/s
+    const g = session.state.ghost;
+    expect(g?.distanceM).toBeCloseTo(120, 0);
+    expect(g?.gapM).toBeGreaterThan(0);
+    expect(g?.gapS).toBeLessThan(0); // ahead of the ghost
+    expect(g?.finished).toBe(false);
+    expect(g?.prevDistanceM).toBeLessThan(g?.distanceM ?? 0);
+  });
+
+  it('is absent without a ghost', () => {
+    const { session, ride } = makeSession();
+    ride(5, 200);
+    expect(session.state.ghost).toBeNull();
+  });
+});
+
+describe('realistic shifting, strategy S3 (lot 3.8)', () => {
+  const realistic = () => makeSession({ route: flatRoute, strategy: 'realistic' });
+
+  it('puts the trainer in ERG at the power of the gear and cadence, no grade command', () => {
+    const { session, ride, ergCommands } = realistic();
+    const grades = ride(20, 200);
+    expect(grades).toHaveLength(0);
+    expect(ergCommands.length).toBeGreaterThan(0);
+    expect(session.gearPowerW).toBeGreaterThan(50);
+    // The physics keeps using the measured power.
+    expect(session.state.speedMs).toBeGreaterThan(5);
+  });
+
+  it('a harder gear asks for more power after a few seconds', () => {
+    const { session, ride } = realistic();
+    ride(15, 200);
+    const before = session.gearPowerW as number;
+    for (let i = 0; i < 3; i++) session.shift(1);
+    ride(8, 200);
+    expect(session.gearPowerW as number).toBeGreaterThan(before * 1.2);
+  });
+
+  it('falls back to grade commands without a cadence sensor', () => {
+    const { session } = realistic();
+    let sim = 0;
+    for (let i = 0; i < 100; i++) {
+      session.onReading('trainer', { timestamp: i * 50, powerW: 200 });
+      if (session.step(DT).command?.kind === 'sim') sim++;
+    }
+    expect(sim).toBeGreaterThan(0);
+    expect(session.gearPowerW).toBeNull();
+  });
+
+  it('the default strategy still sends grades', () => {
+    const { ride, ergCommands } = makeSession({ route: flatRoute });
+    expect(ride(5, 200).length).toBeGreaterThan(0);
+    expect(ergCommands).toHaveLength(0);
   });
 });

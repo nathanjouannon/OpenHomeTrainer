@@ -7,13 +7,34 @@ import {
   type DrivetrainConfig,
   ErgController,
   type ErgState,
+  feltGrade,
   Gearbox,
+  GearPowerController,
   type TrainerCommand,
   TrainerController,
 } from '@hrt/drivetrain';
-import { airDensityAtAltitude, type RiderParams, simulateStep } from '@hrt/physics';
-import { type NewRide, type RideHeader, RideRecorder, type RideSample } from '@hrt/recorder';
-import { emptyRoutePoint, type LapCrossing, LapTracker, type Route } from '@hrt/route-engine';
+import {
+  airDensityAtAltitude,
+  type RiderParams,
+  resistiveForceN,
+  simulateStep,
+} from '@hrt/physics';
+import {
+  type NewRide,
+  type RideHeader,
+  RideRecorder,
+  type RideSample,
+  type SegmentEffort,
+} from '@hrt/recorder';
+import {
+  emptyRoutePoint,
+  type LapCrossing,
+  LapTracker,
+  type LocalizedText,
+  type Route,
+  type RouteSegment,
+  SegmentTracker,
+} from '@hrt/route-engine';
 import {
   flatten,
   type Interval,
@@ -21,6 +42,7 @@ import {
   type Workout,
   WorkoutRunner,
 } from '@hrt/workouts';
+import type { Ghost, GhostLive } from './ghost';
 
 /** Power older than this is considered gone: the rider freewheels (docs/04 §8). */
 export const STALE_POWER_MS = 3000;
@@ -31,6 +53,12 @@ const MAX_POWER_W_PER_KG = 25;
 const CRR_BY_SURFACE = { asphalt: 0.004, gravel: 0.008, dirt: 0.012 } as const;
 
 export type PowerSource = 'trainer' | 'powermeter';
+/**
+ * How the virtual gear drives the trainer (docs/15 §3.3): `grade` (S1) shifts
+ * the grade sent; `realistic` (S3, experimental) puts the trainer in ERG at the
+ * power the gear and the cadence would need on the road.
+ */
+export type ShiftingStrategy = 'grade' | 'realistic';
 export type ReadingSource = 'trainer' | 'powermeter' | 'heartrate';
 
 export interface RideSessionConfig {
@@ -38,11 +66,17 @@ export interface RideSessionConfig {
   rider: Omit<RiderParams, 'crr'> & { ftpW: number | null };
   /** null: virtual shifting disabled. */
   drivetrain: DrivetrainConfig | null;
+  /** Default `grade`. `realistic` needs a cadence sensor and falls back to `grade` without one. */
+  strategy?: ShiftingStrategy;
   difficulty: number;
   powerSource: PowerSource;
   ride: NewRide;
   /** A structured workout to follow in ERG (lot 3.2). Its power shares use the rider's FTP. */
   workout?: Workout | null;
+  /** A past ride or best lap to race against (lot 3.6). */
+  ghost?: Ghost | null;
+  /** Personal best of a segment of this route, s (lot 3.5); null when never ridden. */
+  segmentBest?: (segmentId: string) => number | null;
   /** Wall clock (epoch ms). */
   now?: () => number;
   /** Monotonic clock (ms), same base as SensorReading.timestamp. */
@@ -58,6 +92,20 @@ export interface WorkoutLive extends RunnerState {
 
 /** FTP used to play a workout when the profile has none. */
 export const DEFAULT_WORKOUT_FTP_W = 200;
+
+/** The timed segment being ridden (lot 3.5). */
+export interface SegmentLive {
+  id: string;
+  name: LocalizedText;
+  type: RouteSegment['type'];
+  lengthM: number;
+  elapsedS: number;
+  remainingM: number;
+  /** Personal best to beat, s; null on a first effort. */
+  pbS: number | null;
+  /** Time ahead (negative) or behind (positive) of the personal best at this point, s. */
+  deltaS: number | null;
+}
 
 export interface LiveState {
   /** Riding time, s. */
@@ -93,6 +141,9 @@ export interface LiveState {
   ergCommandW: number | null;
   ergState: ErgState | null;
   workout: WorkoutLive | null;
+  segment: SegmentLive | null;
+  /** The ghost being raced, null without one. */
+  ghost: GhostLive | null;
   paused: boolean;
   powerStale: boolean;
   goalReached: boolean;
@@ -102,6 +153,8 @@ export type RideEvent =
   | { type: 'lap'; crossing: LapCrossing }
   | { type: 'gear'; label: string; index: number }
   | { type: 'goal' }
+  | { type: 'segmentStart'; segment: RouteSegment; pbS: number | null }
+  | { type: 'segmentEnd'; effort: SegmentEffort }
   | { type: 'erg'; on: boolean; targetW: number | null }
   | { type: 'ergTarget'; targetW: number }
   | { type: 'interval'; index: number; label: string; targetW: number }
@@ -122,6 +175,9 @@ export class RideSession {
   readonly trainer: TrainerController;
   readonly recorder: RideRecorder;
   private readonly laps: LapTracker;
+  private readonly segments: SegmentTracker;
+  /** Best times set during this ride (a later lap compares with them). */
+  private readonly segmentBests = new Map<string, number>();
   private readonly route: Route;
   private readonly params: RiderParams;
   private readonly clock: () => number;
@@ -141,6 +197,8 @@ export class RideSession {
   private readonly powerWindow: number[] = [];
   private lastSample: RideSample | null = null;
   private erg: ErgController | null = null;
+  private readonly gearPower = new GearPowerController();
+  private trainerMode: 'grade' | 'erg' | 'gearPower' = 'grade';
   private readonly runner: WorkoutRunner | null;
   private offsetW = 0;
   /** The workout flattened for the rider's FTP (for the graph). */
@@ -154,6 +212,11 @@ export class RideSession {
     this.trainer = new TrainerController({ difficulty: config.difficulty });
     this.recorder = new RideRecorder(config.ride, config.now);
     this.laps = new LapTracker(this.route.lengthM);
+    this.segments = new SegmentTracker(
+      this.route.meta.segments,
+      this.route.lengthM,
+      this.route.loop,
+    );
     const start = this.route.sampleAt(0, this.point);
     this.state = {
       timeS: 0,
@@ -180,6 +243,8 @@ export class RideSession {
       ergCommandW: null,
       ergState: null,
       workout: null,
+      segment: null,
+      ghost: null,
       paused: false,
       powerStale: true,
       goalReached: false,
@@ -385,6 +450,20 @@ export class RideSession {
     else this.pause();
   }
 
+  /** A controller that takes over must send its command at once. */
+  private enterMode(mode: 'grade' | 'erg' | 'gearPower'): void {
+    if (mode === this.trainerMode) return;
+    this.trainerMode = mode;
+    if (mode === 'grade') this.trainer.invalidate();
+    else if (mode === 'gearPower') this.gearPower.invalidate();
+    else this.erg?.invalidate();
+  }
+
+  /** Power the realistic strategy (S3) currently asks of the trainer, or null when it is not driving it. */
+  get gearPowerW(): number | null {
+    return this.trainerMode === 'gearPower' ? this.gearPower.commandW : null;
+  }
+
   /** One fixed simulation step. */
   step(dtS: number): { command: TrainerCommand | null; sample: RideSample | null } {
     const s = this.state;
@@ -403,6 +482,7 @@ export class RideSession {
     // The trainer keeps receiving its command even when paused (no jolt on resume).
     let command: TrainerCommand | null;
     if (this.erg) {
+      this.enterMode('erg');
       const u = this.erg.update(dtS, {
         cadenceRpm: inp.cadenceKnown ? inp.cadenceRpm : null,
         paused: s.paused,
@@ -412,7 +492,30 @@ export class RideSession {
       s.ergState = this.erg.state;
       if (u.event === 'spiral') this.emit({ type: 'ergSpiral' });
       else if (u.event === 'recovered') this.emit({ type: 'ergRecovered' });
+    } else if (this.gearbox && this.config.strategy === 'realistic' && inp.cadenceKnown) {
+      this.enterMode('gearPower');
+      const u = this.gearPower.update(dtS, {
+        cadenceRpm: inp.cadenceRpm,
+        paused: s.paused,
+        ratio: this.gearbox.gear.ratio,
+        wheelCircumferenceM: this.gearbox.config.wheelCircumferenceM,
+        gradePercent: feltGrade(s.gradePercent, this.trainer.options),
+        resistiveForceN: (speedMs, gradePercent) =>
+          resistiveForceN(
+            speedMs,
+            {
+              powerW: 0,
+              gradePercent,
+              airDensity: airDensityAtAltitude(s.altitudeM),
+              draftFactor: 0,
+            },
+            this.params,
+          ),
+        efficiency: this.params.drivetrainEfficiency,
+      });
+      command = u.powerW === null ? null : { kind: 'erg', powerW: u.powerW };
     } else {
+      this.enterMode('grade');
       command = this.trainer.update(dtS, {
         gradePercent: s.gradePercent,
         gearRatio: this.gearbox?.gear.ratio ?? null,
@@ -463,6 +566,9 @@ export class RideSession {
       s.lapTimeS = s.timeS;
     }
 
+    this.updateSegments();
+    this.updateGhost();
+
     const sample = this.recorder.step(dtS, {
       powerW: s.powerW,
       cadenceRpm: s.cadenceRpm,
@@ -478,6 +584,81 @@ export class RideSession {
     if (sample) this.lastSample = sample;
     this.checkGoal();
     return { command, sample };
+  }
+
+  /** Best known time of a segment: stored record or earlier effort of this ride. */
+  private segmentBestOf(id: string): number | null {
+    const stored = this.config.segmentBest?.(id) ?? null;
+    const local = this.segmentBests.get(id) ?? null;
+    if (stored === null) return local;
+    return local === null ? stored : Math.min(stored, local);
+  }
+
+  private updateGhost() {
+    const ghost = this.config.ghost;
+    if (!ghost) return;
+    const s = this.state;
+    const distanceM = ghost.distanceAt(s.timeS);
+    const at = ghost.timeAt(s.distanceM);
+    const prev = s.ghost?.distanceM ?? distanceM;
+    s.ghost = {
+      kind: ghost.kind,
+      label: ghost.label,
+      distanceM,
+      prevDistanceM: prev,
+      gapM: s.distanceM - distanceM,
+      gapS: at === null ? null : s.timeS - at,
+      finished: ghost.finishedAt(s.timeS),
+    };
+  }
+
+  private updateSegments() {
+    const s = this.state;
+    for (const ev of this.segments.update(s.timeS, s.distanceM)) {
+      if (ev.kind === 'start') {
+        this.emit({
+          type: 'segmentStart',
+          segment: ev.segment,
+          pbS: this.segmentBestOf(ev.segment.id),
+        });
+        continue;
+      }
+      const previousBestS = this.segmentBestOf(ev.segment.id);
+      const isPb = previousBestS === null || ev.durationS < previousBestS;
+      if (isPb) this.segmentBests.set(ev.segment.id, ev.durationS);
+      const effort = this.recorder.markSegment({
+        segmentId: ev.segment.id,
+        name: ev.segment.name,
+        type: ev.segment.type,
+        lap: ev.lap,
+        startS: ev.startS,
+        endS: ev.endS,
+        durationS: ev.durationS,
+        lengthM: ev.segment.endM - ev.segment.startM,
+        previousBestS,
+        isPb,
+      });
+      this.emit({ type: 'segmentEnd', effort });
+    }
+    const act = this.segments.active;
+    if (!act) {
+      s.segment = null;
+      return;
+    }
+    const lengthM = act.segment.endM - act.segment.startM;
+    const doneM = Math.max(0, Math.min(lengthM, s.distanceM - (act.endDistanceM - lengthM)));
+    const elapsedS = s.timeS - act.startS;
+    const pbS = this.segmentBestOf(act.segment.id);
+    s.segment = {
+      id: act.segment.id,
+      name: act.segment.name,
+      type: act.segment.type,
+      lengthM,
+      elapsedS,
+      remainingM: lengthM - doneM,
+      pbS,
+      deltaS: pbS === null || doneM < 50 ? null : elapsedS - pbS * (doneM / lengthM),
+    };
   }
 
   private checkGoal() {

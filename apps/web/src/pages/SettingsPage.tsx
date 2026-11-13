@@ -1,5 +1,14 @@
-import { CASSETTE_SPEEDS, CASSETTES, type CassetteSpeeds } from '@hrt/drivetrain';
-import type { ReactNode } from 'react';
+import {
+  CASSETTE_SPEEDS,
+  CASSETTES,
+  type CassetteSpeeds,
+  MAX_CHAINRINGS,
+  MAX_COGS,
+  parseTeeth,
+  physicalRatio,
+  ROAD_CHAINRINGS,
+} from '@hrt/drivetrain';
+import { type ReactNode, useState } from 'react';
 import { errorLog } from '../error-log';
 import { useT } from '../i18n';
 import {
@@ -21,6 +30,36 @@ function Field({ label, children, help }: { label: string; children: ReactNode; 
       {children}
       {help && <small className="muted">{help}</small>}
     </label>
+  );
+}
+
+/** Teeth list typed as text; the setting is only updated while the text is valid. */
+function TeethInput({
+  value,
+  maxCount,
+  disabled,
+  onValid,
+}: {
+  value: readonly number[];
+  maxCount: number;
+  disabled?: boolean;
+  onValid: (teeth: number[]) => void;
+}) {
+  const [text, setText] = useState(value.join(', '));
+  const invalid = parseTeeth(text, maxCount) === null;
+  return (
+    <input
+      type="text"
+      value={text}
+      disabled={disabled}
+      aria-invalid={invalid}
+      style={invalid ? { borderColor: 'var(--danger, #d33)' } : undefined}
+      onChange={(e) => {
+        setText(e.target.value);
+        const teeth = parseTeeth(e.target.value, maxCount);
+        if (teeth) onValid(teeth);
+      }}
+    />
   );
 }
 
@@ -132,10 +171,55 @@ export function SettingsPage() {
           />
           {t('settings.virtualShifting')}
         </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={s.customDrivetrain !== null}
+            disabled={!s.virtualShifting}
+            onChange={(e) =>
+              updateSettings({
+                customDrivetrain: e.target.checked
+                  ? { chainrings: [...ROAD_CHAINRINGS], cassette: [...CASSETTES[s.cassetteSpeeds]] }
+                  : null,
+              })
+            }
+          />
+          {t('settings.customDrivetrain')}
+        </label>
+        {s.virtualShifting && s.customDrivetrain && (
+          <>
+            <Field label={t('settings.customChainrings')} help={t('settings.teethHelp')}>
+              <TeethInput
+                value={s.customDrivetrain.chainrings}
+                maxCount={MAX_CHAINRINGS}
+                onValid={(chainrings) =>
+                  updateSettings((cur) =>
+                    cur.customDrivetrain
+                      ? { customDrivetrain: { ...cur.customDrivetrain, chainrings } }
+                      : {},
+                  )
+                }
+              />
+            </Field>
+            <Field label={t('settings.customCassette')} help={t('settings.teethHelp')}>
+              <TeethInput
+                value={s.customDrivetrain.cassette}
+                maxCount={MAX_COGS}
+                onValid={(cassette) =>
+                  updateSettings((cur) =>
+                    cur.customDrivetrain
+                      ? { customDrivetrain: { ...cur.customDrivetrain, cassette } }
+                      : {},
+                  )
+                }
+              />
+            </Field>
+          </>
+        )}
         <Field label={t('settings.cassette')}>
           <select
             value={s.cassetteSpeeds}
-            disabled={!s.virtualShifting}
+            disabled={!s.virtualShifting || s.customDrivetrain !== null}
             onChange={(e) =>
               updateSettings({ cassetteSpeeds: Number(e.target.value) as CassetteSpeeds })
             }
@@ -150,6 +234,53 @@ export function SettingsPage() {
               </option>
             ))}
           </select>
+        </Field>
+        <Field label={t('settings.strategy')} help={t('settings.strategyHelp')}>
+          <select
+            value={s.shiftingStrategy}
+            disabled={!s.virtualShifting}
+            onChange={(e) =>
+              updateSettings({ shiftingStrategy: e.target.value as Settings['shiftingStrategy'] })
+            }
+          >
+            <option value="grade">{t('settings.strategy.grade')}</option>
+            <option value="realistic">{t('settings.strategy.realistic')}</option>
+          </select>
+        </Field>
+        <Field
+          label={t('settings.physicalGear')}
+          help={(() => {
+            const r = physicalRatio(s.physicalChainring, s.physicalCog);
+            return t('settings.physicalGearHelp', { ratio: r === null ? '—' : r.toFixed(2) });
+          })()}
+        >
+          <div className="row">
+            <input
+              type="number"
+              min={8}
+              max={70}
+              placeholder={t('settings.physicalChainring')}
+              value={s.physicalChainring ?? ''}
+              onChange={(e) =>
+                updateSettings({
+                  physicalChainring: e.target.value === '' ? null : num(e.target.value, 8, 70),
+                })
+              }
+            />
+            <span>×</span>
+            <input
+              type="number"
+              min={8}
+              max={70}
+              placeholder={t('settings.physicalCog')}
+              value={s.physicalCog ?? ''}
+              onChange={(e) =>
+                updateSettings({
+                  physicalCog: e.target.value === '' ? null : num(e.target.value, 8, 70),
+                })
+              }
+            />
+          </div>
         </Field>
         <Field label={t('settings.powerSource')}>
           <select

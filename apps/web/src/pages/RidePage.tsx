@@ -1,11 +1,13 @@
-import { parseRouteId, type Route } from '@hrt/route-engine';
+import { parseRouteId, type Route, withSegments } from '@hrt/route-engine';
 import type { Workout } from '@hrt/workouts';
 import { useEffect, useMemo, useState } from 'react';
-import { formatDelta, formatDuration } from '../format';
+import { formatDelta, formatDuration, formatter } from '../format';
 import { DevCameraPanel } from '../hud/DevCameraPanel';
 import { Hud, useLiveState } from '../hud/Hud';
 import { useT } from '../i18n';
 import type { RideAction } from '../ride/actions';
+import type { Ghost } from '../ride/ghost';
+import { loadGhost } from '../ride/ghost-loader';
 import { DEFAULT_WORKOUT_FTP_W } from '../ride/ride-session';
 import { type RideGoal, useRideController } from '../ride/useRideController';
 import { navigate } from '../router';
@@ -28,6 +30,7 @@ import {
   WorldView,
 } from '../world/WorldView';
 import { loadWorld, type WorldData } from '../world/world-data';
+import { useLocalized } from './common';
 
 function parseGoal(raw: string | null): RideGoal | null {
   if (!raw) return null;
@@ -51,12 +54,15 @@ export default function RidePage({
   routeId,
   goal,
   workoutId = null,
+  ghostId = null,
   devView,
 }: {
   worldId: string;
   routeId: string;
   goal: string | null;
   workoutId?: string | null;
+  /** `best` (best lap of the route) or a ride id (lot 3.6). */
+  ghostId?: string | null;
   devView?: DevView;
 }) {
   const t = useT();
@@ -83,10 +89,24 @@ export default function RidePage({
   const route = useMemo(() => {
     const { baseId, reversed } = parseRouteId(routeId);
     const base = world?.data.routes.get(baseId);
-    return base && reversed ? base.reversed() : base;
+    const ridden = base && reversed ? base.reversed() : base;
+    // Timed segments (lot 3.5): detected on the route as ridden, in either direction.
+    return ridden ? withSegments(ridden) : ridden;
   }, [world, routeId]);
   const parsedGoal = useMemo(() => parseGoal(goal), [goal]);
   const workout = useMemo(() => findWorkout(workoutId), [workoutId]);
+  // The ghost comes from the stored rides: the ride starts once it is loaded.
+  const [ghost, setGhost] = useState<Ghost | null | 'loading'>(ghostId ? 'loading' : null);
+  useEffect(() => {
+    if (!ghostId) return;
+    let cancelled = false;
+    void loadGhost(routeId, ghostId, getSettings().language).then((g) => {
+      if (!cancelled) setGhost(g);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [routeId, ghostId]);
   if (error) {
     return (
       <main className="page">
@@ -96,7 +116,7 @@ export default function RidePage({
       </main>
     );
   }
-  if (!world || !route) {
+  if (!world || !route || ghost === 'loading') {
     return (
       <main className="page loading">
         <p>{t('ride.loading')}</p>
@@ -114,6 +134,7 @@ export default function RidePage({
       routeId={routeId}
       devView={devView ?? { atM: 0, camera: null }}
       workout={workout}
+      ghost={ghost}
     />
   );
 }
@@ -127,6 +148,7 @@ function RideRunning({
   routeId,
   devView,
   workout,
+  ghost,
 }: {
   world: WorldData;
   built: BuiltWorld;
@@ -136,10 +158,12 @@ function RideRunning({
   routeId: string;
   devView: DevView;
   workout: Workout | null;
+  ghost: Ghost | null;
 }) {
   const t = useT();
+  const loc = useLocalized();
   const settings = useSettings();
-  const ride = useRideController(route, world.manifest.id, goal, workout);
+  const ride = useRideController(route, world.manifest.id, goal, workout, ghost);
   const { session, loop, dispatcher, toasts, pushToast, onEvent } = ride;
   const live = useLiveState(session.state, 4);
   const [hudVisible, setHudVisible] = useState(true);
@@ -177,6 +201,32 @@ function RideRunning({
       pushToast(`${e.label} · ${e.targetW} W`);
     } else if (e.type === 'workoutDone') {
       pushToast(t('ride.workoutDone'), 'good');
+    } else if (e.type === 'segmentStart') {
+      const f = formatter(settings.units, settings.language);
+      const length = `${f.distance(e.segment.endM - e.segment.startM, 1)} ${f.distanceUnit}`;
+      const name = loc(e.segment.name);
+      pushToast(
+        e.pbS === null
+          ? t('ride.segmentStart', { name, length })
+          : t('ride.segmentStartPb', { name, length, pb: formatDuration(e.pbS) }),
+      );
+    } else if (e.type === 'segmentEnd') {
+      const x = e.effort;
+      const name = loc(x.name);
+      const time = formatDuration(x.durationS);
+      if (x.isPb && x.previousBestS !== null) {
+        pushToast(t('ride.segmentPb', { name, time }), 'good');
+      } else if (x.previousBestS === null) {
+        pushToast(t('ride.segmentDone', { name, time }), 'good');
+      } else {
+        pushToast(
+          t('ride.segmentSlower', {
+            name,
+            time,
+            delta: formatDelta(x.durationS - x.previousBestS),
+          }),
+        );
+      }
     } else if (e.type === 'goal') {
       pushToast(t('ride.goalReached'), 'good');
     }
@@ -238,6 +288,7 @@ function RideRunning({
         route={route}
         view={view}
         alpha={alpha}
+        ghost={ghost !== null}
         camera={camera}
         freeCamera={
           free

@@ -1,8 +1,16 @@
 // Rider profile and app settings, persisted in localStorage (docs/07 §2.1).
 
-import { type CassetteSpeeds, DEFAULT_CASSETTE_SPEEDS, isCassetteSpeeds } from '@hrt/drivetrain';
+import {
+  type CassetteSpeeds,
+  type CustomDrivetrain,
+  DEFAULT_CASSETTE_SPEEDS,
+  isCassetteSpeeds,
+  MAX_CHAINRINGS,
+  MAX_COGS,
+  parseTeeth,
+} from '@hrt/drivetrain';
 import { useSyncExternalStore } from 'react';
-import type { PowerSource } from '../ride/ride-session';
+import type { PowerSource, ShiftingStrategy } from '../ride/ride-session';
 import { isRendererPreference, type RendererPreference } from '../world/renderer-options';
 
 export type Language = 'fr' | 'en';
@@ -35,6 +43,13 @@ export interface Settings {
   virtualShifting: boolean;
   /** Number of cogs of the virtual cassette (50/34 chainrings). */
   cassetteSpeeds: CassetteSpeeds;
+  /** The rider's own chainrings and cassette; null: the 50/34 preset above. */
+  customDrivetrain: CustomDrivetrain | null;
+  /** Chainring and cog really on the trainer (a Zwift Cog is one fixed cog), teeth; null: unknown. */
+  physicalChainring: number | null;
+  physicalCog: number | null;
+  /** `grade` (S1, default) or `realistic` (S3, experimental ERG driven by the gear). */
+  shiftingStrategy: ShiftingStrategy;
   powerSource: PowerSource;
   camera: CameraMode;
   hudSize: 'S' | 'M' | 'L' | 'XL';
@@ -73,6 +88,10 @@ export const defaultSettings = (): Settings => ({
   renderer: 'auto',
   virtualShifting: true,
   cassetteSpeeds: DEFAULT_CASSETTE_SPEEDS,
+  customDrivetrain: null,
+  physicalChainring: null,
+  physicalCog: null,
+  shiftingStrategy: 'grade',
   powerSource: 'trainer',
   camera: 'pov',
   hudSize: 'M',
@@ -80,6 +99,19 @@ export const defaultSettings = (): Settings => ({
 });
 
 const KEY = 'hrt.settings.v1';
+
+/** A saved custom drivetrain that still passes the same checks as the settings form. */
+function isCustomDrivetrain(v: unknown): v is CustomDrivetrain | null {
+  if (v === null) return true;
+  const c = v as Partial<CustomDrivetrain> | undefined;
+  return (
+    !!c &&
+    Array.isArray(c.chainrings) &&
+    Array.isArray(c.cassette) &&
+    parseTeeth(c.chainrings.join(' '), MAX_CHAINRINGS) !== null &&
+    parseTeeth(c.cassette.join(' '), MAX_COGS) !== null
+  );
+}
 
 function load(): Settings {
   const defaults = defaultSettings();
@@ -92,6 +124,14 @@ function load(): Settings {
     // Older settings: drivetrain presets became a cassette size.
     delete (saved as Record<string, unknown>).drivetrainPreset;
     if (!isCassetteSpeeds(saved.cassetteSpeeds)) delete saved.cassetteSpeeds;
+    if (!isCustomDrivetrain(saved.customDrivetrain)) delete saved.customDrivetrain;
+    if (saved.shiftingStrategy !== 'grade' && saved.shiftingStrategy !== 'realistic') {
+      delete saved.shiftingStrategy;
+    }
+    for (const key of ['physicalChainring', 'physicalCog'] as const) {
+      const v = saved[key];
+      if (v !== null && !(Number.isInteger(v) && (v as number) > 0)) delete saved[key];
+    }
     if (!QUALITY_SETTINGS.includes(saved.quality as QualitySetting)) delete saved.quality;
     if (!isRendererPreference(saved.renderer)) delete saved.renderer;
     return { ...defaults, ...saved, profile: { ...defaults.profile, ...saved.profile } };

@@ -1,5 +1,5 @@
 import { computeStats } from './stats';
-import type { LapTrigger, RideHeader, RideLap, RideSample } from './types';
+import type { LapTrigger, RideHeader, RideLap, RideSample, SegmentEffort } from './types';
 
 export interface RecorderInput {
   powerW: number;
@@ -170,6 +170,26 @@ export class RideRecorder {
       bestLapS: loopTimes.length ? Math.min(...loopTimes) : null,
     };
     return lap;
+  }
+
+  /** Records a finished segment; its average power comes from the samples it covers. */
+  markSegment(effort: Omit<SegmentEffort, 'avgPowerW'>): SegmentEffort {
+    let sum = 0;
+    let count = 0;
+    for (let i = this._samples.length - 1; i >= 0; i--) {
+      const smp = this._samples[i] as RideSample;
+      if (smp.t <= effort.startS) break;
+      if (smp.t <= effort.endS + 1) {
+        sum += smp.powerW;
+        count++;
+      }
+    }
+    const full: SegmentEffort = {
+      ...effort,
+      avgPowerW: count > 0 ? Math.round(sum / count) : null,
+    };
+    this._header = { ...this._header, segments: [...(this._header.segments ?? []), full] };
+    return full;
   }
 
   finish(): RideHeader {

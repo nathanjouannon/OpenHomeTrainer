@@ -132,6 +132,40 @@ export function SummaryPage({ rideId }: { rideId: string }) {
           />
         )}
       </section>
+      {(header.segments?.length ?? 0) > 0 && (
+        <section>
+          <h2>{t('summary.segments')}</h2>
+          <table className="laps segments">
+            <thead>
+              <tr>
+                <th>{t('summary.segment')}</th>
+                <th>{t('summary.lap')}</th>
+                <th>{t('summary.time')}</th>
+                <th>{t('summary.distance')}</th>
+                <th>{t('summary.avgPower')}</th>
+                <th>{t('summary.segmentPrevious')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {header.segments?.map((x) => (
+                <tr key={`${x.segmentId}-${x.lap}`}>
+                  <td>{loc(x.name)}</td>
+                  <td>{x.lap}</td>
+                  <td className={x.isPb ? 'pb' : ''}>
+                    {formatDuration(x.durationS)}
+                    {x.isPb && <small> {t('summary.segmentPb')}</small>}
+                  </td>
+                  <td>
+                    {f.distance(x.lengthM, 2)} {f.distanceUnit}
+                  </td>
+                  <td>{x.avgPowerW === null ? '—' : `${x.avgPowerW} W`}</td>
+                  <td>{x.previousBestS === null ? '—' : formatDuration(x.previousBestS)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       {header.laps.length > 0 && (
         <section>
           <h2>{t('summary.laps')}</h2>

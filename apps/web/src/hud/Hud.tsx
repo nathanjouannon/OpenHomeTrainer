@@ -3,8 +3,9 @@
 import type { Route } from '@hrt/route-engine';
 import type { Interval } from '@hrt/workouts';
 import { useEffect, useState } from 'react';
-import { formatDuration, formatter, gradeBand } from '../format';
+import { formatDelta, formatDuration, formatter, gradeBand } from '../format';
 import { useT } from '../i18n';
+import { useLocalized } from '../pages/common';
 import type { LiveState } from '../ride/ride-session';
 import { useSettings } from '../store/settings';
 import { ElevationProfile, MiniMap } from './charts';
@@ -58,6 +59,7 @@ export function Hud({
   ftpW?: number;
 }) {
   const t = useT();
+  const loc = useLocalized();
   const settings = useSettings();
   const f = formatter(settings.units, settings.language);
   const s = useLiveState(state);
@@ -90,9 +92,43 @@ export function Hud({
                 .join(' · ')}
             />
           )}
+          {s.ghost && (
+            <Tile
+              className={`tile-ghost ${s.ghost.gapM >= 0 ? 'ghost-ahead' : 'ghost-behind'}`}
+              label={
+                s.ghost.kind === 'bestLap'
+                  ? t('hud.ghostBest')
+                  : t('hud.ghostRide', { date: s.ghost.label })
+              }
+              value={s.ghost.gapS === null ? '—' : formatDelta(s.ghost.gapS)}
+              sub={`${f.elevation(Math.abs(s.ghost.gapM))} ${f.elevationUnit} ${
+                s.ghost.gapM >= 0 ? t('hud.ghostAhead') : t('hud.ghostBehind')
+              }`}
+            />
+          )}
         </div>
         <MiniMap route={route} lapDistanceM={s.lapDistanceM} />
       </div>
+      {s.segment && (
+        <div className="segment-banner">
+          <span className="tile-label">
+            {loc(s.segment.name)} · {f.distance(s.segment.remainingM, 2)} {f.distanceUnit}{' '}
+            {t('hud.segmentLeft')}
+          </span>
+          <span className="segment-time">{formatDuration(s.segment.elapsedS)}</span>
+          {s.segment.pbS !== null && (
+            <span className="tile-sub">
+              {t('hud.segmentPb')} {formatDuration(s.segment.pbS)}
+              {s.segment.deltaS !== null && (
+                <b className={s.segment.deltaS <= 0 ? 'delta-good' : 'delta-bad'}>
+                  {' '}
+                  {formatDelta(s.segment.deltaS)}
+                </b>
+              )}
+            </span>
+          )}
+        </div>
+      )}
       {s.workout && (
         <div className="workout-banner">
           <div className="workout-now">

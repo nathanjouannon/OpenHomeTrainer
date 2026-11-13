@@ -1,16 +1,25 @@
-import { parseRouteId, REVERSE_SUFFIX, type Route, type WorldManifest } from '@hrt/route-engine';
+import type { RideHeader } from '@hrt/recorder';
+import {
+  parseRouteId,
+  REVERSE_SUFFIX,
+  type Route,
+  type WorldManifest,
+  withSegments,
+} from '@hrt/route-engine';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDuration, formatter } from '../format';
 import { ElevationProfile, MiniMap } from '../hud/charts';
 import { useT } from '../i18n';
 import { estimateLapTimeS } from '../ride/estimate';
+import { BEST_LAP_GHOST, bestLapRide } from '../ride/ghost';
 import { navigate, parseHash } from '../router';
 import { deviceHub } from '../store/devices';
 import { rideStore } from '../store/rides';
+import { getSegmentBest } from '../store/segments';
 import { CDA_BY_BIKE, useSettings } from '../store/settings';
 import { useWorkouts } from '../store/workouts';
 import { fetchManifest, fetchRoute } from '../world/world-data';
-import { Page, useLocalized } from './common';
+import { formatDate, Page, useLocalized } from './common';
 
 export const DEFAULT_WORLD_ID = 'world-1';
 
@@ -27,6 +36,8 @@ export function RoutesPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [best, setBest] = useState<Record<string, number>>({});
   const [reverse, setReverse] = useState(false);
+  const [rides, setRides] = useState<RideHeader[]>([]);
+  const [ghostId, setGhostId] = useState('');
   const [goalKind, setGoalKind] = useState<GoalKind>('none');
   const [goalValue, setGoalValue] = useState(60);
   const workouts = useWorkouts();
@@ -46,6 +57,7 @@ export function RoutesPage() {
       })
       .catch(() => setError(true));
     void rideStore.listHeaders().then((rides) => {
+      setRides(rides);
       const map: Record<string, number> = {};
       for (const r of rides) {
         if (r.route && r.bestLapS !== null) {
@@ -76,6 +88,34 @@ export function RoutesPage() {
 
   const reversedRoutes = useMemo(() => routes.map((r) => r.reversed()), [routes]);
   const shownRoutes = reverse ? reversedRoutes : routes;
+  const selectedRoute = useMemo(() => {
+    const r = shownRoutes.find((x) => parseRouteId(x.id).baseId === selected);
+    return r ? withSegments(r) : null;
+  }, [shownRoutes, selected]);
+
+  // Ghosts (lot 3.6): earlier rides of the route as ridden (same direction).
+  const ghostRides = useMemo(
+    () =>
+      selectedRoute
+        ? rides
+            .filter(
+              (r) =>
+                r.status === 'finished' &&
+                r.route?.id === selectedRoute.id &&
+                r.distanceM >= 50 &&
+                r.durationS > 0,
+            )
+            .slice(0, 10)
+        : [],
+    [rides, selectedRoute],
+  );
+  const bestRide = useMemo(
+    () => (selectedRoute ? bestLapRide(rides, selectedRoute.id) : null),
+    [rides, selectedRoute],
+  );
+  // A ghost belongs to one route and direction.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when the route or direction changes
+  useEffect(() => setGhostId(''), [selected, reverse]);
 
   const start = () => {
     if (!manifest || !selected) return;
@@ -90,6 +130,7 @@ export function RoutesPage() {
       q.set('goal', `${goalKind}:${value}`);
     }
     if (workoutId) q.set('workout', workoutId);
+    if (ghostId) q.set('ghost', ghostId);
     navigate(
       `/ride/${manifest.id}/${selected}${reverse ? REVERSE_SUFFIX : ''}${q.size ? `?${q}` : ''}`,
     );
@@ -145,6 +186,27 @@ export function RoutesPage() {
               );
             })}
           </div>
+          {selectedRoute && selectedRoute.meta.segments.length > 0 && (
+            <fieldset className="goal">
+              <legend>{t('routes.segments')}</legend>
+              <ul className="segment-list">
+                {selectedRoute.meta.segments.map((seg) => {
+                  const pb = getSegmentBest(selectedRoute.id, seg.id);
+                  return (
+                    <li key={seg.id}>
+                      <strong>{loc(seg.name)}</strong> · {f.distance(seg.endM - seg.startM, 1)}{' '}
+                      {f.distanceUnit} ·{' '}
+                      <span className="muted">
+                        {pb === null
+                          ? t('routes.segmentNone')
+                          : t('routes.segmentRecord', { time: formatDuration(pb) })}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
+          )}
           <fieldset className="goal">
             <legend>{t('routes.direction')}</legend>
             <select
@@ -155,6 +217,27 @@ export function RoutesPage() {
               <option value="reverse">{t('routes.direction.reverse')}</option>
             </select>
           </fieldset>
+          {(bestRide || ghostRides.length > 0) && (
+            <fieldset className="goal">
+              <legend>{t('routes.ghost')}</legend>
+              <select value={ghostId} onChange={(e) => setGhostId(e.target.value)}>
+                <option value="">{t('routes.ghost.none')}</option>
+                {bestRide?.bestLapS != null && (
+                  <option value={BEST_LAP_GHOST}>
+                    {t('routes.ghost.best', { time: formatDuration(bestRide.bestLapS) })}
+                  </option>
+                )}
+                {ghostRides.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {t('routes.ghost.ride', {
+                      date: formatDate(r.startedAt, settings.language),
+                      time: formatDuration(r.durationS),
+                    })}
+                  </option>
+                ))}
+              </select>
+            </fieldset>
+          )}
           <fieldset className="goal">
             <legend>{t('routes.workout')}</legend>
             <select value={workoutId} onChange={(e) => setWorkoutId(e.target.value)}>

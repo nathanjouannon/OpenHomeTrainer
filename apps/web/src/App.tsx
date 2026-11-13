@@ -36,11 +36,12 @@ export function App() {
       return (
         <Suspense fallback={loading}>
           <RidePage
-            key={`${worldId}/${routeId}/${query.get('workout') ?? ''}`}
+            key={`${worldId}/${routeId}/${query.get('workout') ?? ''}/${query.get('ghost') ?? ''}`}
             worldId={worldId}
             routeId={routeId}
             goal={query.get('goal')}
             workoutId={query.get('workout')}
+            ghostId={query.get('ghost')}
             devView={{
               atM: Number(query.get('at')) || 0,
               camera: query.get('camera'),
