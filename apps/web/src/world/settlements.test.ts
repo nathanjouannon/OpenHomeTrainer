@@ -91,7 +91,13 @@ describe('settlements on a synthetic world', () => {
 
 const WORLD_DIR = resolve(import.meta.dirname, '../../public/worlds/world-1');
 
-describe.runIf(existsSync(resolve(WORLD_DIR, 'world.json')))('settlements of world-1', () => {
+// vitest still runs the body of a skipped describe to collect its tests, so
+// the world is only read when it has been built (it is not in git, nor in CI).
+describe('settlements of world-1', () => {
+  if (!existsSync(resolve(WORLD_DIR, 'world.json'))) {
+    it.skip('needs the built world (pnpm build-world)', () => {});
+    return;
+  }
   const manifest = JSON.parse(
     readFileSync(resolve(WORLD_DIR, 'world.json'), 'utf8'),
   ) as WorldManifest;
