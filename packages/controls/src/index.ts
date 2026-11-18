@@ -5,3 +5,4 @@ export * from './hub';
 export * from './obc';
 export * from './profiles';
 export * from './remote';
+export * from './zwift';

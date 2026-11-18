@@ -14,11 +14,15 @@ import {
   parseHostMessage,
   parsePhoneMessage,
   parseProfile,
+  parseZwiftBattery,
+  parseZwiftButtons,
   REMOTE_BUTTONS,
   RemoteButtonTracker,
   type Timers,
   withBinding,
   withoutBinding,
+  ZWIFT_BUTTON_BITS,
+  ZwiftButtonTracker,
 } from './index';
 
 class FakeTimers implements Timers {
@@ -343,5 +347,109 @@ describe('smartphone remote (lot 3.10)', () => {
     expect(parseHostMessage('{"t":"left","r":"x"}')).toEqual({ t: 'left', r: 'x' });
     expect(parseHostMessage('{"t":"press","b":"pause"}')).toBeNull();
     expect(parseHostMessage('{"t":"peers","remotes":2}')).toEqual({ t: 'peers', remotes: 2 });
+  });
+});
+
+describe('Zwift Click v2', () => {
+  // Messages seen on the developer's pair (docs/15 §1.4).
+  const msg = (...b: number[]) => Uint8Array.from(b);
+  const REST = msg(0x23, 0x08, 0xff, 0xff, 0xff, 0xff, 0x0f);
+  const LEFT_MINUS = msg(0x23, 0x08, 0xff, 0xfd, 0xff, 0xff, 0x0f); // bit 8
+  const LEFT_DOWN = msg(0x23, 0x08, 0xf7, 0xff, 0xff, 0xff, 0x0f); // bit 3
+  const RIGHT_PLUS = msg(0x23, 0x08, 0xff, 0xdf, 0xff, 0xff, 0x0f); // bit 12
+  const RIGHT_Z = msg(0x23, 0x08, 0xff, 0xfe, 0xff, 0xff, 0x0f); // bit 7
+
+  it('reads which button is held, 7 bits per byte', () => {
+    expect(parseZwiftButtons(REST)).toEqual([]);
+    expect(parseZwiftButtons(LEFT_MINUS)).toEqual(['minus']);
+    expect(parseZwiftButtons(LEFT_DOWN)).toEqual(['down']);
+    expect(parseZwiftButtons(RIGHT_PLUS)).toEqual(['plus']);
+    expect(parseZwiftButtons(RIGHT_Z)).toEqual(['z']);
+    expect(parseZwiftButtons(msg(0x23, 0x08, 0xef, 0xff, 0xff, 0xff, 0x0f))).toEqual(['a']);
+    expect(parseZwiftButtons(msg(0x23, 0x08, 0xdf, 0xff, 0xff, 0xff, 0x0f))).toEqual(['b']);
+    expect(parseZwiftButtons(msg(0x23, 0x08, 0xbf, 0xff, 0xff, 0xff, 0x0f))).toEqual(['y']);
+    expect(parseZwiftButtons(msg(0x23, 0x08, 0xfe, 0xff, 0xff, 0xff, 0x0f))).toEqual(['left']);
+    expect(parseZwiftButtons(msg(0x23, 0x08, 0xfd, 0xff, 0xff, 0xff, 0x0f))).toEqual(['up']);
+    expect(parseZwiftButtons(msg(0x23, 0x08, 0xfb, 0xff, 0xff, 0xff, 0x0f))).toEqual(['right']);
+  });
+
+  it('knows the ten buttons and ignores other messages', () => {
+    expect(Object.keys(ZWIFT_BUTTON_BITS)).toHaveLength(10);
+    expect(parseZwiftButtons(msg(0x19, 0x10, 0x5a))).toBeNull();
+    expect(parseZwiftButtons(msg(0x23, 0x08))).toBeNull();
+    expect(parseZwiftButtons(msg(0x2a, 0x08, 0x03))).toBeNull();
+  });
+
+  it('reads the battery', () => {
+    expect(parseZwiftBattery(msg(0x19, 0x10, 0x5a))).toBe(90);
+    expect(parseZwiftBattery(REST)).toBeNull();
+    expect(parseZwiftBattery(msg(0x19, 0x10, 0xff))).toBeNull();
+  });
+
+  it('gives one press and one release, however often the Click repeats the state', () => {
+    const t = new ZwiftButtonTracker();
+    expect(t.update('left', REST)).toEqual([]);
+    const down = t.update('left', LEFT_MINUS);
+    expect(down).toEqual([
+      { source: 'zwift', deviceId: 'zwift', control: 'button:minus', type: 'press' },
+    ]);
+    expect(t.update('left', LEFT_MINUS)).toEqual([]);
+    expect(t.update('left', REST).map((e) => e.type)).toEqual(['release']);
+    expect(t.update('left', REST)).toEqual([]);
+  });
+
+  it('counts a press once when the left Click relays the right one', () => {
+    const t = new ZwiftButtonTracker();
+    // Both connections report the same press, a few milliseconds apart.
+    expect(t.update('right', RIGHT_PLUS).map((e) => e.type)).toEqual(['press']);
+    expect(t.update('left', RIGHT_PLUS)).toEqual([]);
+    // The release comes from one connection first: the button is still held by the other.
+    expect(t.update('right', REST)).toEqual([]);
+    expect(t.update('left', REST).map((e) => `${e.control}:${e.type}`)).toEqual([
+      'button:plus:release',
+    ]);
+  });
+
+  it('keeps buttons of both units apart', () => {
+    const t = new ZwiftButtonTracker();
+    t.update('left', LEFT_MINUS);
+    t.update('right', RIGHT_PLUS);
+    expect(t.update('left', REST).map((e) => e.control)).toEqual(['button:minus']);
+    expect(t.update('right', REST).map((e) => e.control)).toEqual(['button:plus']);
+  });
+
+  it('releases what a vanished connection held, but not what another still holds', () => {
+    const t = new ZwiftButtonTracker();
+    t.update('left', LEFT_MINUS);
+    t.update('right', RIGHT_PLUS);
+    expect(t.drop('left').map((e) => e.control)).toEqual(['button:minus']);
+    // The relayed press of the right unit is held by both connections.
+    t.update('left', RIGHT_PLUS);
+    expect(t.drop('left')).toEqual([]);
+    expect(t.drop('right').map((e) => e.control)).toEqual(['button:plus']);
+    expect(t.drop('right')).toEqual([]);
+  });
+
+  it('shifts through the default profile, with repeat while held', () => {
+    const timers = new FakeTimers();
+    const hub = new InputHub({ profile: defaultProfile(), timers });
+    const fired: ControlAction[] = [];
+    hub.on('shiftUp', () => fired.push('shiftUp'));
+    hub.on('shiftDown', () => fired.push('shiftDown'));
+    const t = new ZwiftButtonTracker();
+    for (const e of t.update('left', RIGHT_PLUS)) hub.handle(e);
+    timers.advance(1000);
+    for (const e of t.update('left', REST)) hub.handle(e);
+    for (const e of t.update('left', LEFT_MINUS)) hub.handle(e);
+    for (const e of t.update('left', REST)) hub.handle(e);
+    expect(fired.filter((a) => a === 'shiftUp').length).toBeGreaterThan(2);
+    expect(fired.filter((a) => a === 'shiftDown')).toHaveLength(1);
+  });
+
+  it('survives a profile round trip with the zwift source', () => {
+    const profile = defaultProfile();
+    expect(profile.bindings.some((b) => b.source === 'zwift')).toBe(true);
+    const back = parseProfile(JSON.parse(JSON.stringify(profile)));
+    expect(back?.bindings.filter((b) => b.source === 'zwift')).toHaveLength(10);
   });
 });

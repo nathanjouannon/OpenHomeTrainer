@@ -1,5 +1,6 @@
 import type { SensorReading } from '@hrt/devices';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { zwiftControllers } from '../controls/runtime';
 import { type MessageKey, useT } from '../i18n';
 import { navigate } from '../router';
 import { deviceHub, ROLES, type Role, useDevices } from '../store/devices';
@@ -96,6 +97,87 @@ function DeviceCard({ role }: { role: Role }) {
   );
 }
 
+function useZwift() {
+  return useSyncExternalStore(
+    (cb) => zwiftControllers.onChange(cb),
+    () => zwiftControllers.list,
+  );
+}
+
+/** Zwift Click controllers (lot 3.11): same connect, disconnect and forget as the sensors. */
+function ZwiftCard() {
+  const t = useT();
+  const clicks = useZwift();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setError(null);
+    fn()
+      .catch((e: unknown) => {
+        if ((e as { name?: string }).name === 'NotFoundError') return; // picker closed
+        setError(
+          (e as Error).message === 'bluetooth-unavailable'
+            ? t('controls.noBluetooth')
+            : t('controls.pairFailed'),
+        );
+      })
+      .finally(() => setBusy(false));
+  };
+  const anyConnected = clicks.some((c) => c.status === 'connected');
+
+  return (
+    <section className={`device-card status-${anyConnected ? 'connected' : 'disconnected'}`}>
+      <header>
+        <h2>{t('devices.zwift')}</h2>
+        <span className="status">
+          {t(`devices.status.${anyConnected ? 'connected' : 'disconnected'}`)}
+        </span>
+      </header>
+      {clicks.length === 0 && <p className="device-name">—</p>}
+      {clicks.map((c) => (
+        <div key={c.id}>
+          <p className="device-name">
+            {c.name} · {t(`devices.status.${c.status}`)}
+            {c.battery !== null && <> · {c.battery} %</>}
+          </p>
+          <div className="row">
+            {c.status === 'disconnected' ? (
+              <button
+                type="button"
+                className="primary"
+                disabled={busy}
+                onClick={() => run(() => c.connect())}
+              >
+                {t('devices.reconnect', { name: c.name })}
+              </button>
+            ) : (
+              <button type="button" onClick={() => c.disconnect()}>
+                {t('devices.disconnect')}
+              </button>
+            )}
+            <button type="button" className="link" onClick={() => zwiftControllers.forget(c.id)}>
+              {t('devices.forget')}
+            </button>
+          </div>
+        </div>
+      ))}
+      {error && <p className="error">{error}</p>}
+      <div className="row">
+        <button
+          type="button"
+          className={clicks.length ? '' : 'primary'}
+          disabled={busy || !deviceHub.bluetoothAvailable}
+          onClick={() => run(() => zwiftControllers.pair())}
+        >
+          {t('devices.connect')}
+        </button>
+      </div>
+      <p className="muted small">{t('controls.zwiftHelp')}</p>
+    </section>
+  );
+}
+
 export function DevicesPage() {
   const t = useT();
   return (
@@ -104,6 +186,7 @@ export function DevicesPage() {
         {ROLES.map((role) => (
           <DeviceCard key={role} role={role} />
         ))}
+        <ZwiftCard />
       </div>
       <button type="button" className="primary big" onClick={() => navigate('/routes')}>
         {t('devices.continue')} →

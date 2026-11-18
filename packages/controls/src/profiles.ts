@@ -1,7 +1,7 @@
 import { type ControlAction, isControlAction } from './actions';
 import type { Binding, BindingType, InputSource, Profile } from './events';
 
-const SOURCES: readonly InputSource[] = ['keyboard', 'gamepad', 'obc', 'remote'];
+const SOURCES: readonly InputSource[] = ['keyboard', 'gamepad', 'obc', 'zwift', 'remote'];
 const TYPES: readonly BindingType[] = ['press', 'long_press', 'double_press'];
 const SHIFT_REPEAT_MS = 250;
 
@@ -101,6 +101,28 @@ export const OBC_SUPPORTED_BUTTONS: readonly number[] = [
   0x01, 0x02, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x3c, 0x40, 0x44,
 ];
 
+const zw = (button: string, action: ControlAction, repeat = false): Binding => ({
+  source: 'zwift',
+  control: `button:${button}`,
+  type: 'press',
+  action,
+  ...(repeat ? { repeatMs: SHIFT_REPEAT_MS } : {}),
+});
+
+/** Zwift Click v2 pair (docs/15 §1.4): right unit shifts up, left unit shifts down. */
+const ZWIFT: Binding[] = [
+  zw('plus', 'shiftUp', true),
+  zw('minus', 'shiftDown', true),
+  zw('up', 'ergUp', true),
+  zw('down', 'ergDown', true),
+  zw('right', 'cameraNext'),
+  zw('left', 'cameraPrev'),
+  zw('a', 'pause'),
+  zw('b', 'lap'),
+  zw('y', 'intervalNext'),
+  zw('z', 'ergToggle'),
+];
+
 const rem = (button: string, action: ControlAction, repeat = false): Binding => ({
   source: 'remote',
   control: `button:${button}`,
@@ -129,7 +151,7 @@ export function defaultProfile(): Profile {
   return {
     id: DEFAULT_PROFILE_ID,
     name: 'Default',
-    bindings: [...KEYBOARD, ...GAMEPAD, ...OBC, ...REMOTE].map((b) => ({ ...b })),
+    bindings: [...KEYBOARD, ...GAMEPAD, ...OBC, ...ZWIFT, ...REMOTE].map((b) => ({ ...b })),
   };
 }
 

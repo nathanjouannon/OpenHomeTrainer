@@ -168,8 +168,11 @@ class ObcRegistry {
 
   constructor(private readonly hub: InputHub) {}
 
+  private snapshot: readonly ObcController[] = [];
+
+  /** Same array until something changes: React compares it with Object.is. */
   get list(): readonly ObcController[] {
-    return [...this.controllers.values()];
+    return this.snapshot;
   }
 
   onChange(cb: () => void): () => void {
@@ -207,6 +210,7 @@ class ObcRegistry {
   }
 
   private emit() {
+    this.snapshot = [...this.controllers.values()];
     for (const l of this.listeners) l();
   }
 }

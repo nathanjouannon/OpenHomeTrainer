@@ -18,6 +18,7 @@ const fr = {
     'Web Bluetooth n’est pas disponible dans ce navigateur. Utilise Chrome ou Edge sur ordinateur pour connecter un vrai trainer ; le trainer simulé reste disponible.',
   'devices.title': 'Appareils',
   'devices.trainer': 'Home trainer',
+  'devices.zwift': 'Zwift Click (boutons)',
   'devices.heartrate': 'Ceinture cardio',
   'devices.powermeter': 'Capteur de puissance',
   'devices.connect': 'Connecter',
@@ -278,6 +279,10 @@ const fr = {
   'controls.pairObc': 'Appairer un contrôleur OpenBikeControl (Bluetooth)',
   'controls.obcHelp':
     'Contrôleur compatible OpenBikeControl, ou BikeControl lancé sur un smartphone (Zwift Click, Di2…). Sur le même ordinateur, la passerelle Bluetooth ne fonctionnera probablement pas.',
+  'controls.zwiftWhere':
+    'Zwift Click : connexion, déconnexion et oubli se gèrent sur la page Appareils.',
+  'controls.zwiftHelp':
+    'Allume le Click (appuie sur un bouton) et ferme Zwift et BikeControl : un Click n’accepte qu’un seul appareil. La manette gauche relaie les boutons de la droite, il suffit donc de connecter la gauche ; connecter les deux marche aussi. La LED du Click peut rester bleue clignotante : c’est normal.',
   'controls.noBluetooth':
     'Web Bluetooth n’est pas disponible dans ce navigateur (utilise Chrome ou Edge sur ordinateur).',
   'controls.pairFailed': 'Connexion impossible au contrôleur.',
@@ -359,6 +364,7 @@ const en: Record<MessageKey, string> = {
     'Web Bluetooth is not available in this browser. Use Chrome or Edge on a computer to connect a real trainer; the simulated trainer is still available.',
   'devices.title': 'Devices',
   'devices.trainer': 'Smart trainer',
+  'devices.zwift': 'Zwift Click (buttons)',
   'devices.heartrate': 'Heart rate belt',
   'devices.powermeter': 'Power meter',
   'devices.connect': 'Connect',
@@ -615,6 +621,9 @@ const en: Record<MessageKey, string> = {
   'controls.pairObc': 'Pair an OpenBikeControl controller (Bluetooth)',
   'controls.obcHelp':
     'OpenBikeControl-compatible controller, or BikeControl running on a smartphone (Zwift Click, Di2…). On the same computer the Bluetooth bridge will probably not work.',
+  'controls.zwiftWhere': 'Zwift Click: connect, disconnect and forget on the Devices page.',
+  'controls.zwiftHelp':
+    'Wake the Click (press a button) and close Zwift and BikeControl: a Click only accepts one device. The left unit relays the right unit’s buttons, so connecting the left one is enough; connecting both also works. The Click LED may keep blinking blue: that is normal.',
   'controls.noBluetooth':
     'Web Bluetooth is not available in this browser (use Chrome or Edge on desktop).',
   'controls.pairFailed': 'Could not connect to the controller.',

@@ -18,6 +18,7 @@ import {
   gamepads,
   obcControllers,
   remoteLink,
+  zwiftControllers,
 } from '../controls/runtime';
 import { type MessageKey, useT } from '../i18n';
 import {
@@ -60,6 +61,19 @@ const REMOTE_NAMES: Record<string, string> = {
   intervalNext: 'Next',
 };
 
+const ZWIFT_NAMES: Record<string, string> = {
+  plus: '+',
+  minus: '−',
+  up: '↑',
+  down: '↓',
+  left: '←',
+  right: '→',
+  a: 'A',
+  b: 'B',
+  y: 'Y',
+  z: 'Z',
+};
+
 const KEY_NAMES: Record<string, string> = {
   ' ': 'Space',
   arrowup: '↑',
@@ -75,6 +89,7 @@ export function controlLabel(b: Pick<Binding, 'source' | 'control'>): string {
     return KEY_NAMES[id] ?? (id.length === 1 ? id.toUpperCase() : id);
   }
   if (b.source === 'remote') return REMOTE_NAMES[id] ?? id;
+  if (b.source === 'zwift') return ZWIFT_NAMES[id] ?? id;
   if (b.source === 'obc') {
     const name = OBC_NAMES[Number.parseInt(id, 16)];
     return name ? `${id} ${name}` : id;
@@ -82,13 +97,20 @@ export function controlLabel(b: Pick<Binding, 'source' | 'control'>): string {
   return `#${id}`;
 }
 
-const SOURCE_ICON = { keyboard: '⌨', gamepad: '🎮', obc: '🚲', remote: '📱' } as const;
+const SOURCE_ICON = { keyboard: '⌨', gamepad: '🎮', obc: '🚲', zwift: '🟦', remote: '📱' } as const;
 const ACTION_KEY = (a: ControlAction) => `controls.action.${a}` as MessageKey;
 
 function useObcControllers() {
   return useSyncExternalStore(
     (cb) => obcControllers.onChange(cb),
     () => obcControllers.list,
+  );
+}
+
+function useZwiftControllers() {
+  return useSyncExternalStore(
+    (cb) => zwiftControllers.onChange(cb),
+    () => zwiftControllers.list,
   );
 }
 
@@ -194,6 +216,7 @@ export function ControlsPage() {
   const { profiles, active } = useControls();
   const editable = !isDefaultProfile(active.id);
   const obc = useObcControllers();
+  const zwift = useZwiftControllers();
   const pads = useGamepads();
   const [assigning, setAssigning] = useState<ControlAction | null>(null);
   const [assignType, setAssignType] = useState<BindingType>('press');
@@ -314,12 +337,19 @@ export function ControlsPage() {
               </button>
             </li>
           ))}
+          {zwift.map((c) => (
+            <li key={c.id}>
+              🟦 {c.name} · {t(`devices.status.${c.status}` as MessageKey)}
+              {c.battery !== null && <> · {c.battery} %</>}
+            </li>
+          ))}
         </ul>
         {pads.length === 0 && <p className="muted">{t('controls.padHint')}</p>}
         <button type="button" onClick={() => void pair()}>
           {t('controls.pairObc')}
         </button>
         <p className="muted">{t('controls.obcHelp')}</p>
+        <p className="muted">{t('controls.zwiftWhere')}</p>
         {error && <p className="error">{error}</p>}
         <p>
           <strong>{t('controls.lastInput')} : </strong>

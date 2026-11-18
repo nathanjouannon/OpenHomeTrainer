@@ -1,6 +1,6 @@
 import type { ControlAction } from './actions';
 
-export type InputSource = 'keyboard' | 'gamepad' | 'obc' | 'remote';
+export type InputSource = 'keyboard' | 'gamepad' | 'obc' | 'zwift' | 'remote';
 
 /** What a source tells the hub. Sources only produce press and release. */
 export type InputEventType = 'press' | 'release';

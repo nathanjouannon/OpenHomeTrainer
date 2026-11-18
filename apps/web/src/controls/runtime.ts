@@ -6,6 +6,7 @@ import { GamepadPoller } from './gamepad';
 import { bindKeyboard } from './keyboard';
 import { createObcRegistry } from './obc-device';
 import { RemoteLink } from './remote';
+import { createZwiftRegistry } from './zwift-device';
 
 export const controlsHub = new InputHub({ profile: getControls().active });
 
@@ -21,6 +22,7 @@ onControlsChange(() => {
 
 export const gamepads = new GamepadPoller(controlsHub);
 export const obcControllers = createObcRegistry(controlsHub);
+export const zwiftControllers = createZwiftRegistry(controlsHub);
 export const remoteLink = new RemoteLink(controlsHub);
 
 let users = 0;
