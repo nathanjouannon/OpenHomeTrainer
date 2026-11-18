@@ -173,5 +173,5 @@ describe('road planner with turns', () => {
       // A single move never turns back by more than 135°.
       expect(cos).toBeGreaterThan(Math.cos((135 * Math.PI) / 180) - 1e-6);
     }
-  });
+  }, 30_000); // the planner searches a 200x200 grid: ~1.6 s locally, ~6.5 s on a CI runner
 });
