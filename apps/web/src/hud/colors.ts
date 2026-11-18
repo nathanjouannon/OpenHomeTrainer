@@ -16,6 +16,12 @@ const ZONE_COLORS: Record<ColorMode, readonly string[]> = {
   blueYellow: ['#9a9a9a', '#0b9aa8', '#3cb371', '#f4a6c0', '#e0453a', '#8e1b3a'],
 };
 
+/** Power zone 1..6 of a power (docs/09 §4); the colour comes from the `--z1..6` tokens. */
+export function zoneIndex(watts: number, ftpW: number): 1 | 2 | 3 | 4 | 5 | 6 {
+  const f = watts / Math.max(1, ftpW);
+  return f < 0.56 ? 1 : f < 0.76 ? 2 : f < 0.91 ? 3 : f < 1.06 ? 4 : f < 1.21 ? 5 : 6;
+}
+
 export function zoneColor(watts: number, ftpW: number, mode = getSettings().colorMode): string {
   const f = watts / Math.max(1, ftpW);
   const z = f < 0.56 ? 0 : f < 0.76 ? 1 : f < 0.91 ? 2 : f < 1.06 ? 3 : f < 1.21 ? 4 : 5;

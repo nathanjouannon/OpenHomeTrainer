@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/*.md", "!docs/design"]
+    "includes": ["**", "!**/*.md", "!docs/design", "!apps/web/src/design/hrt.css"]
   },
   "formatter": {
     "enabled": true,

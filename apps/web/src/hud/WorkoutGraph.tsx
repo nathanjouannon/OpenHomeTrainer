@@ -2,7 +2,7 @@
 // with an optional cursor for the current position.
 
 import type { Interval } from '@hrt/workouts';
-import { zoneColor } from './colors';
+import { zoneIndex } from './colors';
 
 export function WorkoutGraph({
   intervals,
@@ -26,7 +26,7 @@ export function WorkoutGraph({
   const x = (s: number) => (s / total) * W;
   return (
     <svg
-      className="workout-graph"
+      className="chart"
       viewBox={`0 0 ${W} ${height}`}
       preserveAspectRatio="none"
       role="img"
@@ -43,8 +43,7 @@ export function WorkoutGraph({
           <polygon
             key={i.index}
             points={`${x0},${height} ${x0},${y(a)} ${x1},${y(b)} ${x1},${height}`}
-            fill={zoneColor((a + b) / 2, ftpW)}
-            opacity={done ? 0.35 : 0.95}
+            className={`z${zoneIndex((a + b) / 2, ftpW)}${done ? ' past' : ''}`}
           />
         );
       })}
@@ -53,8 +52,8 @@ export function WorkoutGraph({
         x2={W}
         y1={y(ftpW)}
         y2={y(ftpW)}
-        stroke="currentColor"
-        strokeOpacity={0.35}
+        className="grid"
+        strokeOpacity={0.6}
         strokeDasharray="4 4"
         vectorEffect="non-scaling-stroke"
       />
@@ -64,8 +63,7 @@ export function WorkoutGraph({
           x2={x(elapsedS)}
           y1={0}
           y2={height}
-          stroke="#fff"
-          strokeWidth={2}
+          className="cursor"
           vectorEffect="non-scaling-stroke"
         />
       )}

@@ -9,6 +9,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SummaryPage } from './pages/SummaryPage';
 import { WorkoutsPage } from './pages/WorkoutsPage';
 import { useLocation } from './router';
+import { Shell } from './shell/Shell';
 import { ClickSpikePage } from './spikes/click/ClickSpikePage';
 import { rendererFromQuery } from './world/renderer-options';
 
@@ -17,6 +18,17 @@ const RidePage = lazy(() => import('./pages/RidePage'));
 const BenchPage = lazy(() => import('./bench/BenchPage'));
 
 export function App() {
+  const { page } = useLocation();
+  // The ride, the dev pages and the bench draw their own full-screen layout.
+  if (page === 'ride' || page === 'bench') return <Routes />;
+  return (
+    <Shell>
+      <Routes />
+    </Shell>
+  );
+}
+
+function Routes() {
   const t = useT();
   const { page, params, query } = useLocation();
   const loading = <p className="page">{t('ride.loading')}</p>;

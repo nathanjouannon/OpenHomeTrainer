@@ -1,7 +1,7 @@
 import type { ControlAction } from '@hrt/controls';
 import { parseRouteId, type Route, withSegments } from '@hrt/route-engine';
 import type { Workout } from '@hrt/workouts';
-import { useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { formatDelta, formatDuration, formatter } from '../format';
 import { DevCameraPanel } from '../hud/DevCameraPanel';
 import { Hud, useLiveState } from '../hud/Hud';
@@ -11,6 +11,7 @@ import { loadGhost } from '../ride/ghost-loader';
 import { DEFAULT_WORKOUT_FTP_W } from '../ride/ride-session';
 import { type RideGoal, useRideController } from '../ride/useRideController';
 import { navigate } from '../router';
+import { designAttrs } from '../shell/theme';
 import { useDevices } from '../store/devices';
 import {
   CAMERA_MODES,
@@ -107,21 +108,40 @@ export default function RidePage({
       cancelled = true;
     };
   }, [routeId, ghostId]);
+  const dark = designAttrs(getSettings(), 'dark');
   if (error) {
     return (
-      <main className="page">
-        <p className="notice warn">{t('routes.missing')}</p>
-        <p className="muted small">{error}</p>
-        <a href="#/routes">← {t('nav.back')}</a>
-      </main>
+      <div className="hrt page" {...dark}>
+        <main className="page__main">
+          <div className="banner banner--err">
+            <span className="banner__icon">✕</span>
+            <div className="banner__body">
+              <div className="banner__title">{t('routes.missing')}</div>
+              <div className="banner__text">{error}</div>
+            </div>
+            <a className="btn btn--secondary" href="#/routes">
+              {t('nav.routes')}
+            </a>
+          </div>
+        </main>
+      </div>
     );
   }
   if (!world || !route || ghost === 'loading') {
     return (
-      <main className="page loading">
-        <p>{t('ride.loading')}</p>
-        <progress value={progress} max={1} />
-      </main>
+      <div className="hrt page" {...dark}>
+        <main className="page__main" style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <div className="stack" style={{ width: 720, gap: 24 }}>
+            <h1 className="t-h1">{t('ride.loading')}</h1>
+            <div className="bar" style={{ height: 20, borderRadius: 10 }}>
+              <i style={{ width: `${Math.round(progress * 100)}%` }} />
+            </div>
+            <span className="num t-0" style={{ fontSize: 40 }}>
+              {Math.round(progress * 100)} %
+            </span>
+          </div>
+        </main>
+      </div>
     );
   }
   return (
@@ -272,6 +292,12 @@ function RideRunning({
     navigate('/');
   };
 
+  const [fit, setFit] = useState(() => Math.min(1.25, Math.max(0.5, window.innerWidth / 1920)));
+  useEffect(() => {
+    const on = () => setFit(Math.min(1.25, Math.max(0.5, window.innerWidth / 1920)));
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
   const trainerSlot = slots.trainer;
   const view = useMemo(() => {
     if (!devView.atM) return () => session.state;
@@ -287,7 +313,11 @@ function RideRunning({
   const alpha = useMemo(() => () => loop.alpha(), [loop]);
 
   return (
-    <div className="ride">
+    <div
+      className="hrt ride"
+      {...designAttrs(settings, 'dark')}
+      style={{ '--fit': fit } as CSSProperties}
+    >
       <WorldView
         world={world}
         built={built}
@@ -329,39 +359,76 @@ function RideRunning({
           ftpW={settings.profile.ftpW ?? DEFAULT_WORKOUT_FTP_W}
         />
       )}
-      <div className="warnings">
+      <div className="ride__status">
         {live.powerStale && !live.paused && (
-          <span className="warn-pill">⚠ {t('ride.noPower')}</span>
-        )}
-        {trainerSlot.status === 'reconnecting' && (
-          <span className="warn-pill">
-            ⟳ {t('ride.reconnecting', { name: trainerSlot.device?.name ?? '' })}
+          <span className="status status--warn">
+            <span className="dot dot--warn" /> {t('ride.noPower')}
           </span>
         )}
-        {!focused && <span className="warn-pill">⌨ {t('ride.focusLost')}</span>}
+        {trainerSlot.status === 'reconnecting' && (
+          <span className="status status--err">
+            <span className="dot dot--err dot--pulse" />{' '}
+            {t('ride.reconnecting', { name: trainerSlot.device?.name ?? '' })}
+          </span>
+        )}
+        {!focused && (
+          <span className="status status--warn">
+            <span className="dot dot--warn" /> {t('ride.focusLost')}
+          </span>
+        )}
       </div>
-      <div className="toasts">
+      <div className="ride__toasts">
         {toasts.map((toast) => (
-          <div key={toast.id} className={`toast toast-${toast.tone}`}>
-            {toast.text}
+          <div
+            key={toast.id}
+            className={`htoast htoast--${toast.tone === 'good' ? 'ok' : toast.tone}`}
+          >
+            <span className="htoast__ic">
+              {toast.tone === 'warn' ? '!' : toast.tone === 'good' ? '★' : 'i'}
+            </span>
+            <span>{toast.text}</span>
           </div>
         ))}
       </div>
-      <div className="fps muted">
-        {Math.round(fps)} FPS{backend && ` · ${backend === 'webgpu' ? 'WebGPU' : 'WebGL2'}`}
-      </div>
+      <span className="fps">
+        {backend && `${backend === 'webgpu' ? 'WebGPU' : 'WebGL2'} · `}
+        {Math.round(fps)} FPS
+      </span>
       {live.paused && (
-        <div className="pause-overlay">
-          <div className="pause-card">
-            <h2>{t('ride.paused')}</h2>
-            <p className="big-numbers">
-              {formatDuration(live.timeS)} · {(live.distanceM / 1000).toFixed(2)} km ·{' '}
-              {t('hud.lap')} {live.lap}
-            </p>
-            <label>
-              {t('ride.difficulty')} : {Math.round(settings.difficulty * 100)} %
+        <div className="scrim" style={{ fontSize: 20 }}>
+          <div className="pause" role="dialog" aria-label={t('ride.paused')}>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <h2 className="t-h1">{t('ride.paused')}</h2>
+              <span className="chip">
+                <span className="dot dot--warn" />
+                {t('ride.paused')}
+              </span>
+            </div>
+            <div className="grid grid--3">
+              <div className="stat">
+                <span className="stat__label">{t('hud.time')}</span>
+                <span className="stat__value">{formatDuration(live.timeS)}</span>
+              </div>
+              <div className="stat">
+                <span className="stat__label">{t('hud.distance')}</span>
+                <span className="stat__value">
+                  {(live.distanceM / 1000).toFixed(2)}
+                  <small>km</small>
+                </span>
+              </div>
+              <div className="stat">
+                <span className="stat__label">{t('hud.lap')}</span>
+                <span className="stat__value">{live.lap}</span>
+              </div>
+            </div>
+            <label className="field">
+              <span className="field__label">
+                {t('ride.difficulty')} · {Math.round(settings.difficulty * 100)} %
+              </span>
               <input
                 type="range"
+                className="slider"
+                style={{ '--v': `${Math.round(settings.difficulty * 100)}%` } as CSSProperties}
                 min={0}
                 max={100}
                 step={5}
@@ -373,44 +440,56 @@ function RideRunning({
                 }}
               />
             </label>
-            <label>
-              {t('ride.camera')}
-              <select
-                value={settings.camera}
-                onChange={(e) =>
-                  updateSettings({ camera: e.target.value as typeof settings.camera })
-                }
-              >
-                {CAMERA_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {t(`camera.${m}`)}
-                  </option>
+            <div className="field">
+              <span className="field__label">{t('ride.camera')}</span>
+              {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, not a form group */}
+              <div className="seg" role="group" aria-label={t('ride.camera')}>
+                {CAMERA_MODES.map((m, i) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={settings.camera === m}
+                    onClick={() => updateSettings({ camera: m })}
+                  >
+                    {t(`camera.${m}`)} {i + 1}
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
             <div className="row">
-              <button type="button" className="primary" onClick={() => session.resume()}>
+              <button
+                type="button"
+                className="btn btn--primary btn--lg"
+                // biome-ignore lint/a11y/noAutofocus: the resume action must be reachable without a mouse
+                autoFocus
+                onClick={() => session.resume()}
+              >
                 {t('ride.resume')}
               </button>
-              <button type="button" onClick={() => void finish()}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--lg"
+                onClick={() => void finish()}
+              >
                 {t('ride.finish')}
               </button>
+              <span className="spacer" />
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={() => (confirmDiscard ? void discard() : setConfirmDiscard(true))}
+              >
+                {confirmDiscard ? t('summary.deleteConfirm') : t('ride.discard')}
+              </button>
             </div>
-            <button
-              type="button"
-              className="link danger"
-              onClick={() => (confirmDiscard ? void discard() : setConfirmDiscard(true))}
-            >
-              {confirmDiscard ? t('summary.deleteConfirm') : t('ride.discard')}
-            </button>
-            <p className="muted small">{t('ride.keys')}</p>
+            <p className="t-hint">{t('ride.keys')}</p>
           </div>
         </div>
       )}
       {!live.paused && (
         <button
           type="button"
-          className="pause-button"
+          className="pausebtn ride__pause"
           onClick={() => session.pause()}
           aria-label={t('ride.paused')}
         >

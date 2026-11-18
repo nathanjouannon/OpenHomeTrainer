@@ -6,7 +6,7 @@ import {
   type WorldManifest,
   withSegments,
 } from '@hrt/route-engine';
-import { useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { formatDuration, formatter } from '../format';
 import { ElevationProfile, MiniMap } from '../hud/charts';
 import { useT } from '../i18n';
@@ -136,143 +136,255 @@ export function RoutesPage() {
     );
   };
 
+  const seg = (on: boolean, label: string, onClick: () => void) => (
+    <button type="button" aria-pressed={on} style={{ flex: 1 }} onClick={onClick}>
+      {label}
+    </button>
+  );
   return (
-    <Page title={t('routes.title')}>
-      {error && <p className="notice warn">{t('routes.missing')}</p>}
-      {!error && !manifest && <p className="muted">{t('routes.loading')}</p>}
-      {manifest && (
-        <>
-          <p className="muted">
-            <strong>{loc(manifest.name)}</strong> — {loc(manifest.description)}
-          </p>
-          <div className="route-list">
-            {shownRoutes.map((r) => {
-              const baseId = parseRouteId(r.id).baseId;
-              const info = manifest.routes.find((m) => m.id === baseId);
-              return (
-                <button
-                  type="button"
-                  key={r.id}
-                  className={`route-card ${selected === baseId ? 'selected' : ''}`}
-                  onClick={() => setSelected(baseId)}
-                >
-                  <MiniMap route={r} size={110} />
-                  <div className="route-info">
-                    <h2>{loc(r.meta.name)}</h2>
-                    <p className="muted">{info ? t(`profile.${info.profile}`) : ''}</p>
-                    <dl>
-                      <dt>{t('routes.lap')}</dt>
-                      <dd>
-                        {f.distance(r.lengthM)} {f.distanceUnit}
-                      </dd>
-                      <dt>{t('routes.ascent')}</dt>
-                      <dd>
-                        {f.elevation(r.meta.ascentM)} {f.elevationUnit}
-                      </dd>
-                      <dt>{t('routes.maxGrade')}</dt>
-                      <dd>{f.num(info?.maxGradePercent ?? 0, 1)} %</dd>
-                      <dt>{t('routes.estimate')}</dt>
-                      <dd>{estimates[r.id] ? formatDuration(estimates[r.id] as number) : '—'}</dd>
-                      {best[r.id] !== undefined && (
-                        <>
-                          <dt>{t('routes.best')}</dt>
-                          <dd>{formatDuration(best[r.id] as number)}</dd>
-                        </>
-                      )}
-                    </dl>
-                    <ElevationProfile route={r} height={50} showMarker={false} />
-                  </div>
-                </button>
-              );
-            })}
+    <Page
+      title={t('routes.title')}
+      eyebrow={t('routes.step')}
+      actions={
+        <a className="btn btn--ghost" href="#/devices">
+          {t('nav.devices')}
+        </a>
+      }
+    >
+      {error && (
+        <div className="card" style={{ borderColor: 'var(--err)', background: 'var(--err-soft)' }}>
+          <div className="row" style={{ gap: 16 }}>
+            <span className="banner__icon" style={{ '--bc': 'var(--err)' } as CSSProperties}>
+              ✕
+            </span>
+            <p className="t-small t-0">{t('routes.missing')}</p>
           </div>
-          {selectedRoute && selectedRoute.meta.segments.length > 0 && (
-            <fieldset className="goal">
-              <legend>{t('routes.segments')}</legend>
-              <ul className="segment-list">
-                {selectedRoute.meta.segments.map((seg) => {
-                  const pb = getSegmentBest(selectedRoute.id, seg.id);
-                  return (
-                    <li key={seg.id}>
-                      <strong>{loc(seg.name)}</strong> · {f.distance(seg.endM - seg.startM, 1)}{' '}
-                      {f.distanceUnit} ·{' '}
-                      <span className="muted">
-                        {pb === null
-                          ? t('routes.segmentNone')
-                          : t('routes.segmentRecord', { time: formatDuration(pb) })}
+        </div>
+      )}
+      {!error && !manifest && (
+        <div className="grid grid--2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="card card--skeleton" style={{ height: 250 }}>
+              <div className="sk" style={{ height: 36, width: '60%' }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {manifest && (
+        <div className="row" style={{ gap: 32, alignItems: 'flex-start' }}>
+          <div className="stack" style={{ flex: 1, gap: 24 }}>
+            <p className="t-small">
+              <b className="t-0">{loc(manifest.name)}</b> — {loc(manifest.description)}
+            </p>
+            <div className="grid grid--2" style={{ gap: 24 }}>
+              {shownRoutes.map((r) => {
+                const baseId = parseRouteId(r.id).baseId;
+                const info = manifest.routes.find((m) => m.id === baseId);
+                return (
+                  <button
+                    type="button"
+                    key={r.id}
+                    className={`card card--link route-card${selected === baseId ? ' is-selected' : ''}`}
+                    style={{
+                      padding: 0,
+                      overflow: 'hidden',
+                      textAlign: 'left',
+                      color: 'inherit',
+                      font: 'inherit',
+                    }}
+                    onClick={() => setSelected(baseId)}
+                  >
+                    <div style={{ display: 'grid', gridTemplateColumns: '170px minmax(0, 1fr)' }}>
+                      <div
+                        className="route-thumb"
+                        style={{
+                          background: 'var(--bg-2)',
+                          padding: 14,
+                          display: 'grid',
+                          placeItems: 'center',
+                        }}
+                      >
+                        <MiniMap route={r} size={140} />
+                      </div>
+                      <div className="stack" style={{ gap: 8, padding: '18px 20px', minWidth: 0 }}>
+                        <div
+                          className="card__head"
+                          style={{ flexWrap: 'wrap', justifyContent: 'flex-start' }}
+                        >
+                          <h3 className="t-h2" style={{ fontSize: 26 }}>
+                            {loc(r.meta.name)}
+                          </h3>
+                          {info && (
+                            <span className="badge badge--info">
+                              {t(`profile.${info.profile}`)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="row" style={{ gap: 20, flexWrap: 'wrap' }}>
+                          <span className="t-small">
+                            <b className="num t-0" style={{ fontSize: 26 }}>
+                              {f.distance(r.lengthM)} {f.distanceUnit}
+                            </b>{' '}
+                            {t('routes.lap')}
+                          </span>
+                          <span className="t-small">
+                            <b className="num t-0" style={{ fontSize: 26 }}>
+                              +{f.elevation(r.meta.ascentM)} {f.elevationUnit}
+                            </b>
+                          </span>
+                          <span className="t-small">
+                            {t('routes.maxGrade')}{' '}
+                            <b className="num t-0" style={{ fontSize: 26 }}>
+                              {f.num(info?.maxGradePercent ?? 0, 1)} %
+                            </b>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ padding: '0 20px 8px' }}>
+                      <ElevationProfile route={r} height={60} showMarker={false} />
+                    </div>
+                    <div
+                      className="row"
+                      style={{ padding: '10px 20px 18px', justifyContent: 'space-between' }}
+                    >
+                      <span className="t-small">
+                        {t('routes.estimate')}{' '}
+                        <b className="num t-0" style={{ fontSize: 24 }}>
+                          {estimates[r.id] ? formatDuration(estimates[r.id] as number) : '—'}
+                        </b>
                       </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </fieldset>
-          )}
-          <fieldset className="goal">
-            <legend>{t('routes.direction')}</legend>
-            <select
-              value={reverse ? 'reverse' : 'forward'}
-              onChange={(e) => setReverse(e.target.value === 'reverse')}
-            >
-              <option value="forward">{t('routes.direction.forward')}</option>
-              <option value="reverse">{t('routes.direction.reverse')}</option>
-            </select>
-          </fieldset>
-          {(bestRide || ghostRides.length > 0) && (
-            <fieldset className="goal">
-              <legend>{t('routes.ghost')}</legend>
-              <select value={ghostId} onChange={(e) => setGhostId(e.target.value)}>
-                <option value="">{t('routes.ghost.none')}</option>
-                {bestRide?.bestLapS != null && (
-                  <option value={BEST_LAP_GHOST}>
-                    {t('routes.ghost.best', { time: formatDuration(bestRide.bestLapS) })}
-                  </option>
-                )}
-                {ghostRides.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {t('routes.ghost.ride', {
-                      date: formatDate(r.startedAt, settings.language),
-                      time: formatDuration(r.durationS),
+                      <span className="t-small">
+                        {t('routes.best')}{' '}
+                        <b className="num t-0" style={{ fontSize: 24 }}>
+                          {best[r.id] !== undefined ? formatDuration(best[r.id] as number) : '—'}
+                        </b>
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <aside
+            className="card stack"
+            style={{ width: 620, gap: 22, alignSelf: 'flex-start', flex: 'none' }}
+          >
+            <h2 className="t-h2">{t('routes.options')}</h2>
+            <div className="field">
+              <span className="field__label">{t('routes.direction')}</span>
+              {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, not a form group */}
+              <div className="seg" role="group" aria-label={t('routes.direction')}>
+                {seg(!reverse, t('routes.direction.forward'), () => setReverse(false))}
+                {seg(reverse, t('routes.direction.reverse'), () => setReverse(true))}
+              </div>
+              <span className="field__hint">{t('routes.directionHint')}</span>
+            </div>
+            {selectedRoute && selectedRoute.meta.segments.length > 0 && (
+              <div className="field">
+                <span className="field__label">{t('routes.segments')}</span>
+                <table className="tbl" style={{ fontSize: 18 }}>
+                  <tbody>
+                    {selectedRoute.meta.segments.map((sg) => {
+                      const pb = getSegmentBest(selectedRoute.id, sg.id);
+                      return (
+                        <tr key={sg.id}>
+                          <td>{loc(sg.name)}</td>
+                          {pb === null ? (
+                            <td className="r t-hint">{t('routes.segmentNone')}</td>
+                          ) : (
+                            <td className="num r">{formatDuration(pb)}</td>
+                          )}
+                        </tr>
+                      );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {(bestRide || ghostRides.length > 0) && (
+              <div className="field">
+                <label className="field__label" htmlFor="ghost">
+                  {t('routes.ghost')}
+                </label>
+                <select
+                  id="ghost"
+                  className="input"
+                  value={ghostId}
+                  onChange={(e) => setGhostId(e.target.value)}
+                >
+                  <option value="">{t('routes.ghost.none')}</option>
+                  {bestRide?.bestLapS != null && (
+                    <option value={BEST_LAP_GHOST}>
+                      {t('routes.ghost.best', { time: formatDuration(bestRide.bestLapS) })}
+                    </option>
+                  )}
+                  {ghostRides.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {t('routes.ghost.ride', {
+                        date: formatDate(r.startedAt, settings.language),
+                        time: formatDuration(r.durationS),
+                      })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="field">
+              <label className="field__label" htmlFor="workout">
+                {t('routes.workout')}
+              </label>
+              <select
+                id="workout"
+                className="input"
+                value={workoutId}
+                onChange={(e) => setWorkoutId(e.target.value)}
+              >
+                <option value="">{t('routes.workout.none')}</option>
+                {workouts.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
                   </option>
                 ))}
               </select>
-            </fieldset>
-          )}
-          <fieldset className="goal">
-            <legend>{t('routes.workout')}</legend>
-            <select value={workoutId} onChange={(e) => setWorkoutId(e.target.value)}>
-              <option value="">{t('routes.workout.none')}</option>
-              {workouts.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          </fieldset>
-          <fieldset className="goal">
-            <legend>{t('routes.goal')}</legend>
-            <select value={goalKind} onChange={(e) => setGoalKind(e.target.value as GoalKind)}>
-              <option value="none">{t('routes.goal.none')}</option>
-              <option value="duration">{t('routes.goal.duration')}</option>
-              <option value="distance">
-                {t('routes.goal.distance')} ({f.distanceUnit})
-              </option>
-              <option value="laps">{t('routes.goal.laps')}</option>
-            </select>
-            {goalKind !== 'none' && (
-              <input
-                type="number"
-                min={1}
-                value={goalValue}
-                onChange={(e) => setGoalValue(Math.max(1, Number(e.target.value)))}
-              />
+            </div>
+            <div className="field">
+              <span className="field__label">{t('routes.goal')}</span>
+              {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, not a form group */}
+              <div className="seg" role="group" aria-label={t('routes.goal')}>
+                {seg(goalKind === 'none', t('routes.goal.none'), () => setGoalKind('none'))}
+                {seg(goalKind === 'duration', t('routes.goal.duration'), () =>
+                  setGoalKind('duration'),
+                )}
+                {seg(goalKind === 'distance', t('routes.goal.distance'), () =>
+                  setGoalKind('distance'),
+                )}
+                {seg(goalKind === 'laps', t('routes.goal.laps'), () => setGoalKind('laps'))}
+              </div>
+              {goalKind !== 'none' && (
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={goalValue}
+                  onChange={(e) => setGoalValue(Math.max(1, Number(e.target.value)))}
+                />
+              )}
+              {goalKind === 'distance' && <span className="field__hint">{f.distanceUnit}</span>}
+            </div>
+            {!deviceHub.hasPowerSource && (
+              <span className="field__hint">{t('routes.noDevice')}</span>
             )}
-          </fieldset>
-          {!deviceHub.hasPowerSource && <p className="muted">{t('routes.noDevice')}</p>}
-          <button type="button" className="primary big" disabled={!selected} onClick={start}>
-            {t('routes.start')} →
-          </button>
-        </>
+            <button
+              type="button"
+              className="btn btn--primary btn--lg"
+              disabled={!selected}
+              onClick={start}
+            >
+              {t('routes.start')} →
+            </button>
+          </aside>
+        </div>
       )}
     </Page>
   );

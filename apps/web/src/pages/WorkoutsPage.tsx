@@ -48,9 +48,13 @@ function NumberField({
   min?: number;
 }) {
   return (
-    <label className="num-field">
-      <span className="muted small">{label}</span>
+    <label className="num-field field">
+      <span className="field__label" style={{ fontSize: 15 }}>
+        {label}
+      </span>
       <input
+        className="input"
+        style={{ height: 48, fontSize: 20 }}
         type="number"
         min={min}
         step={step}
@@ -93,7 +97,7 @@ function StepEditor({
         if (s.type === 'steady') {
           body = (
             <>
-              <strong>{t('workouts.step.steady')}</strong>
+              <strong className="t-h3">{t('workouts.step.steady')}</strong>
               <NumberField
                 label={t('workouts.minutes')}
                 value={mins(s.durationS)}
@@ -111,7 +115,7 @@ function StepEditor({
         } else if (s.type === 'ramp') {
           body = (
             <>
-              <strong>{t('workouts.step.ramp')}</strong>
+              <strong className="t-h3">{t('workouts.step.ramp')}</strong>
               <NumberField
                 label={t('workouts.minutes')}
                 value={mins(s.durationS)}
@@ -134,7 +138,7 @@ function StepEditor({
         } else {
           body = (
             <>
-              <strong>{t('workouts.step.repeat')}</strong>
+              <strong className="t-h3">{t('workouts.step.repeat')}</strong>
               <NumberField
                 label={t('workouts.times')}
                 value={s.times}
@@ -157,13 +161,28 @@ function StepEditor({
           <div className={`step-row step-${s.type}`} key={key}>
             {body}
             <span className="step-actions">
-              <button type="button" aria-label="up" onClick={() => move(i, -1)}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm btn--icon"
+                aria-label="up"
+                onClick={() => move(i, -1)}
+              >
                 ↑
               </button>
-              <button type="button" aria-label="down" onClick={() => move(i, 1)}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm btn--icon"
+                aria-label="down"
+                onClick={() => move(i, 1)}
+              >
                 ↓
               </button>
-              <button type="button" aria-label="remove" onClick={() => remove(i)}>
+              <button
+                type="button"
+                className="btn btn--danger btn--sm btn--icon"
+                aria-label="remove"
+                onClick={() => remove(i)}
+              >
                 ✕
               </button>
             </span>
@@ -173,12 +192,14 @@ function StepEditor({
       <div className="step-add">
         <button
           type="button"
+          className="btn btn--secondary btn--sm"
           onClick={() => onChange([...steps, { type: 'steady', durationS: 300, power: ftp(0.65) }])}
         >
           {t('workouts.addStep')}
         </button>
         <button
           type="button"
+          className="btn btn--secondary btn--sm"
           onClick={() =>
             onChange([...steps, { type: 'ramp', durationS: 300, from: ftp(0.5), to: ftp(0.8) }])
           }
@@ -188,6 +209,7 @@ function StepEditor({
         {depth < 2 && (
           <button
             type="button"
+            className="btn btn--secondary btn--sm"
             onClick={() =>
               onChange([
                 ...steps,
@@ -221,24 +243,30 @@ function Editor({ initial, onDone }: { initial: Workout; onDone: () => void }) {
   const intervals = flatten(draft, ftpW);
   const valid = name.trim().length > 0 && intervals.length > 0;
   return (
-    <section className="workout-editor card">
-      <label>
-        {t('workouts.name')}
-        <input value={name} onChange={(e) => setName(e.target.value)} />
+    <section className="workout-editor card stack">
+      <label className="field">
+        <span className="field__label">{t('workouts.name')}</span>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </label>
-      <label>
-        {t('workouts.description')}
-        <input value={description} onChange={(e) => setDescription(e.target.value)} />
+      <label className="field">
+        <span className="field__label">{t('workouts.description')}</span>
+        <input
+          className="input"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
       </label>
       <WorkoutGraph intervals={intervals} ftpW={ftpW} height={90} />
-      <p className="muted small">
-        {formatDuration(intervals.reduce((a, i) => a + i.durationS, 0))}
+      <p className="t-small">
+        <b className="num t-0" style={{ fontSize: 24 }}>
+          {formatDuration(intervals.reduce((a, i) => a + i.durationS, 0))}
+        </b>
       </p>
       <StepEditor steps={steps} onChange={setSteps} />
       <div className="row">
         <button
           type="button"
-          className="primary"
+          className="btn btn--primary btn--lg"
           disabled={!valid}
           onClick={() => {
             saveWorkout({
@@ -251,7 +279,7 @@ function Editor({ initial, onDone }: { initial: Workout; onDone: () => void }) {
         >
           {t('workouts.save')}
         </button>
-        <button type="button" onClick={onDone}>
+        <button type="button" className="btn btn--secondary btn--lg" onClick={onDone}>
           {t('workouts.cancel')}
         </button>
       </div>
@@ -300,16 +328,16 @@ export function WorkoutsPage() {
     const custom = !isBuiltin(w.id);
     const absolute = !editable(w.steps);
     return (
-      <article className="workout-card card" key={w.id}>
-        <header>
-          <h2>{w.name}</h2>
-          <span className="muted small">
-            {custom ? w.source.toUpperCase() : t('workouts.builtin')}
-          </span>
+      <article className="workout-card card stack" style={{ gap: 14 }} key={w.id}>
+        <header className="card__head">
+          <h2 className="t-h2" style={{ fontSize: 30 }}>
+            {w.name}
+          </h2>
+          <span className="badge">{custom ? w.source.toUpperCase() : t('workouts.builtin')}</span>
         </header>
-        {w.description && <p className="muted">{w.description}</p>}
+        {w.description && <p className="t-small">{w.description}</p>}
         <WorkoutGraph intervals={iv} ftpW={ftpW} height={64} />
-        <p className="muted small">
+        <p className="t-small t-0">
           {t('workouts.stats', {
             duration: formatDuration(st.durationS),
             avg: st.avgW,
@@ -317,28 +345,37 @@ export function WorkoutsPage() {
             tss: st.tss,
           })}
         </p>
-        {absolute && <p className="muted small">{t('workouts.absolute')}</p>}
+        {absolute && <p className="t-hint">{t('workouts.absolute')}</p>}
         <div className="row">
           <button
             type="button"
-            className="primary"
+            className="btn btn--primary btn--sm"
             onClick={() => navigate(`/routes?workout=${encodeURIComponent(w.id)}`)}
           >
             {t('workouts.ride')}
           </button>
           {custom && !absolute && (
-            <button type="button" onClick={() => setEditing(w)}>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => setEditing(w)}
+            >
               {t('workouts.edit')}
             </button>
           )}
           {!absolute && (
-            <button type="button" onClick={() => duplicate(w)}>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => duplicate(w)}
+            >
               {t('workouts.duplicate')}
             </button>
           )}
           {custom && (
             <button
               type="button"
+              className="btn btn--danger btn--sm"
               onClick={() => {
                 if (window.confirm(t('workouts.deleteConfirm', { name: w.name })))
                   deleteWorkout(w.id);
@@ -355,17 +392,39 @@ export function WorkoutsPage() {
   return (
     <Page title={t('workouts.title')}>
       {!hasFtp && (
-        <p className="notice warn">{t('workouts.noFtp', { ftp: DEFAULT_WORKOUT_FTP_W })}</p>
+        <div className="banner banner--warn">
+          <span className="banner__icon">!</span>
+          <div className="banner__body">
+            <div className="banner__text t-0">
+              {t('workouts.noFtp', { ftp: DEFAULT_WORKOUT_FTP_W })}
+            </div>
+          </div>
+        </div>
       )}
-      {message && <p className={`notice${message.warn ? ' warn' : ''}`}>{message.text}</p>}
+      {message && (
+        <div className={`banner${message.warn ? ' banner--err' : ' banner--ok'}`}>
+          <span className="banner__icon">{message.warn ? '✕' : '✓'}</span>
+          <div className="banner__body">
+            <div className="banner__text t-0">{message.text}</div>
+          </div>
+        </div>
+      )}
       {editing ? (
         <Editor key={editing.id} initial={editing} onDone={() => setEditing(null)} />
       ) : (
         <>
-          <div className="row">
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop is a bonus, the import button stays */}
+          <div
+            className="dropzone"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              void onFiles(e.dataTransfer.files);
+            }}
+          >
             <button
               type="button"
-              className="primary"
+              className="btn btn--primary"
               onClick={() =>
                 setEditing({
                   id: newWorkoutId('seance'),
@@ -393,7 +452,11 @@ export function WorkoutsPage() {
             >
               {t('workouts.new')}
             </button>
-            <button type="button" onClick={() => fileInput.current?.click()}>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => fileInput.current?.click()}
+            >
               {t('workouts.import')}
             </button>
             <input
@@ -407,11 +470,11 @@ export function WorkoutsPage() {
           </div>
           {mine.length > 0 && (
             <>
-              <h2>{t('workouts.mine')}</h2>
+              <h2 className="t-h2">{t('workouts.mine')}</h2>
               <div className="workout-list">{mine.map(card)}</div>
             </>
           )}
-          <h2>{t('workouts.library')}</h2>
+          <h2 className="t-h2">{t('workouts.library')}</h2>
           <div className="workout-list">{builtin.map(card)}</div>
         </>
       )}

@@ -145,10 +145,10 @@ function RemoteSection() {
   const base = remote.urls[Math.min(chosen, remote.urls.length - 1)];
   const phoneUrl = base ? remoteLink.phoneUrl(base) : null;
   return (
-    <section className="settings">
-      <h2>{t('controls.remote')}</h2>
-      <p className="muted">{t('controls.remoteHelp')}</p>
-      <label>
+    <section className="card stack">
+      <h2 className="t-h2">{t('controls.remote')}</h2>
+      <p className="t-small">{t('controls.remoteHelp')}</p>
+      <label className="switch">
         <input
           type="checkbox"
           checked={on}
@@ -164,7 +164,7 @@ function RemoteSection() {
             {remote.phones > 0 && ` (${remote.phones})`}
           </p>
           {remote.status === 'unavailable' && (
-            <p className="muted">
+            <p className="t-small">
               {t('controls.remoteStart')} <code>pnpm --filter @hrt/api dev</code>
             </p>
           )}
@@ -179,7 +179,12 @@ function RemoteSection() {
                 {remote.urls.length > 1 && (
                   <label>
                     {t('controls.remoteNetwork')}{' '}
-                    <select value={chosen} onChange={(e) => setChosen(Number(e.target.value))}>
+                    <select
+                      className="input"
+                      style={{ width: 'auto' }}
+                      value={chosen}
+                      onChange={(e) => setChosen(Number(e.target.value))}
+                    >
                       {remote.urls.map((u, i) => (
                         <option key={u} value={i}>
                           {u}
@@ -188,15 +193,19 @@ function RemoteSection() {
                     </select>
                   </label>
                 )}
-                <p className="muted">{t('controls.remoteWifi')}</p>
-                <button type="button" onClick={() => remoteLink.regenerate()}>
+                <p className="t-small">{t('controls.remoteWifi')}</p>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => remoteLink.regenerate()}
+                >
                   {t('controls.remoteRegenerate')}
                 </button>
               </div>
             </div>
           )}
           {remote.status !== 'unavailable' && remote.status !== 'connecting' && !phoneUrl && (
-            <p className="muted">{t('controls.remoteNoNetwork')}</p>
+            <p className="t-small">{t('controls.remoteNoNetwork')}</p>
           )}
         </>
       )}
@@ -273,12 +282,17 @@ export function ControlsPage() {
 
   return (
     <Page title={t('controls.title')}>
-      <p className="muted">{t('controls.intro')}</p>
+      <p className="t-small">{t('controls.intro')}</p>
 
-      <section className="settings">
-        <h2>{t('controls.profile')}</h2>
+      <section className="card stack">
+        <h2 className="t-h2">{t('controls.profile')}</h2>
         <div className="row">
-          <select value={active.id} onChange={(e) => setActiveProfile(e.target.value)}>
+          <select
+            className="input"
+            style={{ width: 'auto' }}
+            value={active.id}
+            onChange={(e) => setActiveProfile(e.target.value)}
+          >
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
                 {isDefaultProfile(p.id) ? t('controls.defaultProfile') : p.name}
@@ -287,6 +301,7 @@ export function ControlsPage() {
           </select>
           <button
             type="button"
+            className="btn btn--secondary btn--sm"
             onClick={() => {
               const name = window.prompt(t('controls.newName'), t('controls.newNameDefault'));
               if (name !== null) createProfile(name);
@@ -298,6 +313,7 @@ export function ControlsPage() {
             <>
               <button
                 type="button"
+                className="btn btn--secondary btn--sm"
                 onClick={() => {
                   const name = window.prompt(t('controls.newName'), active.name);
                   if (name?.trim()) saveProfile({ ...active, name: name.trim() });
@@ -305,17 +321,21 @@ export function ControlsPage() {
               >
                 {t('controls.rename')}
               </button>
-              <button type="button" onClick={() => deleteProfile(active.id)}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => deleteProfile(active.id)}
+              >
                 {t('controls.delete')}
               </button>
             </>
           )}
         </div>
-        {!editable && <p className="muted">{t('controls.defaultReadonly')}</p>}
+        {!editable && <p className="t-small">{t('controls.defaultReadonly')}</p>}
       </section>
 
-      <section className="settings">
-        <h2>{t('controls.devices')}</h2>
+      <section className="card stack">
+        <h2 className="t-h2">{t('controls.devices')}</h2>
         <ul className="plain">
           <li>⌨ {t('controls.keyboard')}</li>
           {pads.map((p) => (
@@ -327,12 +347,20 @@ export function ControlsPage() {
               {c.status === 'connected' && c.hasHaptic && (
                 <>
                   {' '}
-                  <button type="button" onClick={() => void c.buzz('double')}>
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => void c.buzz('double')}
+                  >
                     {t('controls.buzz')}
                   </button>
                 </>
               )}{' '}
-              <button type="button" onClick={() => obcControllers.forget(c.id)}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => obcControllers.forget(c.id)}
+              >
                 {t('devices.forget')}
               </button>
             </li>
@@ -344,13 +372,13 @@ export function ControlsPage() {
             </li>
           ))}
         </ul>
-        {pads.length === 0 && <p className="muted">{t('controls.padHint')}</p>}
-        <button type="button" onClick={() => void pair()}>
+        {pads.length === 0 && <p className="t-small">{t('controls.padHint')}</p>}
+        <button type="button" className="btn btn--secondary btn--sm" onClick={() => void pair()}>
           {t('controls.pairObc')}
         </button>
-        <p className="muted">{t('controls.obcHelp')}</p>
-        <p className="muted">{t('controls.zwiftWhere')}</p>
-        {error && <p className="error">{error}</p>}
+        <p className="t-small">{t('controls.obcHelp')}</p>
+        <p className="t-small">{t('controls.zwiftWhere')}</p>
+        {error && <div className="field__error">✕ {error}</div>}
         <p>
           <strong>{t('controls.lastInput')} : </strong>
           {last ? `${SOURCE_ICON[last.source]} ${controlLabel(last)}` : '—'}
@@ -359,12 +387,14 @@ export function ControlsPage() {
 
       <RemoteSection />
 
-      <section className="settings">
-        <h2>{t('controls.mapping')}</h2>
+      <section className="card stack">
+        <h2 className="t-h2">{t('controls.mapping')}</h2>
         <div className="row">
           <label>
             {t('controls.assignType')}{' '}
             <select
+              className="input"
+              style={{ width: 'auto' }}
               value={assignType}
               onChange={(e) => setAssignType(e.target.value as BindingType)}
             >
@@ -375,9 +405,9 @@ export function ControlsPage() {
           </label>
         </div>
         {(Object.keys(ACTION_CATEGORIES) as ActionCategory[]).map((cat) => (
-          <div key={cat}>
-            <h3>{t(`controls.cat.${cat}` as MessageKey)}</h3>
-            <table className="controls-table">
+          <div key={cat} className="stack" style={{ gap: 8 }}>
+            <h3 className="t-h3">{t(`controls.cat.${cat}` as MessageKey)}</h3>
+            <table className="tbl tbl--map">
               <tbody>
                 {ACTION_CATEGORIES[cat].map((action) => (
                   <tr key={action}>
@@ -408,6 +438,7 @@ export function ControlsPage() {
                       {editable && (
                         <button
                           type="button"
+                          className="btn btn--secondary btn--sm"
                           disabled={assigning !== null && assigning !== action}
                           onClick={() => setAssigning(assigning === action ? null : action)}
                         >

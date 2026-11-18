@@ -213,7 +213,7 @@ function Panel({
     }
   };
   return (
-    <div className="hud">
+    <div className="bench-hud">
       <div className="hud-block">
         <strong>Banc de comparaison</strong> · <span className="muted">{status}</span>
         <div className="row">

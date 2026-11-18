@@ -1,26 +1,27 @@
 import type { ReactNode } from 'react';
-import { useT } from '../i18n';
 import { useSettings } from '../store/settings';
 
 export function Page({
   title,
+  eyebrow,
   children,
-  back = '#/',
+  actions,
 }: {
   title: string;
+  eyebrow?: string;
   children: ReactNode;
+  actions?: ReactNode;
+  /** Kept for old callers: the top bar replaces the back link. */
   back?: string | null;
 }) {
-  const t = useT();
   return (
-    <main className="page">
-      <header className="page-header">
-        {back !== null && (
-          <a className="back" href={back}>
-            ← {t('nav.back')}
-          </a>
-        )}
-        <h1>{title}</h1>
+    <main className="page__main">
+      <header className="page__head">
+        <div className="stack" style={{ gap: 8 }}>
+          {eyebrow && <span className="t-eyebrow">{eyebrow}</span>}
+          <h1 className="t-h1">{title}</h1>
+        </div>
+        {actions}
       </header>
       {children}
     </main>

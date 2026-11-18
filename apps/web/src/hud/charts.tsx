@@ -3,7 +3,10 @@
 import type { Route } from '@hrt/route-engine';
 import { useMemo } from 'react';
 
-/** Elevation profile of one lap, with the rider's position. */
+/** Grade band 0..4 of a grade in percent (down, 0–3, 3–6, 6–9, > 9 %). */
+const bandOf = (g: number) => (g < -1 ? 0 : g < 3 ? 1 : g < 6 ? 2 : g < 9 ? 3 : 4);
+
+/** Elevation profile of one lap: one bar per slice, coloured by grade band, with the rider's position. */
 export function ElevationProfile({
   route,
   lapDistanceM,
@@ -16,43 +19,48 @@ export function ElevationProfile({
   showMarker?: boolean;
 }) {
   const W = 600;
-  const { path, line, minZ, maxZ } = useMemo(() => {
-    const pts = route.profile(300);
+  const { bars, minZ, maxZ } = useMemo(() => {
+    const n = 60;
+    const pts = route.profile(n * 3);
     const zs = pts.map((p) => p.z);
     const minZ = Math.min(...zs);
     const maxZ = Math.max(...zs, minZ + 30);
-    const x = (d: number) => (d / route.lengthM) * W;
-    const y = (z: number) => height - 4 - ((z - minZ) / (maxZ - minZ)) * (height - 10);
-    const line = pts
-      .map((p, i) => `${i ? 'L' : 'M'}${x(p.d).toFixed(1)},${y(p.z).toFixed(1)}`)
-      .join('');
-    return { path: `${line}L${W},${height}L0,${height}Z`, line, minZ, maxZ };
+    const w = W / n;
+    const bars = Array.from({ length: n }, (_, i) => {
+      const p0 = pts[Math.floor((i * (pts.length - 1)) / n)];
+      const p1 = pts[Math.min(pts.length - 1, Math.ceil(((i + 1) * (pts.length - 1)) / n))];
+      const z = ((p0?.z ?? minZ) + (p1?.z ?? minZ)) / 2;
+      const dd = Math.max(1, (p1?.d ?? 0) - (p0?.d ?? 0));
+      const grade = (((p1?.z ?? 0) - (p0?.z ?? 0)) / dd) * 100;
+      const top = 6 + ((maxZ - z) / (maxZ - minZ)) * (height - 16);
+      return { x: i * w, y: top, w: w + 0.6, h: height - top, band: bandOf(grade) };
+    });
+    return { bars, minZ, maxZ };
   }, [route, height]);
+  void minZ;
+  void maxZ;
   const markerX = lapDistanceM === undefined ? null : (lapDistanceM / route.lengthM) * W;
-  const markerZ = lapDistanceM === undefined ? 0 : route.sampleAt(lapDistanceM).z;
-  const markerY = height - 4 - ((markerZ - minZ) / (maxZ - minZ)) * (height - 10);
   return (
-    <svg className="profile" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" aria-hidden>
-      <path d={path} className="profile-fill" />
-      <path d={line} className="profile-line" vectorEffect="non-scaling-stroke" />
+    <svg className="chart" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" aria-hidden>
+      {bars.map((b) => (
+        <rect
+          key={b.x}
+          className={`g${b.band}${markerX !== null && b.x + b.w < markerX ? ' past' : ''}`}
+          x={b.x}
+          y={b.y}
+          width={b.w}
+          height={b.h}
+        />
+      ))}
       {showMarker && markerX !== null && (
-        <>
-          <line
-            x1={markerX}
-            x2={markerX}
-            y1={0}
-            y2={height}
-            className="profile-cursor"
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx={markerX}
-            cy={markerY}
-            r={4}
-            className="profile-dot"
-            vectorEffect="non-scaling-stroke"
-          />
-        </>
+        <line
+          x1={markerX}
+          x2={markerX}
+          y1={0}
+          y2={height}
+          className="cursor"
+          vectorEffect="non-scaling-stroke"
+        />
       )}
     </svg>
   );
@@ -83,14 +91,12 @@ export function MiniMap({
     }
     return { line: `${line}Z`, toXY };
   }, [route, size]);
-  const start = toXY(route.x[0] as number, route.y[0] as number);
   const p = lapDistanceM === undefined ? null : route.sampleAt(lapDistanceM);
   const pos = p ? toXY(p.x, p.y) : null;
   return (
-    <svg className="minimap" viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden>
-      <path d={line} className="minimap-route" />
-      <rect x={start[0] - 3} y={start[1] - 3} width={6} height={6} className="minimap-start" />
-      {pos && <circle cx={pos[0]} cy={pos[1]} r={5} className="minimap-dot" />}
+    <svg viewBox={`0 0 ${size} ${size}`} aria-hidden>
+      <path d={line} className="map__path" style={{ strokeWidth: size / 30 }} />
+      {pos && <circle cx={pos[0]} cy={pos[1]} r={size / 22} className="map__me" />}
     </svg>
   );
 }

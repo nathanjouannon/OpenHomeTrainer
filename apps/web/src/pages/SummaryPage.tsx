@@ -40,11 +40,32 @@ export function SummaryPage({ rideId }: { rideId: string }) {
     };
   }, [rideId]);
 
-  if (ride === null) return <Page title={t('summary.title')}>…</Page>;
+  if (ride === null) {
+    return (
+      <Page title={t('summary.title')}>
+        <div className="grid grid--4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="stat card--skeleton">
+              <div className="sk" style={{ height: 20, width: '40%' }} />
+              <div className="sk" style={{ height: 54 }} />
+            </div>
+          ))}
+        </div>
+      </Page>
+    );
+  }
   if (ride === 'missing') {
     return (
       <Page title={t('summary.title')} back="#/rides">
-        <p>{t('summary.notFound')}</p>
+        <div className="banner banner--err">
+          <span className="banner__icon">✕</span>
+          <div className="banner__body">
+            <div className="banner__title">{t('summary.notFound')}</div>
+          </div>
+          <a className="btn btn--secondary" href="#/rides">
+            {t('nav.history')}
+          </a>
+        </div>
       </Page>
     );
   }
@@ -60,14 +81,19 @@ export function SummaryPage({ rideId }: { rideId: string }) {
   if (header.status !== 'finished' || !header.stats) {
     return (
       <Page title={t('summary.title')} back="#/rides">
-        <p className="notice">{t('home.unfinished')}</p>
-        <p>
-          {formatDate(header.startedAt, settings.language)} · {formatDuration(header.durationS)} ·{' '}
-          {f.distance(header.distanceM)} {f.distanceUnit}
-        </p>
-        <button type="button" className="primary" onClick={() => void recover()}>
-          {t('history.recover')}
-        </button>
+        <div className="banner">
+          <span className="banner__icon">i</span>
+          <div className="banner__body">
+            <div className="banner__title">{t('home.unfinishedTitle')}</div>
+            <div className="banner__text">
+              {formatDate(header.startedAt, settings.language)} · {formatDuration(header.durationS)}{' '}
+              · {f.distance(header.distanceM)} {f.distanceUnit}
+            </div>
+          </div>
+          <button type="button" className="btn btn--primary" onClick={() => void recover()}>
+            {t('history.recover')}
+          </button>
+        </div>
       </Page>
     );
   }
@@ -104,19 +130,25 @@ export function SummaryPage({ rideId }: { rideId: string }) {
 
   return (
     <Page title={t('summary.title')} back="#/rides">
-      <p className="muted">
+      <p className="t-body">
         {formatDate(header.startedAt, settings.language)} ·{' '}
         {header.route ? loc(header.route.name) : ''}
       </p>
-      <dl className="stats-grid">
-        {items.map(([k, v]) => (
-          <div key={k}>
-            <dt>{t(k)}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
-      </dl>
-      <section className="charts">
+      <div className="grid grid--4">
+        {items.map(([k, v]) => {
+          const [value, ...unit] = v.split(' ');
+          return (
+            <div className="stat" key={k}>
+              <span className="stat__label">{t(k)}</span>
+              <span className="stat__value">
+                {value}
+                {unit.length > 0 && <small>{unit.join(' ')}</small>}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <section className="card stack">
         <LineChart
           values={samples.map((x) => x.altitudeM)}
           className="chart-elevation"
@@ -133,9 +165,9 @@ export function SummaryPage({ rideId }: { rideId: string }) {
         )}
       </section>
       {(header.segments?.length ?? 0) > 0 && (
-        <section>
-          <h2>{t('summary.segments')}</h2>
-          <table className="laps segments">
+        <section className="card stack">
+          <h2 className="t-h2">{t('summary.segments')}</h2>
+          <table className="tbl">
             <thead>
               <tr>
                 <th>{t('summary.segment')}</th>
@@ -151,7 +183,7 @@ export function SummaryPage({ rideId }: { rideId: string }) {
                 <tr key={`${x.segmentId}-${x.lap}`}>
                   <td>{loc(x.name)}</td>
                   <td>{x.lap}</td>
-                  <td className={x.isPb ? 'pb' : ''}>
+                  <td className={`num${x.isPb ? ' pb' : ''}`}>
                     {formatDuration(x.durationS)}
                     {x.isPb && <small> {t('summary.segmentPb')}</small>}
                   </td>
@@ -167,9 +199,9 @@ export function SummaryPage({ rideId }: { rideId: string }) {
         </section>
       )}
       {header.laps.length > 0 && (
-        <section>
-          <h2>{t('summary.laps')}</h2>
-          <table className="laps">
+        <section className="card stack">
+          <h2 className="t-h2">{t('summary.laps')}</h2>
+          <table className="tbl">
             <thead>
               <tr>
                 <th>{t('summary.lap')}</th>
@@ -183,7 +215,7 @@ export function SummaryPage({ rideId }: { rideId: string }) {
             </thead>
             <tbody>
               {header.laps.map((lap, i) => (
-                <tr key={lap.index} className={i === bestIndex ? 'best' : ''}>
+                <tr key={lap.index} className={i === bestIndex ? 'is-best' : ''}>
                   <td>
                     {lap.index}
                     {lap.trigger !== 'loop' && (
@@ -211,12 +243,12 @@ export function SummaryPage({ rideId }: { rideId: string }) {
         </section>
       )}
       <div className="row">
-        <button type="button" className="primary" onClick={exportFit}>
+        <button type="button" className="btn btn--primary btn--lg" onClick={exportFit}>
           {t('summary.export')}
         </button>
         <button
           type="button"
-          className="danger"
+          className="btn btn--danger"
           onClick={() => (confirmDelete ? void remove() : setConfirmDelete(true))}
         >
           {confirmDelete ? t('summary.deleteConfirm') : t('summary.delete')}
