@@ -44,6 +44,52 @@ Comme l'application est aussi pilotable entièrement au clavier, BikeControl peu
 
 **Conséquence sur le plan** : comme le Zwift Click n'est pas garanti, la **télécommande smartphone** (gratuite, développée par nous) est avancée en **phase 3** pour servir de contrôleur fiable posé sur le guidon. Au MVP, le clavier suffit.
 
+### 1.4 Observations sur la paire de Zwift Click v2 (spike 3.11, essais du 2026-11-13 et du 2026-11-18)
+
+Essais faits avec la page de diagnostic `#/click` (`apps/web/src/spikes/click`), sur la paire du développeur (deux unités, firmware 1.2.0) avec Chrome sur macOS. Aucun déverrouillage ni chiffrement n'a été contourné : seuls les messages en clair ont été lus.
+
+**Connexion**
+- Chaque unité expose le service `0xFC82` (caractéristiques `…0002` notifications, `…0003` écriture, `…0004` réponse, `…0100-0102`) et les services batterie (`0x180F`) et informations (`0x180A`).
+- **« RideOn » est nécessaire.** Sans l'envoi de la salutation « RideOn » (écriture sur `…0003`), aucun bouton n'arrive (testé sur la gauche). Après l'envoi, l'unité répond et envoie des messages d'identification puis un bloc d'environ 64 octets qui ressemble à un échange de clés. Ce bloc est ignoré et jamais répondu : les boutons arrivent quand même.
+- La LED reste bleue clignotante pendant toutes les connexions, alors que les boutons répondent. Son sens n'est pas établi (le 2026-11-13 elle avait été notée fixe). Sans importance tant que les boutons arrivent.
+
+**Boutons** : message `23 08 <varint>` sur `…0002`. Le varint est lu 7 bits par octet ; un bit à 0 veut dire appuyé. Au repos : `ff ff ff 0f`. Un appui bref dure 90 à 200 ms et ressort proprement en appuyé puis relâché.
+
+| Manette | Bouton | Bit |
+|---|---|---|
+| Gauche | « - » | 8 |
+| Gauche | bas | 3 |
+| Gauche | gauche | 0 |
+| Gauche | haut | 1 |
+| Gauche | droite | 2 |
+| Droite | « + » | 12 |
+| Droite | B | 5 |
+| Droite | Z | 7 |
+| Droite | Y | 6 |
+| Droite | A | 4 |
+
+Les dix bits sont distincts (gauche : 0 à 3 et 8 ; droite : 4 à 7 et 12).
+
+**Batterie** : `19 10 <%>` sur `…0002` et notification `0x2A19`, toutes les 5 s environ. Seule la manette gauche l'envoie ; la droite n'envoie rien de périodique (ni seule, ni avec la gauche). La batterie ne peut donc pas servir de signe de vie pour la droite.
+
+**Deux unités**
+- Les deux se connectent en même temps (deux onglets, une connexion par unité), chacune avec son « RideOn » et ses boutons.
+- **La gauche relaie les boutons de la droite.** Connectée seule, elle remonte aussi les appuis de la droite (testé : bits 12, 7 et 4), avec ~10 à 40 ms de décalage quand les deux sont connectées. Le sens inverse n'existe pas : la droite ne reçoit jamais les boutons de la gauche. Le doublon suit l'unité gauche et non l'ordre de connexion, donc ce n'est probablement pas un artefact de Chrome ; la cause matérielle n'est pas démontrée.
+- **Une seule connexion (la gauche) suffit donc pour les dix boutons.** La droite seule fonctionne aussi mais ne remonte que ses cinq boutons.
+
+**Conséquences pour l'intégration** (source `zwift` du hub)
+- Connexion par défaut à la gauche seule ; la droite en repli.
+- Si les deux sont connectées, dédupliquer (même bit vu sur les deux connexions à quelques dizaines de ms d'écart = un seul appui).
+- Rôle gauche / droite choisi à l'appairage dans `#/controls`, pas déduit d'un appui.
+- Envoyer « RideOn » dès la connexion ; fermer Zwift et BikeControl avant, car chaque Click n'accepte qu'un seul appareil central.
+- Signe de vie : batterie de la gauche (5 s) et événement de déconnexion GATT.
+
+**Reste à vérifier**
+- Fiabilité sur une sortie longue : veille, reconnexion.
+- Comportement de la gauche quand la droite est éteinte ou hors de portée.
+- Dépendance du relais et du format au firmware 1.2.0.
+- Test avec le trainer et le capteur déjà connectés en même temps.
+
 ## 2. Pourquoi des vitesses virtuelles
 
 - Beaucoup de home trainers récents sont vendus **sans cassette** (Zwift Hub One, KICKR Core Zwift One…) ou avec un pignon unique.
