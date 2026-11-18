@@ -10,6 +10,14 @@ import {
 } from '@hrt/drivetrain';
 import { type ReactNode, useState } from 'react';
 import { errorLog } from '../error-log';
+import { COLOR_MODES, type ColorMode } from '../hud/colors';
+import {
+  DEFAULT_HUD_TILES,
+  type HudTileId,
+  moveHudTile,
+  orderedForEditing,
+  toggleHudTile,
+} from '../hud/tiles';
 import { useT } from '../i18n';
 import {
   type BikeType,
@@ -359,6 +367,65 @@ export function SettingsPage() {
             ))}
           </select>
         </Field>
+        <Field label={t('settings.colorMode')} help={t('settings.colorMode.hint')}>
+          <select
+            value={s.colorMode}
+            onChange={(e) => updateSettings({ colorMode: e.target.value as ColorMode })}
+          >
+            {COLOR_MODES.map((m) => (
+              <option key={m} value={m}>
+                {t(`settings.colorMode.${m}`)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <fieldset>
+          <legend>{t('settings.hudTiles')}</legend>
+          <small className="muted">{t('settings.hudTiles.hint')}</small>
+          <ul className="tile-config">
+            {orderedForEditing(s.hudTiles).map((id) => {
+              const shown = s.hudTiles.includes(id);
+              return (
+                <li key={id}>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={shown}
+                      onChange={() => updateSettings({ hudTiles: toggleHudTile(s.hudTiles, id) })}
+                    />
+                    {t(`hud.${id}`)}
+                  </label>
+                  {shown && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label={t('settings.hudTiles.up')}
+                        onClick={() =>
+                          updateSettings({ hudTiles: moveHudTile(s.hudTiles, id, -1) })
+                        }
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('settings.hudTiles.down')}
+                        onClick={() => updateSettings({ hudTiles: moveHudTile(s.hudTiles, id, 1) })}
+                      >
+                        ↓
+                      </button>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <button
+            type="button"
+            onClick={() => updateSettings({ hudTiles: [...DEFAULT_HUD_TILES] as HudTileId[] })}
+          >
+            {t('settings.hudTiles.reset')}
+          </button>
+        </fieldset>
         <label className="check">
           <input
             type="checkbox"

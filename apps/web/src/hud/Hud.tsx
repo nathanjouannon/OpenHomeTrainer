@@ -9,6 +9,8 @@ import { useLocalized } from '../pages/common';
 import type { LiveState } from '../ride/ride-session';
 import { useSettings } from '../store/settings';
 import { ElevationProfile, MiniMap } from './charts';
+import { GRADE_MARK } from './colors';
+import { type HudTileId, tilesOfRow } from './tiles';
 import { WorkoutGraph } from './WorkoutGraph';
 
 export function useLiveState(state: LiveState, hz = 4): LiveState {
@@ -64,21 +66,84 @@ export function Hud({
   const f = formatter(settings.units, settings.language);
   const s = useLiveState(state);
   const band = gradeBand(s.gradePercent);
-  return (
-    <div className={`ride-hud hud-${settings.hudSize}`}>
-      <div className="hud-top">
-        <div className="hud-strip">
-          <Tile label={t('hud.time')} value={formatDuration(s.timeS)} />
+  const cb = settings.colorMode !== 'default';
+  const renderTile = (id: HudTileId) => {
+    switch (id) {
+      case 'time':
+        return <Tile key={id} label={t('hud.time')} value={formatDuration(s.timeS)} />;
+      case 'distance':
+        return (
           <Tile
+            key={id}
             label={t('hud.distance')}
             value={f.distance(s.distanceM, 2)}
             unit={f.distanceUnit}
           />
+        );
+      case 'ascent':
+        return (
           <Tile
+            key={id}
             label={t('hud.ascent')}
             value={`+${f.elevation(s.ascentM)}`}
             unit={f.elevationUnit}
           />
+        );
+      case 'power':
+        return (
+          <Tile
+            key={id}
+            className="tile-power"
+            label={t('hud.power')}
+            value={String(Math.round(s.powerW))}
+            unit="W"
+            sub={`3 s : ${Math.round(s.power3sW)} W`}
+          />
+        );
+      case 'wkg':
+        return <Tile key={id} label={t('hud.wkg')} value={f.num(s.power3sW / weightKg, 1)} />;
+      case 'cadence':
+        return (
+          <Tile
+            key={id}
+            label={t('hud.cadence')}
+            value={String(Math.round(s.cadenceRpm))}
+            unit="rpm"
+          />
+        );
+      case 'hr':
+        return (
+          <Tile
+            key={id}
+            label={t('hud.hr')}
+            value={s.heartRateBpm === null ? '—' : String(Math.round(s.heartRateBpm))}
+            unit="bpm"
+          />
+        );
+      case 'speed':
+        return (
+          <Tile key={id} label={t('hud.speed')} value={f.speed(s.speedMs)} unit={f.speedUnit} />
+        );
+      case 'gear':
+        return s.gearIndex === null ? null : (
+          <div key={id} className="tile tile-gear">
+            <span className="tile-label">{t('hud.gear')}</span>
+            <span className="tile-value">{s.gearLabel}</span>
+            <span className="gear-bar" aria-hidden>
+              {Array.from({ length: s.gearCount }, (_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: fixed list of gear slots
+                <i key={i} className={i <= (s.gearIndex ?? 0) ? 'on' : ''} />
+              ))}
+            </span>
+          </div>
+        );
+    }
+  };
+  return (
+    <div className={`ride-hud hud-${settings.hudSize} cb-${settings.colorMode}`}>
+      <div className="hud-top">
+        <div className="hud-strip">
+          {tilesOfRow(settings.hudTiles, 'top').map(renderTile)}
           {route.loop && (
             <Tile
               className="tile-lap"
@@ -168,13 +233,6 @@ export function Hud({
       )}
       <div className="hud-bottom">
         <div className="hud-tiles">
-          <Tile
-            className="tile-power"
-            label={t('hud.power')}
-            value={String(Math.round(s.powerW))}
-            unit="W"
-            sub={`3 s : ${Math.round(s.power3sW)} W`}
-          />
           {s.ergTargetW !== null && (
             <Tile
               className={`tile-erg${s.ergState && s.ergState !== 'active' ? ' tile-erg-hold' : ''}`}
@@ -192,32 +250,15 @@ export function Hud({
               }
             />
           )}
-          <Tile label={t('hud.wkg')} value={f.num(s.power3sW / weightKg, 1)} />
-          <Tile label={t('hud.cadence')} value={String(Math.round(s.cadenceRpm))} unit="rpm" />
-          <Tile
-            label={t('hud.hr')}
-            value={s.heartRateBpm === null ? '—' : String(Math.round(s.heartRateBpm))}
-            unit="bpm"
-          />
-          <Tile label={t('hud.speed')} value={f.speed(s.speedMs)} unit={f.speedUnit} />
-          {s.gearIndex !== null && (
-            <div className="tile tile-gear">
-              <span className="tile-label">{t('hud.gear')}</span>
-              <span className="tile-value">{s.gearLabel}</span>
-              <span className="gear-bar" aria-hidden>
-                {Array.from({ length: s.gearCount }, (_, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: fixed list of gear slots
-                  <i key={i} className={i <= (s.gearIndex ?? 0) ? 'on' : ''} />
-                ))}
-              </span>
-            </div>
-          )}
+          {tilesOfRow(settings.hudTiles, 'bottom').map(renderTile)}
         </div>
         <div className="hud-profile">
           <ElevationProfile route={route} lapDistanceM={s.lapDistanceM} />
           <div className={`grade grade-${band}`}>
             <span className="tile-label">{t('hud.grade')}</span>
-            <span className="grade-value">{f.num(s.gradePercent, 1)} %</span>
+            <span className="grade-value">
+              {f.num(s.gradePercent, 1)} %{cb && GRADE_MARK[band] && ` ${GRADE_MARK[band]}`}
+            </span>
           </div>
         </div>
       </div>

@@ -633,6 +633,34 @@ input[type="range"] {
   padding: 0.8rem;
   font-variant-numeric: tabular-nums;
   --tile-scale: 1;
+  --grade-down: rgb(25 113 194 / 0.75);
+  --grade-g1: rgb(240 140 0 / 0.75);
+  --grade-g2: rgb(224 49 49 / 0.8);
+  --grade-g3: rgb(134 46 156 / 0.85);
+  --grade-g1-fg: #fff;
+  --good: #4cd37b;
+  --bad: #ff7a6e;
+}
+
+/* Colour-blind modes (lot 3.12): red-green (Okabe-Ito) and blue-yellow. */
+.cb-redGreen {
+  --grade-down: #0072b2;
+  --grade-g1: #f0e442;
+  --grade-g2: #e69f00;
+  --grade-g3: #cc79a7;
+  --grade-g1-fg: #111;
+  --good: #56b4e9;
+  --bad: #e69f00;
+}
+
+.cb-blueYellow {
+  --grade-down: #0b9aa8;
+  --grade-g1: #f4a6c0;
+  --grade-g2: #e0453a;
+  --grade-g3: #8e1b3a;
+  --grade-g1-fg: #111;
+  --good: #3cb371;
+  --bad: #f4a6c0;
 }
 
 .hud-S {
@@ -755,19 +783,24 @@ input[type="range"] {
 }
 
 .grade-down {
-  background: rgb(25 113 194 / 0.75);
+  background: var(--grade-down);
 }
 
 .grade-g1 {
-  background: rgb(240 140 0 / 0.75);
+  background: var(--grade-g1);
+  color: var(--grade-g1-fg);
+}
+
+.grade-g1 .tile-label {
+  color: inherit;
 }
 
 .grade-g2 {
-  background: rgb(224 49 49 / 0.8);
+  background: var(--grade-g2);
 }
 
 .grade-g3 {
-  background: rgb(134 46 156 / 0.85);
+  background: var(--grade-g3);
 }
 
 .warnings {
@@ -1051,10 +1084,10 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 .segment-banner .delta-good {
-  color: #4cd37b;
+  color: var(--good);
 }
 .segment-banner .delta-bad {
-  color: #ff7a6e;
+  color: var(--bad);
 }
 table.segments td.pb {
   color: var(--ok);
@@ -1072,10 +1105,10 @@ table.segments td.pb {
   border-left: 4px solid #6cc5ff;
 }
 .tile-ghost.ghost-ahead .tile-value {
-  color: #4cd37b;
+  color: var(--good);
 }
 .tile-ghost.ghost-behind .tile-value {
-  color: #ff7a6e;
+  color: var(--bad);
 }
 
 /* Controls hub (lot 3.9) */
@@ -1127,4 +1160,23 @@ table.segments td.pb {
   padding: 0 0.2rem;
   cursor: pointer;
   color: var(--muted);
+}
+
+.tile-config {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tile-config li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tile-config .check {
+  flex: 1;
 }

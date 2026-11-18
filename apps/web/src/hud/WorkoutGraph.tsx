@@ -2,14 +2,7 @@
 // with an optional cursor for the current position.
 
 import type { Interval } from '@hrt/workouts';
-
-const ZONE_COLORS = ['#8aa0b4', '#4fa3d9', '#5cb85c', '#e6c229', '#f08a24', '#e0453a'];
-
-export function zoneColor(watts: number, ftpW: number): string {
-  const f = watts / Math.max(1, ftpW);
-  const z = f < 0.56 ? 0 : f < 0.76 ? 1 : f < 0.91 ? 2 : f < 1.06 ? 3 : f < 1.21 ? 4 : 5;
-  return ZONE_COLORS[z] as string;
-}
+import { zoneColor } from './colors';
 
 export function WorkoutGraph({
   intervals,

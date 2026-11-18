@@ -10,6 +10,8 @@ import {
   parseTeeth,
 } from '@hrt/drivetrain';
 import { useSyncExternalStore } from 'react';
+import { type ColorMode, isColorMode } from '../hud/colors';
+import { DEFAULT_HUD_TILES, type HudTileId, parseHudTiles } from '../hud/tiles';
 import type { PowerSource, ShiftingStrategy } from '../ride/ride-session';
 import { isRendererPreference, type RendererPreference } from '../world/renderer-options';
 
@@ -55,6 +57,10 @@ export interface Settings {
   powerSource: PowerSource;
   camera: CameraMode;
   hudSize: 'S' | 'M' | 'L' | 'XL';
+  /** Shown HUD tiles, in display order (lot 3.12). */
+  hudTiles: HudTileId[];
+  /** Colour-blind palette of grade bands and power zones. */
+  colorMode: ColorMode;
   reduceMotion: boolean;
 }
 
@@ -98,6 +104,8 @@ export const defaultSettings = (): Settings => ({
   powerSource: 'trainer',
   camera: 'pov',
   hudSize: 'M',
+  hudTiles: [...DEFAULT_HUD_TILES],
+  colorMode: 'default',
   reduceMotion: false,
 });
 
@@ -140,6 +148,10 @@ function load(): Settings {
     }
     if (!QUALITY_SETTINGS.includes(saved.quality as QualitySetting)) delete saved.quality;
     if (!isRendererPreference(saved.renderer)) delete saved.renderer;
+    const tiles = parseHudTiles(saved.hudTiles);
+    if (tiles) saved.hudTiles = tiles;
+    else delete saved.hudTiles;
+    if (!isColorMode(saved.colorMode)) delete saved.colorMode;
     return { ...defaults, ...saved, profile: { ...defaults.profile, ...saved.profile } };
   } catch {
     return defaults;
