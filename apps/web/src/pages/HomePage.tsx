@@ -79,17 +79,6 @@ export function HomePage() {
           </span>
         </a>
       </nav>
-      <details className="dev-tools">
-        <summary>{t('home.devTools')}</summary>
-        <ul>
-          <li>
-            <a href="#/ble">Spike Bluetooth (FTMS, journal des trames)</a>
-          </li>
-          <li>
-            <a href="#/3d">Spike 3D (mesure des FPS)</a>
-          </li>
-        </ul>
-      </details>
     </main>
   );
 }

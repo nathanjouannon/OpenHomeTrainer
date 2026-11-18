@@ -16,7 +16,6 @@ const fr = {
   'home.recover': 'La récupérer',
   'home.noBluetooth':
     'Web Bluetooth n’est pas disponible dans ce navigateur. Utilise Chrome ou Edge sur ordinateur pour connecter un vrai trainer ; le trainer simulé reste disponible.',
-  'home.devTools': 'Outils de développement',
   'devices.title': 'Appareils',
   'devices.trainer': 'Home trainer',
   'devices.heartrate': 'Ceinture cardio',
@@ -358,7 +357,6 @@ const en: Record<MessageKey, string> = {
   'home.recover': 'Recover it',
   'home.noBluetooth':
     'Web Bluetooth is not available in this browser. Use Chrome or Edge on a computer to connect a real trainer; the simulated trainer is still available.',
-  'home.devTools': 'Developer tools',
   'devices.title': 'Devices',
   'devices.trainer': 'Smart trainer',
   'devices.heartrate': 'Heart rate belt',
