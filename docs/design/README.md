@@ -1,0 +1,41 @@
+# Captures HomeRealTrainer v2
+
+Un dossier par écran, un PNG par état (defaut, vide, erreur, chargement, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune).
+
+- **Composants-formulaires** : defaut
+- **Composants-hud-donnees** : defaut, palette-rouge-vert, palette-bleu-jaune
+- **Compagnon-mobile** : defaut
+- **Compagnon-mobile-reconnexion** : defaut
+- **Pages-techniques** : defaut
+- **Direction-artistique** : defaut
+- **Jetons-couleurs** : defaut, palette-rouge-vert, palette-bleu-jaune
+- **Jetons-typo-espace-mouvement** : defaut
+- **Accueil** : defaut, chargement, erreur-vide-bluetooth
+- **Accueil-EN** : defaut
+- **Accueil-recuperation** : defaut
+- **Navigateur-premier-lancement** : defaut
+- **Profil** : defaut, vide, chargement, palette-rouge-vert, palette-bleu-jaune
+- **Appareils** : defaut, vide, chargement
+- **Appareils-erreurs** : defaut
+- **Parcours** : defaut, vide, chargement, erreur, palette-rouge-vert, palette-bleu-jaune
+- **Parcours-EN** : defaut
+- **Chargement** : defaut, debut-12pct, erreur
+- **Seances** : defaut, vide, chargement, erreur, palette-rouge-vert, palette-bleu-jaune
+- **Editeur-seance** : defaut, vide, palette-rouge-vert, palette-bleu-jaune
+- **Commandes** : defaut, erreur, vide
+- **Reglages** : defaut, chargement
+- **Historique** : defaut, vide, chargement, erreur
+- **Recapitulatif** : defaut, erreur, chargement, palette-rouge-vert, palette-bleu-jaune
+- **Etats-vides-erreurs** : defaut
+- **Sortie-libre** : defaut, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune
+- **Sortie-seance-ERG** : defaut, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune
+- **Sortie-seance-terminee** : defaut, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune
+- **Sortie-fantome-segment** : defaut, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune
+- **Sortie-sans-capteur** : defaut, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune
+- **Sortie-perte-trainer** : defaut, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune
+- **Pause** : defaut, taille-S, taille-XL, palette-rouge-vert, palette-bleu-jaune
+- **Pause-EN-imperial** : defaut
+- **Fin-de-sortie** : defaut
+- **HUD-tailles** : defaut
+- **HUD-palettes** : defaut
+- **Prototype-transitions** : defaut

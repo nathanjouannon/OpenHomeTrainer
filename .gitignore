@@ -30,3 +30,6 @@ apps/web/public/assets/
 docs/references/velo/
 docs/references/voitures/
 apps/web/public/references/
+
+# Captures des maquettes (lot 3.14) : gardées en local, hors git
+docs/design/**/*.png
