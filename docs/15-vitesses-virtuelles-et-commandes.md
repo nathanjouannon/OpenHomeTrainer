@@ -39,7 +39,7 @@ Comme l'application est aussi pilotable entièrement au clavier, BikeControl peu
 | Matériel | Utilisable dans HomeRealTrainer ? | Comment |
 |---|---|---|
 | **Zwift Cog** | **Oui** | Pignon fixe : le rapport physique = plateau utilisé × Cog. Toutes les vitesses passent par la boîte virtuelle HomeRealTrainer (S1/S3 via FTMS). Conséquence : **vitesses virtuelles + raccourcis clavier dès la phase 1** |
-| **Zwift Click v2** | **Incertain** | Zwift n'a pas publié de protocole ouvert. Le support tiers repose sur de la rétro-ingénierie et casse régulièrement ; la v2 doit être périodiquement « déverrouillée » via Zwift (BikeControl le gère, l'abonnement Pro évitant de redéverrouiller toutes les 24 h). Plusieurs applications tierces ont perdu ou n'ont jamais eu le support. **Options** : (a) via BikeControl en passerelle (payant pour un usage confortable, donc hors budget du projet) ; (b) implémentation directe en spike phase 3 (fragile, peut nécessiter le déverrouillage Zwift) ; (c) repli gratuit : clavier, smartphone, manette |
+| **Zwift Click v2** | **Oui, en connexion directe** (validé le 2026-11-18, [§1.4](#14-observations-sur-la-paire-de-zwift-click-v2-spike-311-essais-du-2026-11-13-et-du-2026-11-18)) | **Constat initial, avant le spike :** incertain. Zwift n'a pas publié de protocole ouvert. Le support tiers repose sur de la rétro-ingénierie et casse régulièrement ; la v2 doit être périodiquement « déverrouillée » via Zwift (BikeControl le gère, l'abonnement Pro évitant de redéverrouiller toutes les 24 h). Plusieurs applications tierces ont perdu ou n'ont jamais eu le support. **Options** : (a) via BikeControl en passerelle (payant pour un usage confortable, donc hors budget du projet) ; (b) implémentation directe en spike phase 3 (fragile, peut nécessiter le déverrouillage Zwift) ; (c) repli gratuit : clavier, smartphone, manette |
 | **Shimano Ultegra Di2** (R8050/R8070) | **Seulement avec une unité EW-WU111** (D-Fly, achat) | Les boutons cachés des cocottes passent alors en BLE (D-Fly), relayés par BikeControl. Sans cette unité, rien à faire côté logiciel. Sur un Zwift Cog, les passages Di2 réels déplacent le dérailleur pour rien : seuls les boutons « libres » sont intéressants |
 
 **Conséquence sur le plan** : comme le Zwift Click n'est pas garanti, la **télécommande smartphone** (gratuite, développée par nous) est avancée en **phase 3** pour servir de contrôleur fiable posé sur le guidon. Au MVP, le clavier suffit.
@@ -77,18 +77,17 @@ Les dix bits sont distincts (gauche : 0 à 3 et 8 ; droite : 4 à 7 et 12).
 - **La gauche relaie les boutons de la droite.** Connectée seule, elle remonte aussi les appuis de la droite (testé : bits 12, 7 et 4), avec ~10 à 40 ms de décalage quand les deux sont connectées. Le sens inverse n'existe pas : la droite ne reçoit jamais les boutons de la gauche. Le doublon suit l'unité gauche et non l'ordre de connexion, donc ce n'est probablement pas un artefact de Chrome ; la cause matérielle n'est pas démontrée.
 - **Une seule connexion (la gauche) suffit donc pour les dix boutons.** La droite seule fonctionne aussi mais ne remonte que ses cinq boutons.
 
-**Conséquences pour l'intégration** (source `zwift` du hub)
+**Conséquences pour l'intégration** (source `zwift` du hub). **Intégré le 2026-11-18** et validé en conditions réelles ; le rôle gauche / droite n'a finalement pas besoin d'être choisi, car le suivi des boutons additionne les connexions et supprime les doublons.
 - Connexion par défaut à la gauche seule ; la droite en repli.
 - Si les deux sont connectées, dédupliquer (même bit vu sur les deux connexions à quelques dizaines de ms d'écart = un seul appui).
 - Rôle gauche / droite choisi à l'appairage dans `#/controls`, pas déduit d'un appui.
 - Envoyer « RideOn » dès la connexion ; fermer Zwift et BikeControl avant, car chaque Click n'accepte qu'un seul appareil central.
 - Signe de vie : batterie de la gauche (5 s) et événement de déconnexion GATT.
 
-**Reste à vérifier**
-- Fiabilité sur une sortie longue : veille, reconnexion.
+**Non vérifié**
 - Comportement de la gauche quand la droite est éteinte ou hors de portée.
 - Dépendance du relais et du format au firmware 1.2.0.
-- Test avec le trainer et le capteur déjà connectés en même temps.
+- Les Click ne sont pas mémorisés d'une session à l'autre : reconnexion manuelle depuis la page Appareils.
 
 ## 2. Pourquoi des vitesses virtuelles
 
@@ -107,6 +106,8 @@ Les dix bits sont distincts (gauche : 0 à 3 et 8 ; droite : 4 à 7 et 12).
 | Rapport physique du trainer | plateau / pignon réellement engagés, ex. 50 × 17 | à renseigner (utilisé par la stratégie réaliste) |
 | Circonférence de roue | 2,105 m (700 × 25c) | 2,105 m |
 | Rapport de départ | index | milieu de plage |
+
+**Mode 24 vitesses (réglage « Type de boîte de vitesses »)** : une seule échelle de 24 rapports numérotés, sans plateau, comme sur Zwift. Les rapports vont de 1,0 (34×34) à 4,55 (50×11), chacun un cran plus dur que le précédent (même écart de proportion), départ vers 12 / 24 ; le HUD affiche « n / 24 » (1 = le plus facile). Les boutons de plateau ne font rien dans ce mode, la cassette et la transmission personnalisée sont grisées. La plage est un choix du projet, pas celle de Zwift.
 
 Cassettes proposées (plateaux 50/34) : 10 v 11–28, 11 v 11–28, **12 v 11–34** (défaut), 13 v 11–34.
 
