@@ -1,6 +1,14 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { CASSETTE_SPEEDS, CASSETTES, Gearbox, gearSpeedMs, roadDrivetrain } from './gearing';
+import {
+  CASSETTE_SPEEDS,
+  CASSETTES,
+  Gearbox,
+  gearSpeedMs,
+  LADDER_SPEEDS,
+  ladderDrivetrain,
+  roadDrivetrain,
+} from './gearing';
 import {
   DEFAULT_TRAINER_CONTROLLER_OPTIONS,
   feltGrade,
@@ -167,5 +175,53 @@ describe('TrainerController', () => {
         },
       ),
     );
+  });
+});
+
+describe('ladder drivetrain (speeds 1 to 24, no chainring)', () => {
+  it('has 24 distinct ratios from 1.0 to the hardest road ratio, each step harder', () => {
+    const box = new Gearbox(ladderDrivetrain());
+    expect(box.cogCount).toBe(LADDER_SPEEDS);
+    expect(box.chainrings).toHaveLength(1);
+    const ratios: number[] = [];
+    while (box.shiftDown()) {}
+    ratios.push(box.gear.ratio);
+    while (box.shiftUp()) ratios.push(box.gear.ratio);
+    expect(ratios).toHaveLength(LADDER_SPEEDS);
+    expect(ratios[0]).toBeCloseTo(1, 6);
+    expect(ratios.at(-1)).toBeCloseTo(50 / 11, 6);
+    for (let i = 1; i < ratios.length; i++) {
+      expect(ratios[i]).toBeGreaterThan(ratios[i - 1] ?? 0);
+    }
+  });
+
+  it('is labelled "n / 24", 1 being the easiest, and stops at both ends', () => {
+    const box = new Gearbox(ladderDrivetrain());
+    while (box.shiftDown()) {}
+    expect(box.label()).toBe('1 / 24');
+    expect(box.shiftDown()).toBe(false);
+    while (box.shiftUp()) {}
+    expect(box.label()).toBe('24 / 24');
+    expect(box.shiftUp()).toBe(false);
+  });
+
+  it('starts in the middle and ignores the front shifts', () => {
+    const box = new Gearbox(ladderDrivetrain());
+    const start = box.label();
+    expect(Number(start.split(' / ')[0])).toBeGreaterThanOrEqual(10);
+    expect(Number(start.split(' / ')[0])).toBeLessThanOrEqual(15);
+    expect(box.shiftFrontUp()).toBe(false);
+    expect(box.shiftFrontDown()).toBe(false);
+    expect(box.label()).toBe(start);
+    expect(box.shiftUp()).toBe(true);
+    expect(box.reset()).toBe(true);
+    expect(box.label()).toBe(start);
+  });
+
+  it('keeps the same range for another number of speeds', () => {
+    const box = new Gearbox(ladderDrivetrain(12));
+    expect(box.cogCount).toBe(12);
+    while (box.shiftUp()) {}
+    expect(box.gear.ratio).toBeCloseTo(50 / 11, 6);
   });
 });

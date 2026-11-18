@@ -16,6 +16,11 @@ export interface DrivetrainConfig {
   /** Cog teeth, any order. */
   cassette: readonly number[];
   wheelCircumferenceM: number;
+  /**
+   * Single ladder of numbered speeds (1 = easiest) with no chainring, like
+   * Zwift: the label is "14 / 24" and front shifts do nothing.
+   */
+  ladder?: boolean;
 }
 
 export const CASSETTE_SPEEDS = [10, 11, 12, 13] as const;
@@ -44,6 +49,25 @@ export function roadDrivetrain(speeds: CassetteSpeeds = DEFAULT_CASSETTE_SPEEDS)
     cassette: CASSETTES[speeds],
     wheelCircumferenceM: WHEEL_700x25_M,
   };
+}
+
+export const LADDER_SPEEDS = 24;
+
+/**
+ * Zwift-style drivetrain: `speeds` numbered speeds on a single chainring, no
+ * chainring to manage. The ratios run geometrically (each speed a constant
+ * step harder) over the same range as the road preset, from 34×34 to 50×11.
+ */
+export function ladderDrivetrain(speeds = LADDER_SPEEDS): DrivetrainConfig {
+  const n = Math.max(2, Math.round(speeds));
+  const chainring = ROAD_CHAINRINGS[1];
+  const easiest = 1; // 34×34
+  const hardest = chainring / 11;
+  const cassette = Array.from({ length: n }, (_, i) => {
+    const ratio = easiest * (hardest / easiest) ** (i / (n - 1));
+    return chainring / ratio;
+  });
+  return { chainrings: [chainring], cassette, wheelCircumferenceM: WHEEL_700x25_M, ladder: true };
 }
 
 /** Speed imposed by a ratio at a cadence, in m/s (informative: the game speed comes from power). */
@@ -162,8 +186,10 @@ export class Gearbox {
     return this.set(this.start.front, this.start.rear);
   }
 
-  /** "50×17". */
+  /** "50×17", or "14 / 24" on a ladder drivetrain. */
   label(): string {
+    // Cogs run from the largest (easiest, speed 1) to the smallest.
+    if (this.config.ladder) return `${this.rear + 1} / ${this.cogs.length}`;
     const g = this.gear;
     return `${g.chainring}×${g.cog}`;
   }

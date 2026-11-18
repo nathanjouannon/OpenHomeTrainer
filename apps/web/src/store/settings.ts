@@ -41,6 +41,8 @@ export interface Settings {
   /** 3D backend: WebGPU when available (auto) or always WebGL2. */
   renderer: RendererPreference;
   virtualShifting: boolean;
+  /** `ladder`: speeds 1 to 24 with no chainring (like Zwift); `chainrings`: chainrings and cassette. */
+  gearMode: GearMode;
   /** Number of cogs of the virtual cassette (50/34 chainrings). */
   cassetteSpeeds: CassetteSpeeds;
   /** The rider's own chainrings and cassette; null: the 50/34 preset above. */
@@ -87,6 +89,7 @@ export const defaultSettings = (): Settings => ({
   quality: 'auto',
   renderer: 'auto',
   virtualShifting: true,
+  gearMode: 'chainrings',
   cassetteSpeeds: DEFAULT_CASSETTE_SPEEDS,
   customDrivetrain: null,
   physicalChainring: null,
@@ -97,6 +100,8 @@ export const defaultSettings = (): Settings => ({
   hudSize: 'M',
   reduceMotion: false,
 });
+
+export type GearMode = 'chainrings' | 'ladder';
 
 const KEY = 'hrt.settings.v1';
 
@@ -123,6 +128,7 @@ function load(): Settings {
     if (!CAMERA_MODES.includes(saved.camera as CameraMode)) delete saved.camera;
     // Older settings: drivetrain presets became a cassette size.
     delete (saved as Record<string, unknown>).drivetrainPreset;
+    if (saved.gearMode !== 'chainrings' && saved.gearMode !== 'ladder') delete saved.gearMode;
     if (!isCassetteSpeeds(saved.cassetteSpeeds)) delete saved.cassetteSpeeds;
     if (!isCustomDrivetrain(saved.customDrivetrain)) delete saved.customDrivetrain;
     if (saved.shiftingStrategy !== 'grade' && saved.shiftingStrategy !== 'realistic') {

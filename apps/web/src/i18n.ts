@@ -209,6 +209,11 @@ const fr = {
   'settings.difficultyHelp':
     'Part de la pente réelle ressentie sur le trainer. Ne change pas la vitesse, seulement la sensation.',
   'settings.virtualShifting': 'Vitesses virtuelles',
+  'settings.gearMode': 'Type de boîte de vitesses',
+  'settings.gearModeHelp':
+    'Plateaux et cassette comme un vrai vélo, ou 24 vitesses numérotées de 1 à 24 sans plateau, comme sur Zwift (les boutons de plateau ne font rien).',
+  'settings.gearModeChainrings': 'Plateaux et cassette',
+  'settings.gearModeLadder': '24 vitesses (1 à 24, sans plateau)',
   'settings.cassette': 'Cassette virtuelle (plateaux 50/34)',
   'settings.cassetteOption': '{speeds} vitesses ({min}–{max})',
   'settings.customDrivetrain': 'Transmission personnalisée',
@@ -553,6 +558,11 @@ const en: Record<MessageKey, string> = {
   'settings.difficultyHelp':
     'Share of the real grade you feel on the trainer. It does not change the speed, only the feel.',
   'settings.virtualShifting': 'Virtual shifting',
+  'settings.gearMode': 'Gearbox type',
+  'settings.gearModeHelp':
+    'Chainrings and cassette like a real bike, or 24 numbered speeds from 1 to 24 with no chainring, like Zwift (the chainring buttons do nothing).',
+  'settings.gearModeChainrings': 'Chainrings and cassette',
+  'settings.gearModeLadder': '24 speeds (1 to 24, no chainring)',
   'settings.cassette': 'Virtual cassette (50/34 chainrings)',
   'settings.cassetteOption': '{speeds} speeds ({min}–{max})',
   'settings.customDrivetrain': 'Custom drivetrain',

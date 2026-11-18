@@ -171,11 +171,21 @@ export function SettingsPage() {
           />
           {t('settings.virtualShifting')}
         </label>
+        <Field label={t('settings.gearMode')} help={t('settings.gearModeHelp')}>
+          <select
+            value={s.gearMode}
+            disabled={!s.virtualShifting}
+            onChange={(e) => updateSettings({ gearMode: e.target.value as Settings['gearMode'] })}
+          >
+            <option value="chainrings">{t('settings.gearModeChainrings')}</option>
+            <option value="ladder">{t('settings.gearModeLadder')}</option>
+          </select>
+        </Field>
         <label className="check">
           <input
             type="checkbox"
             checked={s.customDrivetrain !== null}
-            disabled={!s.virtualShifting}
+            disabled={!s.virtualShifting || s.gearMode === 'ladder'}
             onChange={(e) =>
               updateSettings({
                 customDrivetrain: e.target.checked
@@ -186,7 +196,7 @@ export function SettingsPage() {
           />
           {t('settings.customDrivetrain')}
         </label>
-        {s.virtualShifting && s.customDrivetrain && (
+        {s.virtualShifting && s.gearMode === 'chainrings' && s.customDrivetrain && (
           <>
             <Field label={t('settings.customChainrings')} help={t('settings.teethHelp')}>
               <TeethInput
@@ -219,7 +229,7 @@ export function SettingsPage() {
         <Field label={t('settings.cassette')}>
           <select
             value={s.cassetteSpeeds}
-            disabled={!s.virtualShifting || s.customDrivetrain !== null}
+            disabled={!s.virtualShifting || s.gearMode === 'ladder' || s.customDrivetrain !== null}
             onChange={(e) =>
               updateSettings({ cassetteSpeeds: Number(e.target.value) as CassetteSpeeds })
             }

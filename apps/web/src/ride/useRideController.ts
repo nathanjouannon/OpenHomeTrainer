@@ -2,7 +2,7 @@
 // incremental saving, wake lock and keyboard actions.
 
 import type { TrainerCommand } from '@hrt/drivetrain';
-import { customDrivetrain, roadDrivetrain } from '@hrt/drivetrain';
+import { customDrivetrain, ladderDrivetrain, roadDrivetrain } from '@hrt/drivetrain';
 import { DEFAULT_RIDER_PARAMS } from '@hrt/physics';
 import { type RideHeader, RideSaver } from '@hrt/recorder';
 import type { Route } from '@hrt/route-engine';
@@ -98,9 +98,11 @@ export function useRideController(
       ghost,
       segmentBest: (id) => getSegmentBest(route.id, id),
       drivetrain: s.virtualShifting
-        ? s.customDrivetrain
-          ? customDrivetrain(s.customDrivetrain)
-          : roadDrivetrain(s.cassetteSpeeds)
+        ? s.gearMode === 'ladder'
+          ? ladderDrivetrain()
+          : s.customDrivetrain
+            ? customDrivetrain(s.customDrivetrain)
+            : roadDrivetrain(s.cassetteSpeeds)
         : null,
       strategy: s.shiftingStrategy,
       difficulty: s.difficulty,
