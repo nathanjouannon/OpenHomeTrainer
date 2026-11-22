@@ -7,7 +7,13 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/*.md", "!docs/design", "!apps/web/src/design/hrt.css"]
+    "includes": [
+      "**",
+      "!**/*.md",
+      "!docs/design",
+      "!apps/web/src/design/hrt.css",
+      "!apps/web/src/design/hrt-erg.css"
+    ]
   },
   "formatter": {
     "enabled": true,

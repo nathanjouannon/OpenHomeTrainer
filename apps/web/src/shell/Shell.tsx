@@ -15,6 +15,7 @@ interface NavEntry {
     | 'nav.devices'
     | 'nav.routes'
     | 'nav.workouts'
+    | 'nav.erg'
     | 'nav.controls'
     | 'nav.history'
     | 'nav.settings';
@@ -25,6 +26,7 @@ const NAV: NavEntry[] = [
   { page: 'devices', href: '#/devices', icon: 'devices', label: 'nav.devices' },
   { page: 'routes', href: '#/routes', icon: 'routes', label: 'nav.routes' },
   { page: 'workouts', href: '#/workouts', icon: 'workouts', label: 'nav.workouts' },
+  { page: 'erg', href: '#/erg', icon: 'workouts', label: 'nav.erg' },
   { page: 'controls', href: '#/controls', icon: 'controls', label: 'nav.controls' },
   { page: 'rides', href: '#/rides', icon: 'history', label: 'nav.history' },
   { page: 'settings', href: '#/settings', icon: 'settings', label: 'nav.settings' },

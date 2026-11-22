@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { useT } from './i18n';
 import { ControlsPage } from './pages/ControlsPage';
 import { DevicesPage } from './pages/DevicesPage';
+import { ErgPage, ErgRunPage } from './pages/ErgPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { HomePage } from './pages/HomePage';
 import { RoutesPage } from './pages/RoutesPage';
@@ -18,9 +19,11 @@ const RidePage = lazy(() => import('./pages/RidePage'));
 const BenchPage = lazy(() => import('./bench/BenchPage'));
 
 export function App() {
-  const { page } = useLocation();
+  const { page, params } = useLocation();
   // The ride, the dev pages and the bench draw their own full-screen layout.
-  if (page === 'ride' || page === 'bench') return <Routes />;
+  if (page === 'ride' || page === 'bench' || (page === 'erg' && params[0] === 'run')) {
+    return <Routes />;
+  }
   return (
     <Shell>
       <Routes />
@@ -41,6 +44,8 @@ function Routes() {
       return <WorkoutsPage />;
     case 'routes':
       return <RoutesPage />;
+    case 'erg':
+      return params[0] === 'run' ? <ErgRunPage /> : <ErgPage />;
     case 'ride': {
       const [worldId, routeId] = params;
       if (!worldId || !routeId) return <RoutesPage />;

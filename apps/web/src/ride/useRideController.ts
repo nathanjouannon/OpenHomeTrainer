@@ -194,6 +194,8 @@ export function useRideController(
       dispatcher.on('ergToggle', () => session.toggleErg()),
       dispatcher.on('ergUp', () => session.adjustErg(ERG_STEP_W)),
       dispatcher.on('ergDown', () => session.adjustErg(-ERG_STEP_W)),
+      dispatcher.on('ergUp10', () => session.adjustErg(2 * ERG_STEP_W)),
+      dispatcher.on('ergDown10', () => session.adjustErg(-2 * ERG_STEP_W)),
       dispatcher.on('simPowerUp', () => deviceHub.simulatedTrainer?.adjustRiderPower(1)),
       dispatcher.on('simPowerDown', () => deviceHub.simulatedTrainer?.adjustRiderPower(-1)),
       dispatcher.on('fullscreen', () => {

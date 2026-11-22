@@ -55,6 +55,8 @@ const REMOTE_NAMES: Record<string, string> = {
   shiftFrontDown: 'Front −',
   ergUp: 'ERG +',
   ergDown: 'ERG −',
+  ergUp10: 'ERG +10',
+  ergDown10: 'ERG −10',
   pause: 'Pause',
   cameraNext: 'Camera',
   lap: 'Lap',
@@ -114,7 +116,7 @@ function useZwiftControllers() {
   );
 }
 
-function useRemote() {
+export function useRemote() {
   return useSyncExternalStore(
     (cb) => remoteLink.onChange(cb),
     () => remoteLink.state,
@@ -122,7 +124,7 @@ function useRemote() {
 }
 
 /** QR code of an address, drawn as an image (no HTML injection). */
-function QrCode({ text }: { text: string }) {
+export function QrCode({ text }: { text: string }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
     let alive = true;

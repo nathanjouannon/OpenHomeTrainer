@@ -12,6 +12,7 @@ import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/700.css';
 import './styles.css';
 import './design/hrt.css';
+import './design/hrt-erg.css';
 
 errorLog.install();
 
