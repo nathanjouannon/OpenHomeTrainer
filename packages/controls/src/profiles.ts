@@ -139,6 +139,8 @@ const REMOTE: Binding[] = [
   rem('shiftFrontDown', 'shiftFrontDown'),
   rem('ergUp', 'ergUp', true),
   rem('ergDown', 'ergDown', true),
+  rem('ergUp10', 'ergUp10', true),
+  rem('ergDown10', 'ergDown10', true),
   rem('pause', 'pause'),
   rem('cameraNext', 'cameraNext'),
   rem('lap', 'lap'),

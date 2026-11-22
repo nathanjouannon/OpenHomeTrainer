@@ -13,7 +13,7 @@
   header { display:flex; justify-content:space-between; align-items:center; font-size:14px; color:var(--mute); }
   #state::before { content:"●"; margin-right:6px; color:var(--bad); }
   #state.ok::before { color:var(--ok); }
-  main { flex:1; display:grid; grid-template-rows: 3fr 2fr 2fr 1.4fr; gap:10px; min-height:0; }
+  main { flex:1; display:grid; grid-template-rows: 3fr 2fr 2fr 2fr 1.4fr; gap:10px; min-height:0; }
   .row { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:10px; min-height:0; }
   button { border:0; border-radius:18px; background:var(--btn); color:var(--fg); font:inherit; font-weight:700; font-size:clamp(18px, 5vw, 30px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:0; touch-action:manipulation; }
   button small { font-size:13px; font-weight:500; color:var(--mute); }
@@ -30,8 +30,12 @@
     <button type="button" class="big" data-b="shiftUp" aria-label="Rapport plus dur">+<small>Rapport</small></button>
   </div>
   <div class="row">
-    <button type="button" data-b="ergDown" aria-label="ERG moins">−5 W<small>ERG</small></button>
-    <button type="button" data-b="ergUp" aria-label="ERG plus">+5 W<small>ERG</small></button>
+    <button type="button" data-b="ergDown" aria-label="ERG moins 5 watts">−5 W<small>ERG</small></button>
+    <button type="button" data-b="ergUp" aria-label="ERG plus 5 watts">+5 W<small>ERG</small></button>
+  </div>
+  <div class="row">
+    <button type="button" data-b="ergDown10" aria-label="ERG moins 10 watts">−10 W<small>ERG</small></button>
+    <button type="button" data-b="ergUp10" aria-label="ERG plus 10 watts">+10 W<small>ERG</small></button>
   </div>
   <div class="row">
     <button type="button" data-b="shiftFrontDown" aria-label="Petit plateau">Petit<small>plateau</small></button>

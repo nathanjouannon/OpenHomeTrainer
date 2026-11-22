@@ -3,7 +3,15 @@
 
 export const ACTION_CATEGORIES = {
   transmission: ['shiftUp', 'shiftDown', 'shiftFrontUp', 'shiftFrontDown'],
-  training: ['ergToggle', 'ergUp', 'ergDown', 'intervalNext', 'intervalPrev'],
+  training: [
+    'ergToggle',
+    'ergUp',
+    'ergDown',
+    'ergUp10',
+    'ergDown10',
+    'intervalNext',
+    'intervalPrev',
+  ],
   ride: ['pause', 'pauseOn', 'resume', 'lap'],
   camera: ['camera1', 'camera2', 'camera3', 'camera4', 'cameraNext', 'cameraPrev', 'cameraFree'],
   interface: ['toggleHud', 'fullscreen'],
@@ -25,6 +33,8 @@ export const REPEATABLE_ACTIONS: ReadonlySet<ControlAction> = new Set([
   'shiftDown',
   'ergUp',
   'ergDown',
+  'ergUp10',
+  'ergDown10',
   'simPowerUp',
   'simPowerDown',
 ]);
