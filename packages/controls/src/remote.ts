@@ -11,6 +11,8 @@ export const REMOTE_BUTTONS = [
   'shiftFrontDown',
   'ergUp',
   'ergDown',
+  'ergUp10',
+  'ergDown10',
   'pause',
   'cameraNext',
   'lap',
